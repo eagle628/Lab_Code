@@ -5,7 +5,7 @@ warning('off')
     end
     den = [1,params(1:dim)];
     num = params(dim+1:end);
-
+    
     P_hat = tf(num,den);
 
     S_hat = 1/(1+P_hat*K);
@@ -40,7 +40,7 @@ function tf_sys = sym2tf(sym_sys,params)
 %     a = sym('a',[dim, 1]);
 %     b = sym('b',[dim+1, 1]);
 %     sym_sys = subs(sym_sys, [a ; b], params');
-    sym_sys = subs(sym_sys, var(1:end-1), params');
+    sym_sys = subs(sym_sys, var(1:end-1), params);
     [num_s, den_s] = numden(sym_sys);
 %     syms s
     num = double(fliplr(coeffs(num_s, var(end))));
