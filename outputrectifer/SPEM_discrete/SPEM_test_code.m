@@ -3,7 +3,7 @@ clear
 close all
 %% Generate Network
 seed = 3;
-n = network_swing_simple(2, [1,2], [2,10]*1e-2, 1, [1,5], 0.1, seed);
+n = network_swing_simple(3, [1,2], [2,10]*1e-2, 1, [1,5], 0.1, seed);
 n.Adj_ref = n.Adj_ref*0;
 n.plot()
 %% control & noise Node
@@ -37,7 +37,7 @@ t = (0:N-1)'*Ts;
 % cn3 = dsp.ColoredNoise('Color','white','SamplesPerFrame',N,'NumChannels',2+numel(n_n)*2,'RandomStream','mt19937ar with seed','Seed',sim_seed);
 % d = cn3();
 rng('shuffle')
-d = randn(N,2+numel(n_n));
+d = randn(N,2+numel(n_n)*2);
 d(:,1:2) = (d(:,1:2)+0.5)*id_in_p;
 d(:,3:end) = d(:,3:end)*noise_p;
 clear cn3;
@@ -49,7 +49,7 @@ w = lsim(sys_org(ob_w, cat(2,ID_in,Noise)), d, t);
 data = iddata(v,w,Ts);
 %     data = resample(data,1,1);
 %% init system
-dim = 2;
+dim = 4;
 % init_sys = arx(data,[dim,dim+1,0]);
     init_sys = armax(data,[dim,dim+1,dim,0]);
 %     init_sys = oe(data,[dim+1,dim,0]);
@@ -57,7 +57,8 @@ dim = 2;
 sys_rect = sys_local({'omega','w'},{'v'}); 
 sys_rect = c2d(sys_rect,data.Ts,'foh');
 
-init_TF = tf(init_sys);
+% init_TF = tf(init_sys);
+init_TF = tf(c2d(sys_env,data.Ts));
 init_params = [init_TF.Denominator{:}(2:end),init_TF.Numerator{:}];
 %     stable = 0;
 %     while ~stable
