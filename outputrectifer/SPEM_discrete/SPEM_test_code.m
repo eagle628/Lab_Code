@@ -34,10 +34,12 @@ end
 N = 100000;
 Ts = 0.01;
 t = (0:N-1)'*Ts;
-cn3 = dsp.ColoredNoise('Color','white','SamplesPerFrame',N,'NumChannels',2+numel(n_n)*2,'RandomStream','mt19937ar with seed','Seed',sim_seed);
-d = cn3();
-d(:,1:2) = d(:,1:2)*id_in_p;
-d(:,3:end) = (d(:,3:end)-0.5)*noise_p;
+% cn3 = dsp.ColoredNoise('Color','white','SamplesPerFrame',N,'NumChannels',2+numel(n_n)*2,'RandomStream','mt19937ar with seed','Seed',sim_seed);
+% d = cn3();
+rng('shuffle')
+d = randn(N,2+numel(n_n));
+d(:,1:2) = (d(:,1:2)+0.5)*id_in_p;
+d(:,3:end) = d(:,3:end)*noise_p;
 clear cn3;
 % simulation
 % R = 10;
@@ -118,14 +120,14 @@ figure_config.plot_bode(H.axes,omega_env,mag_env,pha_env,{'b-','linewidth',3.0})
 [mag_env,pha_env,omega_env] = bode(final_model,{10^min,10^max});
 mag_env=squeeze(mag_env(1,1,:));
 pha_env=squeeze(pha_env(1,1,:));
-figure_config.plot_bode(H.axes,omega_env,mag_env,pha_env,{'r-','linewidth',1.0})
+figure_config.plot_bode(H.axes,omega_env,mag_env,pha_env,{'r-','linewidth',2.0})
 
 [mag_env,pha_env,omega_env] = bode(init_sys,{10^min,10^max});
 mag_env=squeeze(mag_env(1,1,:));
 pha_env=squeeze(pha_env(1,1,:));
-figure_config.plot_bode(H.axes,omega_env,mag_env,pha_env,{'g:','linewidth',0.8})
+figure_config.plot_bode(H.axes,omega_env,mag_env,pha_env,{'g:','linewidth',2.0})
 
 [mag_env,pha_env,omega_env] = bode(compare,{10^min,10^max});
 mag_env=squeeze(mag_env(1,1,:));
 pha_env=squeeze(pha_env(1,1,:));
-figure_config.plot_bode(H.axes,omega_env,mag_env,pha_env,{'k-','linewidth',1.0})
+figure_config.plot_bode(H.axes,omega_env,mag_env,pha_env,{'k-','linewidth',2.0})
