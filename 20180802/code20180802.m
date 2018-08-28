@@ -35,15 +35,11 @@ control_node_o = 1;
 %% Identification SN
 id_SN = 0.1;
 id_noise_node = [2];      % identification noise point
-%% Identification Method
-id_method = 'ARMAX'; % ARMAX or OE
 %% Add node Number
 number_add = 1; % number of add node
 %% Add Controller point
 control_node_a1 = 2;
 control_node_a2 = 3;
-%% Number of Iteration
-ITR = 1; 
 %% simulation noise point & power
 noise_point = [control_node_a1,control_node_a2,4];
 % noise_power = 0.1;
@@ -123,25 +119,25 @@ R = kron(eye(1*numel(control_node_o)),diag([1e-3]));
 n_ori.controllers = {};
 n_ori.add_controller( control_node_o, sys_env_o1, Q, R);
 
-n_ori.add_controller( control_node_a1, sys_env_o2, Q, R);
-% n_ori.add_controller( control_node_a1, Q, R);
+% n_ori.add_controller( control_node_a1, sys_env_o2, Q, R);
+n_ori.add_controller( control_node_a1, Q, R);
 sys_ori_extend2 = n_ori.get_sys_controlled(sys_ori);
 %% Add 2 Controller for add system (Ideal Extend)
 n_add.controllers = {};
 n_add.add_controller( control_node_o, sys_env_o1, Q, R);
 
-n_add.add_controller( control_node_a1, sys_env_o2, Q, R);
-% n_add.add_controller( control_node_a1,  Q, R);
+% n_add.add_controller( control_node_a1, sys_env_o2, Q, R);
+n_add.add_controller( control_node_a1,  Q, R);
 
 sys_add_extend2 = n_add.get_sys_controlled(sys_add);
 %% Add 3 Controller for original system (Ideal Extend)
 n_ori.controllers = {};
 n_ori.add_controller( control_node_o, sys_env_o1, Q, R);
 
-n_ori.add_controller( control_node_a1, sys_env_o2, Q, R);
-% n_ori.add_controller( control_node_a1, Q, R);
-n_ori.add_controller( control_node_a2, sys_env_o3, Q, R);
-% n_ori.add_controller( control_node_a2, Q, R);
+% n_ori.add_controller( control_node_a1, sys_env_o2, Q, R);
+n_ori.add_controller( control_node_a1, Q, R);
+% n_ori.add_controller( control_node_a2, sys_env_o3, Q, R);
+n_ori.add_controller( control_node_a2, Q, R);
 sys_ori_extend3 = n_ori.get_sys_controlled(sys_ori);
 %% Remove Controller for original system
 % 2番目のコントローラを排除
@@ -174,10 +170,10 @@ sim_noise(:,2) = noise(:,2);
 % sim_noise(:,3:end) = sim_noise(:,3:end)*noise_power;
 
 rng('shuffle');
-add_node_initial = (rand(1,2)-0.5);
+add_node_initial = randn(1,2);
 %add_node_initial = [0,0];
 rng('shuffle');
-add_controller_initial = (rand(1,6)-0.5);
+add_controller_initial = randn(1,6);
 %add_controller_initial = 0;
 
 Noise_port = {local_noise_p{:},sim_noise_p{:}};

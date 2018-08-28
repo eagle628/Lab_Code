@@ -50,9 +50,9 @@ data = iddata(v,w,Ts);
 %     data = resample(data,1,1);
 %% init system
 dim = 4;
-% init_sys = arx(data,[dim,dim+1,0]);
-    init_sys = armax(data,[dim,dim+1,dim,0]);
-%     init_sys = oe(data,[dim+1,dim,0]);
+init_sys = arx(data,[dim,dim+1,0]);
+% init_sys = armax(data,[dim,dim+1,dim,0]);
+% init_sys = oe(data,[dim+1,dim,0]);
 %% Stabilized Prediction Error Method
 sys_rect = sys_local({'omega','w'},{'v'}); 
 sys_rect = c2d(sys_rect,data.Ts,'foh');

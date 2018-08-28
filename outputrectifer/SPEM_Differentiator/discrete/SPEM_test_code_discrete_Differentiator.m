@@ -1,17 +1,17 @@
 clear 
 close all
 %% Generate Network
-seed = 2;
-Node_number = 4;
+seed = 3;
+Node_number = 3;
 n = network_swing_simple(Node_number, [1,2], [2,10]*1e-2, 1, [1,5], 0.1, seed);
 n.Adj_ref = n.Adj_ref*0;
 n.plot()
 %% control & noise Node
-c_n = 4;
+c_n = 2;
 n_n = [1];
 %% signal power
 id_in_p = 1;
-noise_p = 0;
+noise_p = 0.1;
 %% simlationi noise seed
 sim_seed = 10;
 %% init system method
