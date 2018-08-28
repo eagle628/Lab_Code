@@ -1,17 +1,17 @@
 clear 
 close all
 %% Generate Network
-seed = 2;
-Node_number = 4;
+seed = 3;
+Node_number = 3;
 n = network_swing_simple(Node_number, [1,2], [2,10]*1e-2, 1, [1,5], 0.1, seed);
 n.Adj_ref = n.Adj_ref*0;
 n.plot()
 %% control & noise Node
-c_n = 4;
-n_n = [1];
+c_n = 1;
+n_n = [2];
 %% signal power
 id_in_p = 1;
-noise_p = 0;
+noise_p = 0.1;
 %% simlationi noise seed
 sim_seed = 10;
 %% init system method
@@ -50,9 +50,9 @@ data = iddata(v,w,Ts);
 %     data = resample(data,1,1);
 %% init system
 dim = 2*(Node_number-1);
-d_ID = arx(data,[dim,dim+1,0]);
+% d_ID = arx(data,[dim,dim+1,0]);
 % d_ID = armax(data,[dim,dim+1,dim,0]);
-% d_ID = oe(data,[dim+1,dim,0]);
+d_ID = oe(data,[dim+1,dim,0]);
 %% Stabilized Prediction Error Method
 sys_rect = sys_local({'omega','w'},{'v'});
 sys_rect = c2d(sys_rect,data.Ts);
@@ -63,7 +63,7 @@ opt.Display = 'iter-detailed';
 opt.FiniteDifferenceType = 'central';
 opt.FunctionTolerance = 1e-12;
 opt.OptimalityTolerance = 1e-10;
-opt.StepTolerance = 1e-10;
+opt.StepTolerance = 1e-15;
 opt.MaxFunctionEvaluations = 10000;
 % opt.SpecifyObjectiveGradient = true;
 opt.DiffMaxChange = 1e-8;
@@ -99,5 +99,4 @@ final_model = tf(B,[1,A],data.Ts)*tf([1,-1],1,data.Ts);
 
 figure
 bode(sys_env,d_ID,final_model)
-legend('original','ARX','SPEM')
 %}
