@@ -36,18 +36,18 @@ Ts = 0.01;
 t = (0:N-1)'*Ts;
 % cn3 = dsp.ColoredNoise('Color','white','SamplesPerFrame',N,'NumChannels',2+numel(n_n)*2,'RandomStream','mt19937ar with seed','Seed',sim_seed);
 % d = cn3();
+% clear cn3;
 rng('shuffle')
 den = rand(N,2+numel(n_n)*2);
 den(:,1:2) = den(:,1:2)*id_in_p;
 den(:,3:end) = (den(:,3:end)-0.5)*noise_p;
-clear cn3;
 % simulation
 % R = 10;
 % Response of v&w 
 v = lsim(sys_org(ob_v, cat(2,ID_in,Noise)), den, t);
 w = lsim(sys_org(ob_w, cat(2,ID_in,Noise)), den, t);
 data = iddata(v,w,Ts);
-%     data = resample(data,1,1);
+% data = resample(data,1,5);
 %% init system
 dim = 2*(Node_number-1);
 d_ID = arx(data,[dim,dim+1,0]);

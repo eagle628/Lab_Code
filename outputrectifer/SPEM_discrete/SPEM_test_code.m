@@ -86,19 +86,15 @@ M = 30;
 rng('shuffle')
 nvar = dim*2+1;
 init_params = zeros(M,nvar);
-% for itr = 1:M
-%     stable = 0;
-%     while ~stable
-%         rand_sys = rss(dim);
-%         rand_sys = c2d(rand_sys,data.Ts);
-%         all = loopsens(rand_sys,-sys_rect({'w'}));
-%         stable = all.Stable;
-%     end
-%     [num,den] = tfdata(rand_sys,'v');
-%     init_params(itr,:) = [den(2:end),num];
-% end
 for itr = 1:M
-    rand_sys = rss(dim);
+    stable = 0;
+    while ~stable
+        rand_params = randn(1,2*dim);
+        rand_sys = tf([0,rand_params(dim+1:end)],[1,rand_params(1:dim)],data.Ts);
+        rand_sys = rand_sys * tf([1,-1],1,data.Ts);
+        all = loopsens(rand_sys,-sys_rect({'w'}));
+        stable = (sum(abs(all.Poles) <= 1) == 4);
+    end
     [num,den] = tfdata(rand_sys,'v');
     init_params(itr,:) = [den(2:end),num];
 end
@@ -106,7 +102,7 @@ end
 opt = optimoptions('particleswarm'); 
 opt.Display = 'iter';
 opt.SwarmSize = M;
-opt.MaxStallIterations = 100;
+opt.MaxStallIterations = 20;
 opt.InitialSwarmMatrix = init_params;
 opt.UseParallel = true;
 cost_func_pso = @(params)sum(sum((Hanse_cost_func(params,data,-sys_rect({'w'}),dim)).^2));
