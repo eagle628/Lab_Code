@@ -12,7 +12,7 @@ c_n = 1;
 n_n = [2];
 %% signal power
 id_in_p = 1;
-noise_p = 0.1;
+noise_p = 1;
 %% simlationi noise seed
 sim_seed = 10;
 %% init system method
@@ -60,53 +60,53 @@ sys_rect = c2d(sys_rect,data.Ts,'foh');
 
 
 %%%%%%%%%%%%%%%% lsqnonlin
-% % init_TF = tf(init_sys);
+init_TF = tf(init_sys);
 % init_TF = tf(c2d(sys_env,data.Ts));
-% init_params = [init_TF.Denominator{:}(2:end),init_TF.Numerator{:}];
-% 
-% % optimiztion option
-% opt = optimoptions('lsqnonlin');
-% opt.UseParallel = true;
-% opt.Display = 'iter-detailed';
-% opt.FiniteDifferenceType = 'central';
-% opt.FunctionTolerance = 1e-7;
-% opt.OptimalityTolerance = 1e-7;
-% opt.StepTolerance = 1e-7;
-% opt.MaxFunctionEvaluations = 5000;
-% % opt.DiffMaxChange = 1e-8;
-% % obj.option.SpecifyObjectiveGradient = true;
-% 
-% % Assign
-% cost_func = @(params)Hanse_cost_func(params,data,-sys_rect({'w'}),dim);
-% [final_params,resnorm,residual,exitflag,output] = lsqnonlin(cost_func,init_params,[],[],opt);
+init_params = [init_TF.Denominator{:}(2:end),init_TF.Numerator{:}];
+
+% optimiztion option
+opt = optimoptions('lsqnonlin');
+opt.UseParallel = true;
+opt.Display = 'iter-detailed';
+opt.FiniteDifferenceType = 'central';
+opt.FunctionTolerance = 1e-7;
+opt.OptimalityTolerance = 1e-7;
+opt.StepTolerance = 1e-7;
+opt.MaxFunctionEvaluations = 5000;
+opt.DiffMaxChange = 1e-10;
+% obj.option.SpecifyObjectiveGradient = true;
+
+% Assign
+cost_func = @(params)Hanse_cost_func(params,data,-sys_rect({'w'}),dim);
+[final_params,resnorm,residual,exitflag,output] = lsqnonlin(cost_func,init_params,[],[],opt);
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%%%%%%%%%%% partcle swarm
-M = 30;
-rng('shuffle')
-nvar = dim*2+1;
-init_params = zeros(M,nvar);
-for itr = 1:M
-    stable = 0;
-    while ~stable
-        rand_params = randn(1,2*dim);
-        rand_sys = tf([0,rand_params(dim+1:end)],[1,rand_params(1:dim)],data.Ts);
-        rand_sys = rand_sys * tf([1,-1],1,data.Ts);
-        all = loopsens(rand_sys,-sys_rect({'w'}));
-        stable = (sum(abs(all.Poles) <= 1) == 4);
-    end
-    [num,den] = tfdata(rand_sys,'v');
-    init_params(itr,:) = [den(2:end),num];
-end
-
-opt = optimoptions('particleswarm'); 
-opt.Display = 'iter';
-opt.SwarmSize = M;
-opt.MaxStallIterations = 20;
-opt.InitialSwarmMatrix = init_params;
-opt.UseParallel = true;
-cost_func_pso = @(params)sum(sum((Hanse_cost_func(params,data,-sys_rect({'w'}),dim)).^2));
-[final_params,fval,exitflag,output] = particleswarm(cost_func_pso, nvar, [], [], opt);
+% M = 30;
+% rng('shuffle')
+% nvar = dim*2+1;
+% init_params = zeros(M,nvar);
+% for itr = 1:M
+%     stable = 0;
+%     while ~stable
+%         rand_params = randn(1,2*dim);
+%         rand_sys = tf([0,rand_params(dim+1:end)],[1,rand_params(1:dim)],data.Ts);
+%         rand_sys = rand_sys * tf([1,-1],1,data.Ts);
+%         all = loopsens(rand_sys,-sys_rect({'w'}));
+%         stable = (sum(abs(all.Poles) <= 1) == 4);
+%     end
+%     [num,den] = tfdata(rand_sys,'v');
+%     init_params(itr,:) = [den(2:end),num];
+% end
+% 
+% opt = optimoptions('particleswarm'); 
+% opt.Display = 'iter';
+% opt.SwarmSize = M;
+% opt.MaxStallIterations = 20;
+% opt.InitialSwarmMatrix = init_params;
+% opt.UseParallel = true;
+% cost_func_pso = @(params)sum(sum((Hanse_cost_func(params,data,-sys_rect({'w'}),dim)).^2));
+% [final_params,fval,exitflag,output] = particleswarm(cost_func_pso, nvar, [], [], opt);
 %%%%%%%%%%%%%%%
 
 A = final_params(1:dim); 
@@ -119,16 +119,16 @@ compare = armax(data,[dim,dim+1,dim,0]);
 figure
 bode(sys_env,init_sys,final_model)
 hold on
-init_sys_set = cell(1,M);
-for itr = 1:M
-den = [1,init_params(itr,1:dim)];
-num = init_params(itr,dim+1:end);
-sys = tf(num,den,data.Ts);
-init_sys_set{itr} = sys;
-end
-for itr =1:M
-bode(init_sys_set{itr},'g:')
-end
+% init_sys_set = cell(1,M);
+% for itr = 1:M
+% den = [1,init_params(itr,1:dim)];
+% num = init_params(itr,dim+1:end);
+% sys = tf(num,den,data.Ts);
+% init_sys_set{itr} = sys;
+% end
+% for itr =1:M
+% bode(init_sys_set{itr},'g:')
+% end
 % H = figure_config.set_figure_bode('');
 % 
 % min = -6;
