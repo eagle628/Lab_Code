@@ -284,6 +284,7 @@ classdef network_swing_simple < handle
                 Adj_Mat = obj.Adj;
                 Adj_r = obj.Adj_ref;
             else
+                % Extract local system relation
                 Adj_Mat = obj.Adj(idx, idx);
                 if ref
                     Adj_r = obj.Adj_ref(idx);
@@ -453,17 +454,18 @@ classdef network_swing_simple < handle
             if nargout == 2
                 nidx = obj.get_not_idx(idx);
                 con = obj.Adj(nidx, idx);
-                J = -diag(sum(con)'+obj.Adj_ref(idx));
+                J = -diag(sum(con)'+obj.Adj_ref(idx)); % interconnection signal -Y_{ij}*\theta_{i} in v 
                 sys_e = obj.get_sys(obj.get_not_idx(idx), true);
                 F = sys_e.a;
                 if isempty(F)
                     G = [];
                     H = [];
                 else
-                    Y = obj.Adj(obj.get_not_idx(idx), idx);
-                    G = sys_e(:, 'v').b*Y;
-                    H = Y'*sys_e('theta', :).c;
-                    D = -diag(sum(con, 2));
+%                     Y = obj.Adj(obj.get_not_idx(idx), idx);
+                    Y = obj.Adj(nidx, idx);
+                    G = sys_e(:, 'v').b*Y; % extract input v term (summarize by n_local) (otherwise "w")
+                    H = Y'*sys_e('theta', :).c; % interconnection signal Y_{ij}*\theta_{j} in v
+                    D = -diag(sum(con, 2)); % J?
                     F = F + sys_e(:, 'v').b*D*sys_e('theta', :).c;
                 end
                 sys_env = ss(F, G, H, J);
