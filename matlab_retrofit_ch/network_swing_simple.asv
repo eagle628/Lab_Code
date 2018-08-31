@@ -20,7 +20,7 @@ classdef network_swing_simple < handle
     methods
         % Generate Network
         % Y Garph Weight Control
-        % The bigger "rc" becomes, the more graph is density.
+        % rc small is sparse graph. and rc b
         function obj = network_swing_simple(N, m, d, b, Y, rc, seed)
             % Nargin Missing
             if nargin < 2
@@ -510,8 +510,7 @@ classdef network_swing_simple < handle
                 D_mat = diag(sum(Adj_Mat,2));
                 Lap_G = D_mat-Adj_Mat;
 %                 connect = sum(eig(Lap_G)<1e-5)==1;
-                connect = (sum(eig(Lap_G)<1e-5) + sum(eig(Lap_G)<0))==1;
-                    % Lap_G is semi-positive definit.
+                connect = sum(eig(Lap_G)<-1e-5)==1;
             end
             % Adjacency matrix
             obj.Adj = Adj_Mat;
