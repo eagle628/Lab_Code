@@ -3,7 +3,7 @@ clear
 close all
 %% Generate Network
 seed = 3;
-Node_number = 2;
+Node_number = 3;
 n = network_swing_simple(Node_number, [1,2], [2,10]*1e-2, 1, [1,5], 0.1, seed);
 n.Adj_ref = n.Adj_ref*0;
 n.plot()
