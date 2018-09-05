@@ -95,6 +95,9 @@ classdef figure_config
             if nargin < 2
                 position = [0,0,600,600];
             end
+            if nargin < 1
+                name = '';
+            end
             H.f = figure('Name',strcat('Bode_',name),'Position',position);
             H.axes.ax1 = subplot(2,1,1);
             hold on;
