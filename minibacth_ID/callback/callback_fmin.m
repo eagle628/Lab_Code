@@ -24,9 +24,9 @@ if itr == 0
 %     fprintf(']''');
 %     fprintf('\n');
     yh= yhat(x);
-    subplot(2,1,1),plot([y, yh(:)]);
+    subplot(3,1,1), plot([y, yh]);
     legend 'y' 'yhat'
-    subplot(2,1,2),plot([y-yh(:)]);
+    subplot(3,1,2), plot([y-yh]);
     drawnow
     
 elseif itr == inf
@@ -40,9 +40,9 @@ else
 %     fprintf(']''');
 %     fprintf('\n');
     yh= yhat(x);
-    subplot(2,1,1),plot([y, yh(:)]);
+    subplot(3,1,1), plot([y, yh]);
     legend 'y' 'yhat'
-    subplot(2,1,2),plot([y-yh(:)]);
+    subplot(3,1,2), plot([y-yh]);
     
     drawnow;
 end
