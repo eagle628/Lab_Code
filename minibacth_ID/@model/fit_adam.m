@@ -24,6 +24,13 @@ if nargin < 10
     weight = 1;
 end
 
+% H = struct();
+% H.axes = struct();
+% H.f = figure('Name','Callback');
+% H.axes.ax1 = subplot(3,1,1);
+% H.axes.ax2 = subplot(3,1,2);
+% H.axes.ax3 = subplot(3,1,3);
+
 func_callback = @(x, v, itr) callback_sgd(x, v, itr, y(:), @(x) obj.sim_fix(t, u, x));
 
 m = 0;
