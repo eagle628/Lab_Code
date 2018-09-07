@@ -16,13 +16,14 @@ func_callback = @(x, v, itr) callback_sgd(x, v, itr, y(:), @(x) obj.sim_fix(t, u
 
 vhistory = zeros(obj.max_iter, 1);
 for itr = 1:obj.max_iter
-%     weight = rand(size(y));
+    weight = rand(size(y))>=(1-weight);
     [v, dv] = obj.eval_func(t, u, y, theta, weight);
     vhistory(itr, 1) = v;
     theta = theta - learning_ratio * dv;
-%     if mod(itr, 100)==1
-        func_callback(theta, v, itr);
-%     end
+    if mod(itr, 10)==0
+        J = obj.eval_func(t, u, y, theta);
+        func_callback(theta, J, itr);
+    end
 end
 
 obj.set_params_fixed(theta);
