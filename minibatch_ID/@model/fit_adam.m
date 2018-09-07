@@ -1,4 +1,4 @@
-function [theta] = fit_adam(obj, t, u, y, theta, learning_ratio, rho1, rho2, epsilon, weight)
+function [theta ,Jhistory] = fit_adam(obj, t, u, y, theta, learning_ratio, rho1, rho2, epsilon, weight)
 
 if nargin < 5 || isempty(theta)
    theta = obj.get_params_fixed();

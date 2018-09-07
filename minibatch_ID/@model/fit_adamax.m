@@ -1,4 +1,4 @@
-function [theta] = fit_adamax(obj, t, u, y, theta, learning_ratio, rho1, rho2, weight)
+function [theta ,Jhistory] = fit_adamax(obj, t, u, y, theta, learning_ratio, rho1, rho2, weight)
 
 if nargin < 5 || isempty(theta)
    theta = obj.get_params_fixed();

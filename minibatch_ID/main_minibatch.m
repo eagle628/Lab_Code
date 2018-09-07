@@ -75,8 +75,8 @@ for itr = 1:maxitr
     % init
     init_sys = arx(iddata(v,w,Ts), [state, state+1, 0]); 
     init_params = sys2params(d2c(init_sys), state, in, out);
-%     m.fit_adam(t, [w, v], zeros(N, 1), init_params, 1e-5);
-    m.fit_adamax(t, [w, v], zeros(N, 1), init_params);
+%     [theta ,J] = m.fit_adam(t, [w, v], zeros(N, 1), init_params, 1e-5);
+    [theta ,J] = m.fit_adamax(t, [w, v], zeros(N, 1), init_params);
     %   eval_func内部の離散化は，あくまで，シミュレーション用であるので，
     %   出てくるパラメータ自体は，連続時間のもの
     model1 = m.gen_ss.gen_ss.get_sys();
