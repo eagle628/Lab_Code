@@ -37,8 +37,8 @@ classdef gen_ss_tridiag < gen_ss
                 obj.params{itr+b} = sprintf('theta_D_%d', itr);
             end
             obj.theta = zeros(numel(obj.params), 1);
-            obj.theta(1:n) = -0.5*(1:n);
-            obj.theta(3*n-1:end) = 0.1;
+%             obj.theta(1:n) = -0.5*(1:n);
+%             obj.theta(3*n-1:end) = 0.1;
         end
         
         function set_params(obj, theta)
@@ -172,6 +172,7 @@ classdef gen_ss_tridiag < gen_ss
     
 end
 
+%% local function
 function Js = get_jordan_blocks_old(A)
 J = jordan(A);
 idx = find(diag(J, 1)~=0);
