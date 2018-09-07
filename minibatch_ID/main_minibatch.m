@@ -3,12 +3,12 @@ close all
 %% Generate Network
 seed = 3;
 Node_number = 3;
-n = network_swing_simple(Node_number, [1,2], [2,10]*1e-2, 1, [1,5], 0.1, seed);
-n.Adj_ref = n.Adj_ref*0;
-n.plot()
+n_ori = network_swing_simple(Node_number, [1,2], [2,10]*1e-2, 1, [1,5], 0.1, seed);
+n_ori.Adj_ref = n_ori.Adj_ref*0;
+n_ori.plot()
 %% control & noise Node
 c_n = 1;
-n_n = [2];
+n_n = [2,3];
 %% signal power
 id_in_p = 1;
 noise_p = 0.1;
@@ -21,22 +21,27 @@ for i = 1 : numel(n_n)
 Noise(i) = {strcat('d_node',num2str(n_n(i)))};
 end
 %% add I/O port for identificaiton
-sys_org = n.get_sys();
-for i =  1 : n.N
-sys_org = n.add_io(sys_org,i, strcat('node',num2str(i)));
+sys_ori = n_ori.get_sys();
+for i =  1 : n_ori.N
+sys_ori = n_ori.add_io(sys_ori,i, strcat('node',num2str(i)));
 end
-[sys_local, sys_env] = n.get_sys_local(c_n);
+[sys_local, sys_env] = n_ori.get_sys_local(c_n);
 sys_local_vw = sys_local({'w'},{'v'});
-%% Generate v & w
-N = 10000;
-Ts = 0.01;
-t = (0:N-1)'*Ts;
 %% Plant character
 min = -6;
 max =  6;
 [mag_env, pha_env, omega] = bode(sys_env, {10^min, 10^max});
 mag_env = squeeze(mag_env(1,1,:));
 pha_env = squeeze(pha_env(1,1,:));
+%% add controller
+Q = kron(eye(1*numel(1)),diag([1,1000]));
+R = kron(eye(1*numel(1)),diag([1e-3]));
+n_ori.add_controller( 2, Q, R);
+sys_ori = n_ori.get_sys_controlled(sys_ori);
+%% Generate v & w
+N = 10000;
+Ts = 0.01;
+t = (0:N-1)'*Ts;
 %% minibatch
 maxitr = 1;
 state = 2*(Node_number-1);
@@ -51,8 +56,7 @@ parfor_progress(maxitr);
 %%%%%% init sys (coloum vector)
 rng('shuffle')
 
-% init_params = ones(3*state-2+state*(in + out) + in*out,1)*1e-3;
-% init_params = randn(3*state-2+state*(in + out) + in*out,1);
+% init_params = 1e-3;
 
 %
 for itr = 1:maxitr
@@ -60,23 +64,28 @@ for itr = 1:maxitr
     d(:,1:2) = (d(:,1:2)+0.5)*id_in_p;
     d(:,3:end) = d(:,3:end)*noise_p;
     % Response of v&w 
-    v = lsim(sys_org(ob_v, cat(2,ID_in,Noise)), d, t);
-    w = lsim(sys_org(ob_w, cat(2,ID_in,Noise)), d, t);
+    v = lsim(sys_ori(ob_v, cat(2,ID_in,Noise)), d, t);
+    w = lsim(sys_ori(ob_w, cat(2,ID_in,Noise)), d, t);
 
-    m = model_ss(gen_ss_rectifier(gen_ss_tridiag(state, in, out), sys_local_vw));
+%     m = model_ss(gen_ss_rectifier(gen_ss_tridiag(state, in, out), sys_local_vw));
+    m = model_ss(gen_ss_rectifier(gen_ss_all(state, in, out), sys_local_vw));
 %     m.add_fixed_params('theta_D_1', 0); % model.m
     % m.str_display='none';
-    m.max_iter = 3e3;
+    m.max_iter = 1e4;%2e4;
     % m.fit(t, [w, v], zeros(N, 1));
-    best_cost = m.eval_func(t, [w, v], zeros(N, 1), sys2params(sys_env, state, in, out));
+%     best_cost = m.eval_func(t, [w, v], zeros(N, 1), sys2params_tri(sys_env, state, in, out));
+    best_cost = m.eval_func(t, [w, v], zeros(N, 1), sys2params_all(sys_env, state, in, out));
     fprintf('Best Cost is %e.', best_cost);
     fprintf('\n');
 %     m.fit_adam(t, [w, v], zeros(N, 1), 1e-5);
     % init
-    init_sys = armax(iddata(v,w,Ts), [state, state+1, state, 0]); 
-    init_params = sys2params(ss(d2c((init_sys))), state, in, out);
-    [theta ,J] = m.fit_adam(t, [w, v], zeros(N, 1), init_params, 1e-4, [], [], [], 0.1);
-%     [theta ,J] = m.fit_adamax(t, [w, v], zeros(N, 1), init_params, [], [], [], 0.8);
+    init_sys = arx(iddata(v,w,Ts), [state, state+1, 0]); 
+%     init_params = sys2params_tri(ss(d2c((init_sys))), state, in, out);
+%     init_sys = rss(state);
+    init_params = sys2params_all(ss(d2c(init_sys)), state, in, out);
+%     init_params = sys2params_all(init_sys, state, in, out);
+%     [theta ,J] = m.fit_adam(t, [w, v], zeros(N, 1), init_params, 1e-6, [], [], 1e-4, 0.1);
+    [theta ,J] = m.fit_adamax(t, [w, v], zeros(N, 1), init_params, [], [], [], 0.3);
     %   eval_func内部の離散化は，あくまで，シミュレーション用であるので，
     %   出てくるパラメータ自体は，連続時間のもの
     model1 = m.gen_ss.gen_ss.get_sys();
@@ -105,14 +114,24 @@ figure_config.plot_bode(H.axes,omega,mag,pha,{'g:','linewidth',2.0});
 figure_config.plot_bode(H.axes,omega,Mag,Pha,{'b-','linewidth',0.8});
     
 figure('Name','Cost History')
-plot(J)
+semilogy(J)
 
 %% local function
-function init_params = sys2params(init_sys, state, in, out)
+function init_params = sys2params_tri(init_sys, state, in, out)
     init_sys = canon(init_sys,'modal');
     init_params = zeros(3*state-2+state*(in+out)+in*out, 1);
     init_params(1:3*state-2) = [diag(init_sys.A)', diag(init_sys.A, -1)', diag(init_sys.A, 1)'];
-    init_params(3*state-2+1:3*state-2+state*in) = reshape(init_sys.B, state, in);
-    init_params(3*state-2+state*in+1:3*state-2+state*in+out*state) = reshape(init_sys.C, out, state);
-    init_params(3*state-2+state*in+out*state+1:3*state-2+state*in+out*state+in*out) = reshape(init_sys.D, out, in);
+    init_params(3*state-2+1:3*state-2+state*in) = reshape(init_sys.B, state*in, 1);
+    init_params(3*state-2+state*in+1:3*state-2+state*in+out*state) = reshape(init_sys.C, out*state, 1);
+    init_params(3*state-2+state*in+out*state+1:3*state-2+state*in+out*state+in*out) = reshape(init_sys.D, out*in, 1);
+end
+
+function init_params = sys2params_all(init_sys, state, in, out)
+    init_sys = ss(init_sys);
+    init_params = zeros(state^2+state*(in+out)+in*out, 1);
+    init_params(1:state^2) = reshape(init_sys.A, state^2, 1);
+    init_params(state^2+1:state^2+state*in) = reshape(init_sys.B, state*in, 1);
+    init_params(state^2+state*in+1:state^2+state*in+out*state) = reshape(init_sys.C, out*state, 1);
+    init_params(state^2+state*in+out*state+1:state^2+state*in+out*state+out*in) = reshape(init_sys.D, out*in, 1);
+    
 end
