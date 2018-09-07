@@ -16,7 +16,7 @@ if nargin < 8 || isempty(rho2)
     rho2 = 0.999;
 end
 
-if nargin < 9 || isemtpy(epsilon)
+if nargin < 9 || isempty(epsilon)
     epsilon = 1e-8;
 end
 
