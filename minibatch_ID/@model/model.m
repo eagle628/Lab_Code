@@ -144,7 +144,8 @@ classdef model < handle
         
         theta = fit_sgd(obj, t, u, y, theta, learning_ratio, weight);
         theta = fit_momentum(obj, t, u, y, theta, learning_ratio, mu, weight);
-        theta = fit_adam(obj, t, u, y, theta, learning_ratio, rho1, rho2, epsilon, weight);
+        [theta ,Jhistory] = fit_adam(obj, t, u, y, theta, learning_ratio, rho1, rho2, epsilon, weight);
+        [theta ,Jhistory] = fit_adamax(obj, t, u, y, theta, learning_ratio, rho1, rho2, weight);
 
         function theta = fit_mymqt(obj, t, u, y, theta0, weight)
             %             if nargin < 5

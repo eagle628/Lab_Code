@@ -1,4 +1,4 @@
-function [theta] = fit_adamax(obj, t, u, y, theta, learning_ratio, rho1, rho2, epsilon, weight)
+function [theta] = fit_adamax(obj, t, u, y, theta, learning_ratio, rho1, rho2, weight)
 
 if nargin < 5 || isempty(theta)
    theta = obj.get_params_fixed();
@@ -17,10 +17,6 @@ if nargin < 8
 end
 
 if nargin < 9
-    epsilon = 1e-8;
-end
-
-if nargin < 10
     weight = 1;
 end
 
