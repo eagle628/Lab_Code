@@ -4,19 +4,19 @@ if nargin < 5 || isempty(theta)
    theta = obj.get_params_fixed();
 end
 
-if nargin < 6
+if nargin < 6 || isempty(learning_ratio)
     learning_ratio = 1e-3;
 end
 
-if nargin < 7
+if nargin < 7 || isempty(rho1)
    rho1 = 0.9; 
 end
 
-if nargin < 8
+if nargin < 8 || isempty(rho2)
     rho2 = 0.999;
 end
 
-if nargin < 9
+if nargin < 9 || isemtpy(epsilon)
     epsilon = 1e-8;
 end
 
@@ -31,7 +31,7 @@ v = 0;
 % n_batch = floor(size(y, 1)/2);
 Jhistory = zeros(obj.max_iter, 1);
 for itr = 1:obj.max_iter
-    weight = rand(size(y))>0.8;
+    weight = rand(size(y))>=(1-weight);
 %     weight = zeros(size(y));
 %     weight(randi(size(y, 1), n_batch), :) = 1;
 %     weight(mod(itr, size(y, 1)-1)+1, :) = 1;
