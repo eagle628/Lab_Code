@@ -1,11 +1,11 @@
-function [theta] = fit_adam(obj, t, u, y, theta, learning_ratio, rho1, rho2, epsilon, weight)
+function [theta] = fit_adamax(obj, t, u, y, theta, learning_ratio, rho1, rho2, epsilon, weight)
 
 if nargin < 5 || isempty(theta)
    theta = obj.get_params_fixed();
 end
 
 if nargin < 6
-    learning_ratio = 1e-3;
+    learning_ratio = 2e-3;
 end
 
 if nargin < 7
@@ -38,8 +38,8 @@ for itr = 1:obj.max_iter
     [J, dJ] = obj.eval_func(t, u, y, theta, weight);
     Jhistory(itr, 1) = J;
     m = rho1*m + (1-rho1)*dJ;
-    v = rho2*v + (1-rho2)*(dJ).^2;
-    dtheta = -learning_ratio*m/(1-rho1^itr)./sqrt(epsilon+v/(1-rho2^itr));
+    v = max(rho2*v, abs(dJ));
+    dtheta = -learning_ratio/(1-rho1^itr)*m/v;
     theta = theta + dtheta;
     if mod(itr, 10)==0
         J = obj.eval_func(t, u, y, theta);
