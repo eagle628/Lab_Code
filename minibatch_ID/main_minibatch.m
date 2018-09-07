@@ -73,10 +73,10 @@ for itr = 1:maxitr
     fprintf('\n');
 %     m.fit_adam(t, [w, v], zeros(N, 1), 1e-5);
     % init
-    init_sys = arx(iddata(v,w,Ts), [state, state+1, 0]); 
-    init_params = sys2params(d2c(init_sys), state, in, out);
-%     [theta ,J] = m.fit_adam(t, [w, v], zeros(N, 1), init_params, 1e-5);
-    [theta ,J] = m.fit_adamax(t, [w, v], zeros(N, 1), init_params);
+    init_sys = armax(iddata(v,w,Ts), [state, state+1, state, 0]); 
+    init_params = sys2params(ss(d2c((init_sys))), state, in, out);
+    [theta ,J] = m.fit_adam(t, [w, v], zeros(N, 1), init_params, 1e-4, [], [], [], 0.1);
+%     [theta ,J] = m.fit_adamax(t, [w, v], zeros(N, 1), init_params, [], [], [], 0.8);
     %   eval_func内部の離散化は，あくまで，シミュレーション用であるので，
     %   出てくるパラメータ自体は，連続時間のもの
     model1 = m.gen_ss.gen_ss.get_sys();
@@ -96,9 +96,16 @@ parfor_progress(0);
 %% Drawing
 H = figure_config.set_figure_bode();
 figure_config.plot_bode(H.axes,omega,mag_env,pha_env,{'r:','linewidth',3.0});
+    
+    [mag, pha] = bode(init_sys, omega);
+    mag = squeeze(mag(1,1,:));
+    pha = squeeze(pha(1,1,:));
+figure_config.plot_bode(H.axes,omega,mag,pha,{'g:','linewidth',2.0});
 
 figure_config.plot_bode(H.axes,omega,Mag,Pha,{'b-','linewidth',0.8});
-
+    
+figure('Name','Cost History')
+plot(J)
 
 %% local function
 function init_params = sys2params(init_sys, state, in, out)

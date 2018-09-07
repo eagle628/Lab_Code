@@ -142,8 +142,8 @@ classdef model < handle
             obj.set_params_fixed(theta);
         end
         
-        theta = fit_sgd(obj, t, u, y, theta, learning_ratio, weight);
-        theta = fit_momentum(obj, t, u, y, theta, learning_ratio, mu, weight);
+        [theta ,Jhistory] = fit_sgd(obj, t, u, y, theta, learning_ratio, weight);
+        [theta ,Jhistory] = fit_momentum(obj, t, u, y, theta, learning_ratio, mu, weight);
         [theta ,Jhistory] = fit_adam(obj, t, u, y, theta, learning_ratio, rho1, rho2, epsilon, weight);
         [theta ,Jhistory] = fit_adamax(obj, t, u, y, theta, learning_ratio, rho1, rho2, weight);
 
