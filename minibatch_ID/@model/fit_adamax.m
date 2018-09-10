@@ -43,7 +43,7 @@ for itr = 1:obj.max_iter
     end
     if itr > 100
         diff = Jhistory(itr-1) - Jhistory(itr);
-        if (diff > 0) && (diff < 1e-4)
+        if (diff > 0) && (diff < 1e-2)
             break;
         end
     end

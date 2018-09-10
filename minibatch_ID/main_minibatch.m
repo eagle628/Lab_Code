@@ -67,25 +67,25 @@ for itr = 1:maxitr
     v = lsim(sys_ori(ob_v, cat(2,ID_in,Noise)), d, t);
     w = lsim(sys_ori(ob_w, cat(2,ID_in,Noise)), d, t);
 
-%     m = model_ss(gen_ss_rectifier(gen_ss_tridiag(state, in, out), sys_local_vw));
-    m = model_ss(gen_ss_rectifier(gen_ss_all(state, in, out), sys_local_vw));
+    m = model_ss(gen_ss_rectifier(gen_ss_tridiag(state, in, out), sys_local_vw));
+%     m = model_ss(gen_ss_rectifier(gen_ss_all(state, in, out), sys_local_vw));
 %     m.add_fixed_params('theta_D_1', 0); % model.m
     % m.str_display='none';
-    m.max_iter = 1e4;%2e4;
+    m.max_iter = 3e3;%2e4;
     % m.fit(t, [w, v], zeros(N, 1));
-%     best_cost = m.eval_func(t, [w, v], zeros(N, 1), sys2params_tri(sys_env, state, in, out));
-    best_cost = m.eval_func(t, [w, v], zeros(N, 1), sys2params_all(sys_env, state, in, out));
+    best_cost = m.eval_func(t, [w, v], zeros(N, 1), sys2params_tri(sys_env, state, in, out));
+%     best_cost = m.eval_func(t, [w, v], zeros(N, 1), sys2params_all(sys_env, state, in, out));
     fprintf('Best Cost is %e.', best_cost);
     fprintf('\n');
 %     m.fit_adam(t, [w, v], zeros(N, 1), 1e-5);
     % init
     init_sys = arx(iddata(v,w,Ts), [state, state+1, 0]); 
-%     init_params = sys2params_tri(ss(d2c((init_sys))), state, in, out);
+    init_params = sys2params_tri(ss(d2c((init_sys))), state, in, out);
 %     init_sys = rss(state);
-    init_params = sys2params_all(ss(d2c(init_sys)), state, in, out);
+%     init_params = sys2params_all(ss(d2c(init_sys)), state, in, out);
 %     init_params = sys2params_all(init_sys, state, in, out);
-%     [theta ,J] = m.fit_adam(t, [w, v], zeros(N, 1), init_params, 1e-6, [], [], 1e-4, 0.1);
-    [theta ,J] = m.fit_adamax(t, [w, v], zeros(N, 1), init_params, [], [], [], 0.3);
+    [theta ,J] = m.fit_adam(t, [w, v], zeros(N, 1), init_params, [], [], [], [], 1);
+%     [theta ,J] = m.fit_adamax(t, [w, v], zeros(N, 1), init_params, [], [], [], 0.6);
     %   eval_func内部の離散化は，あくまで，シミュレーション用であるので，
     %   出てくるパラメータ自体は，連続時間のもの
     model1 = m.gen_ss.gen_ss.get_sys();
@@ -118,7 +118,7 @@ semilogy(J)
 
 %% local function
 function init_params = sys2params_tri(init_sys, state, in, out)
-    init_sys = canon(init_sys,'modal');
+    init_sys = canon(balred(init_sys,state),'modal');
     init_params = zeros(3*state-2+state*(in+out)+in*out, 1);
     init_params(1:3*state-2) = [diag(init_sys.A)', diag(init_sys.A, -1)', diag(init_sys.A, 1)'];
     init_params(3*state-2+1:3*state-2+state*in) = reshape(init_sys.B, state*in, 1);
@@ -127,7 +127,7 @@ function init_params = sys2params_tri(init_sys, state, in, out)
 end
 
 function init_params = sys2params_all(init_sys, state, in, out)
-    init_sys = ss(init_sys);
+    init_sys = ss(balred(init_sys,state));
     init_params = zeros(state^2+state*(in+out)+in*out, 1);
     init_params(1:state^2) = reshape(init_sys.A, state^2, 1);
     init_params(state^2+1:state^2+state*in) = reshape(init_sys.B, state*in, 1);
