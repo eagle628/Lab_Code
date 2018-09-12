@@ -1,4 +1,4 @@
-function [theta ,Jhistory] = fit_adam(obj, t, u, y, theta, learning_ratio, rho1, rho2, epsilon, weight)
+function [theta ,Jhistory] = fit_adam(obj, t, u, y, theta, learning_ratio, rho1, rho2, epsilon, weight, snr)
 
 if nargin < 5 || isempty(theta)
    theta = obj.get_params_fixed();
@@ -20,8 +20,12 @@ if nargin < 9 || isempty(epsilon)
     epsilon = 1e-8;
 end
 
-if nargin < 10
+if nargin < 10 isempty(weight)
     weight = 1;
+end
+
+if nargin < 11
+    snr = []; % signal/noise ratio
 end
 
 func_callback = @(x, v, itr) callback_sgd(x, v, itr, y(:), @(x) obj.sim_fix(t, u, x));
@@ -35,8 +39,14 @@ for itr = 1:obj.max_iter
 %     weight = zeros(size(y));
 %     weight(randi(size(y, 1), n_batch), :) = 1;
 %     weight(mod(itr, size(y, 1)-1)+1, :) = 1;
-    [J, dJ] = obj.eval_func(t, u, y, theta, weight);
-    Jhistory(itr, 1) = J;
+    if ~isempty(snr)
+        rng('shuffle')
+        d = randn(size(y))*snr;
+    else
+        d = 0;
+    end
+    [~, dJ] = obj.eval_func(t, u, y+d, theta, weight);
+    Jhistory(itr, 1) = obj.eval_func(t, u, y, theta);
     m = rho1*m + (1-rho1)*dJ;
     v = rho2*v + (1-rho2)*(dJ).^2;
     dtheta = -learning_ratio*m/(1-rho1^itr)./sqrt(epsilon+v/(1-rho2^itr));
@@ -45,12 +55,12 @@ for itr = 1:obj.max_iter
         J = obj.eval_func(t, u, y, theta);
         func_callback(theta, J, itr);
     end
-    if itr > 100
-        diff = Jhistory(itr-1) - Jhistory(itr);
-        if (diff > 0) && (diff < 1)
-            break;
-        end
-    end
+%     if itr > 100
+%         diff = Jhistory(itr-1) - Jhistory(itr);
+%         if (diff > 0) && (diff < 1)
+%             break;
+%         end
+%     end
 end
 
 obj.set_params_fixed(theta);
