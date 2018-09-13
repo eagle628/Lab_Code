@@ -1,4 +1,4 @@
-classdef model_ss < model
+ classdef model_ss < model
     
     properties
         params
