@@ -146,7 +146,9 @@ classdef model < handle
         [theta ,Jhistory] = fit_momentum(obj, t, u, y, theta, learning_ratio, mu, weight);
         [theta ,Jhistory] = fit_adam(obj, t, u, y, theta, learning_ratio, rho1, rho2, epsilon, weight, snr);
         [theta ,Jhistory] = fit_adamax(obj, t, u, y, theta, learning_ratio, rho1, rho2, weight, snr);
-
+        [theta, Jhistory] = fit_Santa_E(obj, t, u, y, theta, learning_ratio, rho, epsilon, burnin, beta_func, weight_b);
+        [theta, Jhistory] = fit_Santa_S(obj, t, u, y, theta, learning_ratio, rho, epsilon, burnin, beta_func, weight_b);
+        
         function theta = fit_mymqt(obj, t, u, y, theta0, weight)
             %             if nargin < 5
             %                 if any(isnan(obj.get_params()))

@@ -1,4 +1,4 @@
-function [theta ,Jhistory] = fit_adamax(obj, t, u, y, theta, learning_ratio, rho1, rho2, weight, snr)
+function [theta ,Jhistory] = fit_adamax(obj, t, u, y, theta, learning_ratio, rho1, rho2, weight_b, snr)
 
 if nargin < 5 || isempty(theta)
    theta = obj.get_params_fixed();
@@ -16,27 +16,27 @@ if nargin < 8 || isempty(rho2)
     rho2 = 0.999;
 end
 
-if nargin < 9 || isempty(weight)
-    weight = 1;
+if nargin < 9 || isempty(weight_b)
+    weight_b = 1;
 end
 
 if nargin < 10
     snr = []; % signal/noise ratio
 end
 
-func_callback = @(x, v, itr) callback_sgd(x, v, itr, y(:), @(x) obj.sim_fix(t, u, x));
+func_callback = @(x, v, itr) callback_sgd(x, v, itr, y, @(x) obj.sim_fix(t, u, x));
 
 m = 0;
 v = 0;
 % n_batch = floor(size(y, 1)/2);
 Jhistory = zeros(obj.max_iter, 1);
+rng('shuffle')
 for itr = 1:obj.max_iter
-    weight = rand(size(y))>=(1-weight);
+    weight = rand(size(y))>=(1-weight_b);
 %     weight = zeros(size(y));
 %     weight(randi(size(y, 1), n_batch), :) = 1;
 %     weight(mod(itr, size(y, 1)-1)+1, :) = 1;
     if ~isempty(snr)
-        rng('shuffle')
         d = randn(size(y))*snr;
     else
         d = 0;

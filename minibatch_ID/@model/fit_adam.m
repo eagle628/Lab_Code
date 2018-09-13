@@ -1,4 +1,4 @@
-function [theta ,Jhistory] = fit_adam(obj, t, u, y, theta, learning_ratio, rho1, rho2, epsilon, weight, snr)
+function [theta ,Jhistory] = fit_adam(obj, t, u, y, theta, learning_ratio, rho1, rho2, epsilon, weight_b, snr)
 
 if nargin < 5 || isempty(theta)
    theta = obj.get_params_fixed();
@@ -20,27 +20,27 @@ if nargin < 9 || isempty(epsilon)
     epsilon = 1e-8;
 end
 
-if nargin < 10 isempty(weight)
-    weight = 1;
+if nargin < 10 || isempty(weight_b)
+    weight_b = 1;
 end
 
-if nargin < 11
+if nargin < 11 
     snr = []; % signal/noise ratio
 end
 
-func_callback = @(x, v, itr) callback_sgd(x, v, itr, y(:), @(x) obj.sim_fix(t, u, x));
+func_callback = @(x, v, itr) callback_sgd(x, v, itr, y, @(x) obj.sim_fix(t, u, x));
 
 m = 0;
 v = 0;
 % n_batch = floor(size(y, 1)/2);
-Jhistory = zeros(obj.max_iter, 1);
+Jhistory = zeros(1e4, 1);
+rng('shuffle')
 for itr = 1:obj.max_iter
-    weight = rand(size(y))>=(1-weight);
+    weight = rand(size(y))>=(1-weight_b);
 %     weight = zeros(size(y));
 %     weight(randi(size(y, 1), n_batch), :) = 1;
 %     weight(mod(itr, size(y, 1)-1)+1, :) = 1;
     if ~isempty(snr)
-        rng('shuffle')
         d = randn(size(y))*snr;
     else
         d = 0;
@@ -61,6 +61,15 @@ for itr = 1:obj.max_iter
 %             break;
 %         end
 %     end
+    if mod(itr, 5000) == 0
+        beep
+        prompt = 'Do you want more? Y/N [Y]: ';
+        str = input(prompt,'s');
+        if str == 'n'
+            break;
+        end
+    end
+
 end
 
 obj.set_params_fixed(theta);
