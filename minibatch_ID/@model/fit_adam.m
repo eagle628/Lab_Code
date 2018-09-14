@@ -61,14 +61,14 @@ for itr = 1:obj.max_iter
 %             break;
 %         end
 %     end
-    if mod(itr, 5000) == 0
-        beep
-        prompt = 'Do you want more? Y/N [Y]: ';
-        str = input(prompt,'s');
-        if str == 'n'
-            break;
-        end
-    end
+%     if mod(itr, 1000) == 0
+%         beep
+%         prompt = 'Do you want more? Y/N [Y]: ';
+%         str = input(prompt,'s');
+%         if str == 'n'
+%             break;
+%         end
+%     end
 
 end
 

@@ -49,33 +49,31 @@ function [theta, Jhistory] = fit_Santa_S(obj, t, u, y, theta, learning_ratio, rh
         Jhistory(itr, 1) = obj.eval_func(t, u, y, theta);
         % algorithm
         v = rho*v + (1-rho)*(dJ).^2;
-        g_c = 1./sqrt(epsilon+sqrt(v));
-        theta = theta +g_c.*mu/2;
-        if itr == 1
-            g_p = g_c;
-        end
-        if t < burnin
+        g = 1./sqrt(epsilon+sqrt(v));
+        theta = theta +g.*mu/2;
+        if itr < burnin
             % exploration
             alpha = alpha + (mu.^2-learning_ratio/beta)./2;
             mu = exp(-alpha/2).*mu ...
-                + sqrt(2*g_p*learning_ratio/beta).*randn(N_params,1)...
-                + learning_ratio/beta*(1-g_p./g_c)./mu;
+                + sqrt(2*1*learning_ratio/beta).*randn(N_params,1);
+                    % Overide g_{t-1} to Const.(100) 
             mu = exp(-alpha/2).*mu;
-            alpha = alpha + (mu.^22-learning_ratio/beta)./2;
+            alpha = alpha + (mu.^2 -learning_ratio/beta)./2;
         else
             % refinement
 %             alpha = alpha;
             mu = exp(-alpha/2).*mu;
-            mu = mu - learning_ratio*(g_c.*dJ);
+            mu = mu - learning_ratio*(g.*dJ);
             mu = exp(-alpha/2).*mu;
         end
-        theta = theta + g_c.*mu./2;
-        % update
-        g_p = g_c;
+        theta = theta + g.*mu./2;
         if mod(itr, 10)==0
             J = obj.eval_func(t, u, y, theta);
             func_callback(theta, J, itr);
         end
+%         if itr > burnin  && Jhistory(itr) - Jhistory(itr-1) > 0
+%             break;
+%         end
     end
     
 obj.set_params_fixed(theta);
