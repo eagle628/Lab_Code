@@ -91,24 +91,32 @@ for itr = 1:maxitr
 %     init_params = nonzeros(init_params);
 %     init_params = sys2params_canonical(ss(init_sys), state, in, out);
 %     init_sys = rss(state);
-    init_params = sys2params_all(ss(init_sys), state, in, out);
-%     init_params = sys2params_all(init_sys, state, in, out);
+%     init_params = sys2params_all(ss(init_sys), state, in, out);
+%     init_params = sys2params_all(sys_env, state, in, out);
+    init_params = sys2params_all(init_sys, state, in, out);
     
 
 %     m.add_fixed_params('theta_C_1', 0);
 %     init_params(state+1) = [];
 %%%%%%%%%%%%%%% fitting
-    m.max_iter = 5000;
+    m.max_iter = 2000;
     % optimizer
     rng('shuffle')
-    load('params.mat');
-%     theta= init_params;
+%     load('params.mat');
+%     [num,den] = tfdata(sys_env,'v');
+%     den(2:end) = den(2:end)+randn(1,4)*0.1;
+%     num = num+randn(1,5)*0.1;
+%     sys = tf(num,den);
+%     init_params = sys2params_all(ss(sys), state, in, out);
+    theta= init_params;
 %     init_params = ones(3*state-2+state*(in+out)+in*out, 1)*randn(1)*1e-4;init_params(end) = 1e-3;
-    for itr1 = 1: 10
-        [theta ,J] = m.fit_adam(t, [w, v], zeros(N, 1), theta, 1e-5, 0.9, 0.999, 1e-4, 0.01, 0);
-        model1 = m.gen_ss.gen_ss.get_sys();
-        bode(sys_env,init_sys,model1)
-    end
+%     for itr1 = 1: 10
+%         [theta ,J] = m.fit_adam(t, [w, v], zeros(N, 1), theta, 1e-3, 0.9, 0.999, 1e-4, 0.5, 0);
+%         [theta ,J] = m.fit_rmsprop(t, [w, v], zeros(N, 1), theta, 1e-3, [], 1e-4, 0.5, 0);
+        [theta, J] = m.fit_LMA(t, [w, v], zeros(N, 1), theta, [], []);
+%         model1 = m.gen_ss.gen_ss.get_sys();
+%         bode(sys_env,init_sys,model1)
+%     end
 %     [re_theta ,J] = m.fit_adamax(t, [w, v], zeros(N, 1), init_params, [], [], [], 0.8);
 %     theta = 1e-4;
 %     theta(end) = 1e-3;
@@ -149,7 +157,7 @@ bode(sys_env,init_sys,model1)
 legend('original','Init','identification')
 
 figure('Name','Cost History')
-semilogy(J)
+plot(nonzeros(J))
 
 %% simlation Extend
 %% add controller
