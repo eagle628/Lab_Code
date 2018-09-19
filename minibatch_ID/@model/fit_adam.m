@@ -1,4 +1,4 @@
-function [theta ,Jhistory] = fit_adam(obj, t, u, y, theta, learning_ratio, rho1, rho2, epsilon, weight_b, snr)
+function [theta ,Jhistory] = fit_adam(obj, t, u, y, theta, learning_ratio, rho1, rho2, epsilon, weight_b)
 
 if nargin < 5 || isempty(theta)
    theta = obj.get_params_fixed();
@@ -24,10 +24,6 @@ if nargin < 10 || isempty(weight_b)
     weight_b = 1;
 end
 
-if nargin < 11 
-    snr = []; % signal/noise ratio
-end
-
 func_callback = @(x, v, itr) callback_sgd(x, v, itr, y, @(x) obj.sim_fix(t, u, x));
 
 m = 0;
@@ -40,12 +36,7 @@ for itr = 1:obj.max_iter
 %     weight = zeros(size(y));
 %     weight(randi(size(y, 1), n_batch), :) = 1;
 %     weight(mod(itr, size(y, 1)-1)+1, :) = 1;
-    if ~isempty(snr)
-        d = randn(size(y))*snr;
-    else
-        d = 0;
-    end
-    [~, dJ] = obj.eval_func(t, u, y+d, theta, weight);
+    [~, dJ] = obj.eval_func(t, u, y, theta, weight);
     Jhistory(itr, 1) = obj.eval_func(t, u, y, theta);
     m = rho1*m + (1-rho1)*dJ;
     v = rho2*v + (1-rho2)*(dJ).^2;

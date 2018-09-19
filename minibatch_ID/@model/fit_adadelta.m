@@ -1,4 +1,4 @@
-function [theta ,Jhistory] = fit_adadelta(obj, t, u, y, theta, rho, epsilon, weight_b, snr)
+function [theta ,Jhistory] = fit_adadelta(obj, t, u, y, theta, rho, epsilon, weight_b)
 
 if nargin < 5 || isempty(theta)
    theta = obj.get_params_fixed();
@@ -16,10 +16,6 @@ if nargin < 8 || isempty(weight_b)
     weight_b = 1;
 end
 
-if nargin < 9 
-    snr = []; % signal/noise ratio
-end
-
 func_callback = @(x, v, itr) callback_sgd(x, v, itr, y, @(x) obj.sim_fix(t, u, x));
 
 mu = 0;
@@ -29,12 +25,7 @@ Jhistory = zeros(1e4, 1);
 rng('shuffle')
 for itr = 1:obj.max_iter
     weight = rand(size(y))>=(1-weight_b);
-    if ~isempty(snr)
-        d = randn(size(y))*snr;
-    else
-        d = 0;
-    end
-    [~, dJ] = obj.eval_func(t, u, y+d, theta, weight);
+    [~, dJ] = obj.eval_func(t, u, y, theta, weight);
     Jhistory(itr, 1) = obj.eval_func(t, u, y, theta);
     v = rho*v + (1-rho)*dJ.^2;
     dtheta = -sqrt(mu+epsilon).*dJ./sqrt(v+epsilon);
