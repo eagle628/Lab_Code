@@ -15,10 +15,16 @@ classdef gen_ss_canonical < gen_ss
         n
         m
         l
+        iszero
     end
     
     methods
         function obj = gen_ss_canonical(n, m, l)
+            if nargin < 4
+                iszero = 'off';
+            else
+                iszero = 'on';
+            end
             obj.n = n;
             obj.m = m;
             obj.l = l;
@@ -59,7 +65,7 @@ classdef gen_ss_canonical < gen_ss
             Cnew = reshape(sys.c, obj.l*obj.n, 1);
             Dnew = reshape(sys.D, obj.l*lbj.m, 1);
             if strcmp(obj.iszero,'on')
-                Cnew(1) = -sys.a(end,1)*Dnew;
+                C_new(1) = -sys.a(end,1)*D
             end
             params_new = [Anew; Bnew; Cnew; Dnew];
             obj.set_params(params_new);
@@ -128,6 +134,11 @@ classdef gen_ss_canonical < gen_ss
                     M(1+mod(itr-1, l), 1+floor((itr-1)/l)) = 1; %#ok
                     dC{itr+b} = C*0;
                     dD{itr+b} = M;
+                end
+            end
+            if strcmp(obj.iszero,'on')
+                for itr = 1:numel(dC)
+                    dC{itr} = zeros(size(dC{itr}));
                 end
             end
                 
