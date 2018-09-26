@@ -58,9 +58,6 @@ classdef gen_ss_canonical < gen_ss
             Bnew = sys.b(:,2:end);
             Cnew = reshape(sys.c, obj.l*obj.n, 1);
             Dnew = reshape(sys.D, obj.l*lbj.m, 1);
-            if strcmp(obj.iszero,'on')
-                Cnew(1) = -sys.a(end,1)*Dnew;
-            end
             params_new = [Anew; Bnew; Cnew; Dnew];
             obj.set_params(params_new);
         end

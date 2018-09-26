@@ -8,10 +8,10 @@ n_ori.Adj_ref = n_ori.Adj_ref*0;
 n_ori.plot()
 %% control & noise Node
 c_n = 1;
-n_n = [2];
+n_n = [2,3];
 %% signal power
 id_in_p = 1;
-noise_p = 0.1;
+noise_p = 0.01;
 %% Node Name
 ob_v_p  = {strcat('v_node',num2str(c_n))};
 ob_w_p  = {strcat('w_node',num2str(c_n))};
@@ -36,10 +36,10 @@ max =  2;
 mag_env = squeeze(mag_env(1,1,:));
 pha_env = squeeze(pha_env(1,1,:));
 %% add controller
-% Q = kron(eye(1*numel(1)),diag([1,1000]));
-% R = kron(eye(1*numel(1)),diag([1e-3]));
-% n_ori.add_controller( c_n, Q, R);
-% sys_ori_c1 = n_ori.get_sys_controlled(sys_ori);
+Q = kron(eye(1*numel(1)),diag([1,1000]));
+R = kron(eye(1*numel(1)),diag([1e-3]));
+n_ori.add_controller( c_n, Q, R);
+sys_ori_c1 = n_ori.get_sys_controlled(sys_ori);
 %% Generate v & w
 N = 10000;
 Ts = 0.01;
@@ -67,18 +67,22 @@ for itr = 1:maxitr
     % Response of v&w 
 %     rng(28);
     rng('shuffle')
-    v = lsim(sys_ori(ob_v_p, cat(2,ID_in_p,Noise)), d, t);
-    w = lsim(sys_ori(ob_w_p, cat(2,ID_in_p,Noise)), d, t);
-
-%     m = model_ss(gen_ss_rectifier(gen_ss_tridiag(state, in, out), sys_local_vw));
-%     m = model_ss(gen_ss_rectifier(gen_ss_all(state, in, out), sys_local_vw));
-    m = model_ss(gen_ss_rectifier(gen_ss_canonical(state, in, out), sys_local_vw));
-    %%%%%%%%%%%%%%%%%%%%%
-%     best_cost = m.eval_func(t, [w, v], zeros(N, 1), sys2params_all(sys_env, state, in, out));
-    best_cost = m.eval_func(t, [w, v], zeros(N, 1), sys2params_canonical(sys_env, state, in, out));
+    v = lsim(sys_ori_c1(ob_v_p, cat(2,ID_in_p,Noise)), d, t);
+    w = lsim(sys_ori_c1(ob_w_p, cat(2,ID_in_p,Noise)), d, t);
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % best cost calculate
+    Best_cost = model_ss(gen_ss_rectifier(gen_ss_all(state, in, out), sys_local_vw));
+    best_cost = Best_cost.eval_func(t, [w, v], zeros(N, 1), sys2params_all(sys_env, state, in, out));
     fprintf('Best Cost is %e.', best_cost);
     fprintf('\n');
-%     %%%%%%%%%%%%%%%%%%%%%
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    % For Identification
+    m = model_ss(gen_ss_rectifier(gen_ss_all(state, in, out), sys_local_vw));
+%     m = model_ss(gen_ss_rectifier(gen_ss_canonical(state, in, out), sys_local_vw));
+%     m = model_ss(gen_ss_rectifier(gen_ss_tridiag(state, in, out), sys_local_vw));
+%     m = model_ss(gen_ss_rectifier(gen_ss_canonical_zero(state, in, out), sys_local_vw));
     % init
 %     init_sys = sys_env;
     init_sys = d2c(arx(iddata(v,w,Ts), [state, state+1, 0])); 
@@ -93,16 +97,16 @@ for itr = 1:maxitr
 %     init_sys = rss(state);
 %     init_params = sys2params_all(ss(init_sys), state, in, out);
 %     init_params = sys2params_all(sys_env, state, in, out);
-%     init_params = sys2params_all(init_sys, state, in, out);
-    init_params = sys2params_canonical(init_sys, state, in, out);
+    init_params = sys2params_all(init_sys, state, in, out);
+%     init_params = sys2params_canonical(init_sys, state, in, out);
+%     init_params = sys2params_canonical_zero(init_sys, state, in, out);
     
 %     m.add_fixed_params('theta_C_4', 0);
-%     init_params(end-1) = [];
 %%%%%%%%%%%%%%% fitting
     m.max_iter = 10000;
     % optimizer
     rng('shuffle')
-%     load('params.mat');
+    load('params.mat');
 %     load('tekitou.mat')
 %     [num,den] = tfdata(sys_env,'v');
 %     den(2:end) = den(2:end)+randn(1,4)*0.1;
@@ -120,11 +124,11 @@ for itr = 1:maxitr
 %     end
 %     init_params = sys2params_all(ss2ss(target_system, T), state, in, out);
 %     init_params = sys2params_all(balreal(target_system), state, in, out);
-    theta= init_params;
+%     theta= init_params;
 
 %     init_params = ones(3*state-2+state*(in+out)+in*out, 1)*randn(1)*1e-4;init_params(end) = 1e-3;
 %     for itr1 = 1: 10
-        [theta ,J] = m.fit_adam(t, [w, v], zeros(N, 1), theta, 1e-8, 0.9, 0.999, 1e-4, 0.8);
+%         [theta ,J] = m.fit_adam(t, [w, v], zeros(N, 1), theta, 1e-5, 0.9, 0.999, 1e-4, 0.8);
 %         [theta ,J] = m.fit_adamax(t, [w, v], zeros(N, 1), theta, 1e-12, 0.9, 0.999, 0.8);
 %         [theta ,J] = m.fit_rmsprop(t, [w, v], zeros(N, 1), theta, [], [], [], 0.8);
 %         [theta ,J] = m.fit_SMORMS3(t, [w, v], zeros(N,1), theta, 1e-10, [], 0.8);
@@ -136,7 +140,7 @@ for itr = 1:maxitr
 %     theta = 1e-4;
 %     theta = init_params;
 %     for itr1 = 1 : 2
-%         [theta,J] = m.fit_Santa_S(t, [w, v], zeros(N, 1), theta, 1e-12, [], [], 2000, @(t)t^2, 0.8);
+        [theta,J] = m.fit_Santa_S(t, [w, v], zeros(N, 1), theta, 1e-10, [], [], [], @(t)t^2, 0.8);
 %         model1 = m.gen_ss.gen_ss.get_sys();
 %         bode(sys_env,init_sys,model1)
 %     end
@@ -229,6 +233,18 @@ function init_params = sys2params_canonical(init_sys, state, in, out)
     init_params(state+1:state+state*(in-1)) = reshape(init_sys.B(:,2:end), state*(in-1), 1);
     init_params(state+state*(in-1)+1:state+state*(in-1)+out*state) = reshape(init_sys.C, out*state, 1);
     init_params(state+state*(in-1)+out*state+1:state+state*(in-1)+out*state+out*in) = reshape(init_sys.D, out*in, 1);    
+end
+
+function init_params = sys2params_canonical_zero(init_sys, state, in, out)
+    init_sys = balred(ss(init_sys),state);
+%     init_sys = canon(init_sys, 'companion');
+    init_sys = ctrbcanon(init_sys);
+    init_params = zeros(state + state*((in-1)+out) + in*out, 1);
+    init_params(1:state) = init_sys.A(end, :);
+    init_params(state+1:state+state*(in-1)) = reshape(init_sys.B(:,2:end), state*(in-1), 1);
+    init_params(state+state*(in-1)+1:state+state*(in-1)+out*state) = reshape(init_sys.C, out*state, 1);
+    init_params(state+state*(in-1)+out*state+1:state+state*(in-1)+out*state+out*in) = reshape(init_sys.D, out*in, 1);    
+    init_params(state+1) = [];
 end
 
 function csys = ctrbcanon(sys)

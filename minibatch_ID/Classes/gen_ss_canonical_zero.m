@@ -7,7 +7,7 @@
 % m      : input number
 % l      : output number
 %% 
-classdef gen_ss_canonical < gen_ss
+classdef gen_ss_canonical_zero < gen_ss
     
     properties
         params
@@ -15,20 +15,14 @@ classdef gen_ss_canonical < gen_ss
         n
         m
         l
-        iszero
     end
     
     methods
-        function obj = gen_ss_canonical(n, m, l)
-            if nargin < 4
-                iszero = 'off';
-            else
-                iszero = 'on';
-            end
+        function obj = gen_ss_canonical_zero(n, m, l)
             obj.n = n;
             obj.m = m;
             obj.l = l;
-            obj.params = cell(n + n + 1, 1);
+            obj.params = cell(n + n-1 +1, 1);
             for itr = 1:n
                 obj.params{itr} = sprintf('theta_A_%d', itr);
             end
@@ -38,7 +32,7 @@ classdef gen_ss_canonical < gen_ss
 %                 % On canonical form (MIMO), second input B is parameters.
 %             end
 %             b = b + n*(m-1);
-            for itr = 1:l*n
+            for itr = 1:l*n-l
                 obj.params{itr+b} = sprintf('theta_C_%d', itr);
                 % named by colum direction, Not raw direction. (for "reshape")
             end
@@ -64,9 +58,7 @@ classdef gen_ss_canonical < gen_ss
             Bnew = sys.b(:,2:end);
             Cnew = reshape(sys.c, obj.l*obj.n, 1);
             Dnew = reshape(sys.D, obj.l*lbj.m, 1);
-            if strcmp(obj.iszero,'on')
-                C_new(1) = -sys.a(end,1)*D
-            end
+            Cnew(1) = -sys.a(end,1)*Dnew;
             params_new = [Anew; Bnew; Cnew; Dnew];
             obj.set_params(params_new);
         end
@@ -84,12 +76,13 @@ classdef gen_ss_canonical < gen_ss
                 theta_B = [];
             end
             b = b + n*(m-1);%#ok
-            theta_C = theta(b+(1:l*n));%#ok
-            b = b + n*l;%#ok
+            theta_C = theta(b+(1:l*n-l));%#ok
+            b = b + n*l-l;%#ok
             theta_D = theta(b+(1:l*m));%#ok
             B = [zeros(n, 1),reshape(theta_B, obj.n, obj.m-1)]; %#ok
             B(end,1) = 1; % Matrix B's [one ,end] is One on  canonnical form.
-            C = reshape(theta_C, obj.l, obj.n);
+            C = reshape(theta_C, 1, numel(theta_C));
+            C = [theta(1)*theta_D, C];
             D = reshape(theta_D, obj.l, obj.m);
             if nargout > 4
                 dA = cell(np, 1);
@@ -116,15 +109,15 @@ classdef gen_ss_canonical < gen_ss
                     dD{itr+b} = D*0;
                 end
                 b = b+n*(m-1);%#ok
-                for itr = 1:n*l%#ok
+                for itr = 1:n*l-l%#ok
                     dA{itr+b} = A*0;
                     dB{itr+b} = B*0;
                     M = zeros(l, n);%#ok
-                    M(1+mod(itr-1, l), 1+floor((itr-1)/l)) = 1;%#ok
+                    M(1+mod(itr-1, l), 1+floor((itr-1)/l)+1) = 1;%#ok
                     dC{itr+b} = M;
                     dD{itr+b} = D*0;
                 end
-                b = b+n*l;%#ok
+                b = b+n*l-l;%#ok
                 
                 
                 for itr = 1:m*l%#ok
@@ -134,11 +127,6 @@ classdef gen_ss_canonical < gen_ss
                     M(1+mod(itr-1, l), 1+floor((itr-1)/l)) = 1; %#ok
                     dC{itr+b} = C*0;
                     dD{itr+b} = M;
-                end
-            end
-            if strcmp(obj.iszero,'on')
-                for itr = 1:numel(dC)
-                    dC{itr} = zeros(size(dC{itr}));
                 end
             end
                 

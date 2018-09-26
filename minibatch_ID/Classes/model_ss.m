@@ -182,7 +182,7 @@
             if nargin < 6
                 weight = 1;
             end
-            try
+%             try
                 %             try
                 %                 [yhat, dyhat] = obj.sim_fix(t, u, theta);
                 %                 e = (y(:) - yhat(:));
@@ -308,10 +308,10 @@
                             dval(itr) = -2*(a+b);
                         end
                 end
-            catch
-                val = inf;
-                dval = nan;
-            end
+%             catch
+%                 val = inf;
+%                 dval = nan;
+%             end
         end
         
     end
