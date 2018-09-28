@@ -54,11 +54,13 @@ classdef gen_ss_canonical < gen_ss
         
        
         function set_sys(obj, sys)
-            Anew = sys.a(:,end);
-            Bnew = sys.b(:,2:end);
-            Cnew = reshape(sys.c, obj.l*obj.n, 1);
-            Dnew = reshape(sys.D, obj.l*lbj.m, 1);
-            params_new = [Anew; Bnew; Cnew; Dnew];
+            sys = balred(ss(sys),obj.n);
+            sys = ctrbcanon(sys);
+            params_new = zeros(obj.n + obj.n*((obj.m-1)+obj.l) + obj.m*obj.l, 1);
+            params_new(1:obj.n) = sys.A(end, :);
+            params_new(obj.n+1:obj.n+obj.n*(obj.m-1)) = reshape(sys.B(:,2:end), obj.n*(obj.m-1), 1);
+            params_new(obj.n+obj.n*(obj.m-1)+1:obj.n+obj.n*(obj.m-1)+obj.l*obj.n) = reshape(sys.C, obj.l*obj.n, 1);
+            params_new(obj.n+obj.n*(obj.m-1)+obj.l*obj.n+1:obj.n+obj.n*(obj.m-1)+obj.l*obj.n+obj.l*obj.m) = reshape(sys.D, obj.l*obj.m, 1);
             obj.set_params(params_new);
         end
         
@@ -132,4 +134,16 @@ classdef gen_ss_canonical < gen_ss
         
     end
     
+end
+
+%% local
+function csys = ctrbcanon(sys)
+    % Only SISO(for continuous)
+    [num,den] = tfdata(sys ,'v');
+    dim = order(sys);
+    A = [zeros(dim-1,1), eye(dim-1); -fliplr(den(2:end))];
+    B = [zeros(dim-1,1); 1];
+    C = fliplr(num(2:end) - den(2:end)*num(1));
+    D = num(1);
+    csys = ss(A,B,C,D);
 end
