@@ -182,11 +182,15 @@
             if nargin < 6
                 weight = 1;
             end
-%             try
+            try
                 %             try
                 %                 [yhat, dyhat] = obj.sim_fix(t, u, theta);
                 %                 e = (y(:) - yhat(:));
-                theta = obj.get_params_all(theta);
+                if nargin < 5
+                    theta = obj.get_params_all();
+                else
+                    theta = obj.get_params_all(theta);
+                end
                 
                 [A, B, C, D, dA, dB, dC, dD] = obj.gen_ss.get_ss(theta); % So rectifier obj's get_ss, A dim = local+env
                 Ts = mode(diff(t));
@@ -308,10 +312,10 @@
                             dval(itr) = -2*(a+b);
                         end
                 end
-%             catch
-%                 val = inf;
-%                 dval = nan;
-%             end
+            catch
+                val = inf;
+                dval = nan;
+            end
         end
         
     end

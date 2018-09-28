@@ -54,7 +54,7 @@ classdef gen_ss_all < gen_ss
             Anew = reshape(sys.a, obj.n^2, 1);
             Bnew = reshape(sys.b, obj.n*obj.m, 1);
             Cnew = reshape(sys.c, obj.l*obj.n, 1);
-            Dnew = reshape(sys.D, obj.l*lbj.m, 1);
+            Dnew = reshape(sys.D, obj.l*obj.m, 1);
             params_new = [Anew; Bnew; Cnew; Dnew];
             obj.set_params(params_new);
         end

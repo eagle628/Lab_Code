@@ -3,8 +3,8 @@ close all
 %% Generate Network
 seed = 3;
 Node_number = 3;
-n_ori = network_swing_simple(Node_number, [1,2], [2,10]*1e-2, 1, [1,5], 0.1, seed);
-n_ori.Adj_ref = n_ori.Adj_ref*0;
+n_ori = network_swing_simple(Node_number, [1,2], [2,10]*1e-1, 1, [1,5], 0.1, seed);
+% n_ori.Adj_ref = n_ori.Adj_ref*0;
 n_ori.plot()
 %% control & noise Node
 c_n = 1;
@@ -42,7 +42,7 @@ n_ori.add_controller( c_n, Q, R);
 sys_ori_c1 = n_ori.get_sys_controlled(sys_ori);
 %% Generate v & w
 N = 10000;
-Ts = 0.01;
+Ts = 0.1;
 t = (0:N-1)'*Ts;
 %% minibatch
 maxitr = 1;
@@ -81,14 +81,15 @@ for itr = 1:maxitr
     % For Identification
     m = model_ss(gen_ss_rectifier(gen_ss_all(state, in, out), sys_local_vw));
 %     m = model_ss(gen_ss_rectifier(gen_ss_canonical(state, in, out), sys_local_vw));
-%     m = model_ss(gen_ss_rectifier(gen_ss_tridiag(state, in, out), sys_local_vw));
+%     m = model_ss(gen_ss_rectifier(gen_ss_tridiag(state, in, out), sys_local_vw, [0 1]));
 %     m = model_ss(gen_ss_rectifier(gen_ss_canonical_zero(state, in, out), sys_local_vw));
     % init
 %     init_sys = sys_env;
-    init_sys = d2c(arx(iddata(v,w,Ts), [state, state+1, 0])); 
-%     init_sys = d2c(armax(iddata(v,w,Ts), [state, state+1, state, 0])); 
+%     init_sys = d2c(arx(iddata(v,w,Ts), [state, state+1, 0])); 
+    init_sys = d2c(armax(iddata(v,w,Ts), [state, state+1, state, 0]), 'foh'); 
 %     init_sys = d2c(oe(iddata(v,w,Ts), [state+1, state, 0])); 
-%     init_params = sys2params_tri(init_sys, state, in, out); 
+    init_params = sys2params_tri(init_sys, state, in, out); 
+%     init_params = sys2params_tri(sys_env, state, in, out); 
 %     init_params = ones(3*state-2+state*(in+out)+in*out, 1)*1e-3;
 %     m.add_fixed_params('theta_A_6', 0); % model.m
 %     m.add_fixed_params('theta_A_9', 0); % model.m
@@ -97,7 +98,7 @@ for itr = 1:maxitr
 %     init_sys = rss(state);
 %     init_params = sys2params_all(ss(init_sys), state, in, out);
 %     init_params = sys2params_all(sys_env, state, in, out);
-    init_params = sys2params_all(init_sys, state, in, out);
+%     init_params = sys2params_all(init_sys, state, in, out);
 %     init_params = sys2params_canonical(init_sys, state, in, out);
 %     init_params = sys2params_canonical_zero(init_sys, state, in, out);
     
@@ -128,7 +129,8 @@ for itr = 1:maxitr
 
 %     init_params = ones(3*state-2+state*(in+out)+in*out, 1)*randn(1)*1e-4;init_params(end) = 1e-3;
 %     for itr1 = 1: 10
-%         [theta ,J] = m.fit_adam(t, [w, v], zeros(N, 1), theta, 1e-5, 0.9, 0.999, 1e-4, 0.8);
+        [theta ,J] = m.fit_adam(t, [w, v], zeros(N, 1), theta, 1e-6, 0.9, 0.999, 1e-4, 0.8);
+%         [theta ,J] = m.fit(t, [w, v], zeros(N, 1));
 %         [theta ,J] = m.fit_adamax(t, [w, v], zeros(N, 1), theta, 1e-12, 0.9, 0.999, 0.8);
 %         [theta ,J] = m.fit_rmsprop(t, [w, v], zeros(N, 1), theta, [], [], [], 0.8);
 %         [theta ,J] = m.fit_SMORMS3(t, [w, v], zeros(N,1), theta, 1e-10, [], 0.8);
@@ -136,11 +138,10 @@ for itr = 1:maxitr
 %         model1 = m.gen_ss.gen_ss.get_sys();
 %         bode(sys_env,init_sys,model1)
 %     end
-%     [re_theta ,J] = m.fit_adamax(t, [w, v], zeros(N, 1), init_params, [], [], [], 0.8);
 %     theta = 1e-4;
 %     theta = init_params;
 %     for itr1 = 1 : 2
-        [theta,J] = m.fit_Santa_S(t, [w, v], zeros(N, 1), theta, 1e-10, [], [], [], @(t)t^2, 0.8);
+%         [theta,J] = m.fit_Santa_S(t, [w, v], zeros(N, 1), theta, 1e-10, [], [], [], @(t)t^2, 0.8);
 %         model1 = m.gen_ss.gen_ss.get_sys();
 %         bode(sys_env,init_sys,model1)
 %     end
@@ -161,7 +162,7 @@ end
 parfor_progress(0);
 
 %% simlation
-Ts_s = 0.01;
+Ts_s = 0.1;
 Tf = 200;
 t_s = 0:Ts_s:Tf;
 sim_noise = randn(length(t_s), 2);
