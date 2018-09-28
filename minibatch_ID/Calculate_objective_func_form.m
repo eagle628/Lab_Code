@@ -2,7 +2,7 @@ clear
 close all
 %% Generate Network
 seed = 3;
-Node_number = 3;
+Node_number = 30;
 n_ori = network_swing_simple(Node_number, [1,2], [2,10]*1e-2, 1, [1,5], 0.1, seed);
 n_ori.Adj_ref = n_ori.Adj_ref*0;
 n_ori.plot()
@@ -38,15 +38,15 @@ pha_env = squeeze(pha_env(1,1,:));
 %% add controller
 Q = kron(eye(1*numel(1)),diag([1,1000]));
 R = kron(eye(1*numel(1)),diag([1e-3]));
-n_ori.add_controller( c_n, Q, R);
+n_ori.add_controller( 2, Q, R);
 sys_ori_c1 = n_ori.get_sys_controlled(sys_ori);
 %% Generate v & w
 N = 10000;
-Ts = 0.1;
+Ts = 0.01;
 t = (0:N-1)'*Ts;
 %% minibatch
 maxitr = 1;
-state = 2*(Node_number-1);
+state = 4;%2*(Node_number-1);
 in = 1;
 out = 1;
 % get memory
@@ -75,7 +75,10 @@ w = lsim(sys_ori_c1(ob_w_p, cat(2,ID_in_p,Noise)), d, t);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % For Identification
-m = model_ss(gen_ss_rectifier(gen_ss_tridiag(state, in, out), sys_local_vw, [0 1]));
+% m = model_ss(gen_ss_rectifier(gen_ss_tridiag(state, in, out), sys_local_vw, [0 1]));
+% m = model_ss(gen_ss_rectifier(gen_ss_canonical(state, in, out), sys_local_vw, [0 1]));
+m = model_ss(gen_ss_rectifier(gen_ss_canonical_zero(state, in, out), sys_local_vw, [0 1]));
+% m = model_ss(gen_ss_rectifier(gen_ss_all(state, in, out), sys_local_vw, [0 1]));
 % init
 % init_sys = sys_env;
 sys_arx = balred(ss(d2c(arx(iddata(v,w,Ts), [state, state+1, 0]), 'foh')), state);
@@ -83,7 +86,7 @@ sys_armax = balred(ss(d2c(armax(iddata(v,w,Ts), [state, state+1, state, 0]), 'fo
 sys_oe = balred(ss(d2c(oe(iddata(v,w,Ts), [state+1, state, 0]), 'foh')), state);
 
 % true params
-m.gen_ss.gen_ss.set_sys(sys_env);
+m.gen_ss.gen_ss.set_sys(balred(sys_env,4));
 true_params = m.get_params_all();
 % Id params
 m.gen_ss.gen_ss.set_sys(sys_arx);
@@ -94,11 +97,15 @@ m.gen_ss.gen_ss.set_sys(sys_oe);
 oe_params = m.get_params_all();
 
 %% estimate objective funciton form
-init_params = oe_params;
+load('sys.mat')
+m.gen_ss.gen_ss.set_sys(model);
+target_params = m.get_params_all();
+
+init_params = target_params;
 % tridiag
 number = 1000;
-min = 0;
-max = 1;
+min = -1;
+max = 2;
 parfor_progress(number);
 
 cost = zeros(1,number);
