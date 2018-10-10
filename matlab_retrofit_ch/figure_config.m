@@ -52,7 +52,7 @@ classdef figure_config
         end
         
         % Plot Retro y & \hat{y}
-        function ytilde = plot_retro1(axes,time,y,yhat,config)
+        function [ytilde, lineobj] = plot_retro1(axes,time,y,yhat,config)
             % Row nad Colums of y,ydesired is same.
             % times row is same(usually colums is 1.)
             % Premised set_figure_reto H.axes
@@ -60,7 +60,7 @@ classdef figure_config
                 config = {'linewidth',0.8};
             end
             % all y
-            plot(axes.ax1,time,y,config{:});
+            lineobj = plot(axes.ax1,time,y,config{:});
             if ~isempty(yhat)
                 % yhat
                 plot(axes.ax2,time,yhat,config{:});
@@ -71,7 +71,7 @@ classdef figure_config
         end
         
         % Plot Retro y & \tilde{y}
-        function yhat = plot_retro2(axes,time,y,ytilde,config)
+        function [yhat, lineobj] = plot_retro2(axes,time,y,ytilde,config)
             % Row nad Colums of y,ydesired is same.
             % times row is same(usually colums is 1.)
             % Premised set_figure_reto H.axes
@@ -79,7 +79,7 @@ classdef figure_config
                 config = {'linewidth',0.8};
             end
             % all y
-            plot(axes.ax1,time,y,config{:});
+            lineobj = plot(axes.ax1,time,y,config{:});
             if ~isempty(ytilde)
                 % yhat
                 yhat = y-ytilde;
@@ -119,12 +119,12 @@ classdef figure_config
             H.axes.ax2.YLabel.String = 'Phase [deg]';
         end
         % Plot Bode
-        function plot_bode(axes,omega,magnitude,phase,config)
+        function lineobj = plot_bode(axes,omega,magnitude,phase,config)
             if nargin < 5
                 config = {'linewidth',0.8};
             end
             semilogx(axes.ax1,omega,mag2db(magnitude),config{:});
-            semilogx(axes.ax2,omega,phase,config{:});
+            lineobj = semilogx(axes.ax2,omega,phase,config{:});
         end
         
     end

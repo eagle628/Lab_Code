@@ -66,6 +66,7 @@ classdef network_swing_simple < handle
         function plot(obj)
             G = graph(obj.Adj);
             fnet = tools.myplot([], G, 'EdgeLabel',G.Edges.Weight)
+            fnet.Name = 'Network';
         end
         
         % Add Input u&d, Output y,v&w to the idx_th subsystem 
