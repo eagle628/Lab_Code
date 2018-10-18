@@ -1,24 +1,51 @@
 close all
 clear 
-%% node60
-root = 'C:\Users\NaoyaInoue\Desktop\figure_set\LSID\node100\nocontroller';
+%% node3
+root = {
+        'C:\Users\NaoyaInoue\Desktop\figure_set\node3_confirm_ss_oe_spem\node1_100\np0',...
+        'C:\Users\NaoyaInoue\Desktop\figure_set\node3_confirm_ss_oe_spem\node1_100\np001'...
+        'C:\Users\NaoyaInoue\Desktop\figure_set\node3_confirm_ss_oe_spem\node1_100\np01',...
+        };
 
-max_iter = 20;
-n_n = [2:100];
-Node_number = 100;
-noise_p_g = [0, 0.01, 0.1];
+max_iter = 100;
+n_n = [2,3];
+Node_number = 3;
+noise_p_g = [0,0.01,0.1];
+controller_number = [];
+c_n = 1;
 
-for noise_p = noise_p_g
-    if noise_p == 0
-        name = '0';
-    elseif noise_p == 0.1
-        name = '01';
-    elseif noise_p == 0.01
-        name = '001';
-    elseif noise_p == 1
-        name = '1';
+idx = 1;
+try
+    for noise_p = noise_p_g
+        LSID_func2(Node_number, noise_p, n_n, root{idx}, max_iter, controller_number, c_n);
+        idx = idx +1 ;
     end
-    root_dir = strcat(root,'\np',name'); 
-    LSID_func(Node_number, noise_p, n_n, root_dir, max_iter);
+    mail_message(strcat('node3_np',num2str(idx-1)))
+catch
+    mail_message('Error')
 end
 
+%% node3
+root = {
+        'C:\Users\NaoyaInoue\Desktop\figure_set\node30_confirm_ss_oe_spem\node1\np0',...
+        'C:\Users\NaoyaInoue\Desktop\figure_set\node30_confirm_ss_oe_spem\node1\np001'...
+        'C:\Users\NaoyaInoue\Desktop\figure_set\node30_confirm_ss_oe_spem\node1\np01',...
+        };
+
+max_iter = 100;
+n_n = [2:30];
+Node_number = 30;
+noise_p_g = [0,0.01,0.1];
+controller_number = [];
+c_n = 1;
+
+idx = 1;
+try
+    for noise_p = noise_p_g
+        LSID_func2(Node_number, noise_p, n_n, root{idx}, max_iter, controller_number, c_n);
+        idx = idx +1 ;
+    end
+    mail_message(strcat('node20_np',num2str(idx-1)))
+catch
+    mail_message('Error')
+end
