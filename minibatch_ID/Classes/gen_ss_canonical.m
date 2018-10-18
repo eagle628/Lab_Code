@@ -41,7 +41,7 @@ classdef gen_ss_canonical < gen_ss
                 obj.params{itr+b} = sprintf('theta_D_%d', itr);
                 % named by colum direction, Not raw direction. (for "reshape")
             end
-            obj.theta = zeros(numel(obj.params), 1);
+            obj.theta = ones(numel(obj.params), 1)*1e-3;
         end
         
         function set_params(obj, theta)
