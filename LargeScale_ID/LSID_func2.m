@@ -8,7 +8,8 @@ function LSID_func2(Node_number, noise_p, n_n, root, max_iter, controller_number
 close all
 % Node_number=3; noise_p = 0.1; n_n=[2,3]; root=''; max_iter=4; controller_number=[3]; c_n=1;
 %% Generate Network
-seed = 3;
+% seed = 3;% node numver 3
+seed = 10;% node numver 30
 % Node_number = 30;
 n_ori = network_swing_simple(Node_number, [1,2], [2,10]*1e-2, 1, [1,5], 0.1, seed);
 n_ori.Adj_ref = n_ori.Adj_ref*0;
