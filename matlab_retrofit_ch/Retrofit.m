@@ -104,6 +104,19 @@ classdef Retrofit
             sys_design_K = Retrofit.connect_K(sys_design, K);
         end
         
+        % 新たにゲインを設計するのではなく，変化しないようにする．
+        function [sys, K, sys_design, sys_design_K] = design2(sys_local, sys_model, K)
+            if nargin < 3
+                % Case : Not assign sys_model
+                sys = Retrofit.generate_retrofit_controller_org(sys_local, K);
+                sys_design = sys_local;
+            else
+                sys_design = Retrofit.generate_fb(sys_local, sys_model);
+                sys = Retrofit.generate_retrofit_controller_extend(sys_local, sys_model, K);
+            end
+            sys_design_K = Retrofit.connect_K(sys_design, K);
+        end
+        
         
         function sys = generate_retrofit_controller_dynamic(sys_local, sys_model, sys_K)
             A = sys_local.a;

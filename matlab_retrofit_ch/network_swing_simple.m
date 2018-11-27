@@ -419,6 +419,30 @@ classdef network_swing_simple < handle
             obj.controllers = [obj.controllers; {controller}];
         end
         
+        % ゲインを変えずにモデルだけ変更(Extend )
+        function add_controller2(obj, idx, model, K)
+            sys_local = obj.get_sys_local(idx);
+            nu = size(sys_local(:, 'u').b, 2);
+            
+            [sys_control, K, sys_design, sys_K] = Retrofit.design2(sys_local, model, K);
+            controller = struct();
+            controller.sys = sys_control;
+            controller.K = K;
+            controller.sys_design = sys_design;
+            controller.sys_K = sys_K;
+            controller.model = model;
+            controller.names = {};
+            % controller type
+            controller.type = 'e';
+            % controller name
+            for itr = 1:numel(idx)
+                controller.names = [controller.names; {obj.nodes{idx(itr)}.name}];
+            end
+            % control node
+            controller.nodes = idx;
+            obj.controllers = [obj.controllers; {controller}];
+        end
+        
         % get_sys_controlled 内で，controller node名をとるためかな
         function idx = names2idx(obj, names)
             [c, ia, ic] = unique(names);
