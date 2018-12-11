@@ -6,7 +6,7 @@ s = tf('s');
 % G = (2*s+3)/(s+4);
 % G = rss(2);
 kkk = 6;
-% G = 10*(s+5)*(s+50)/(s+10)/(s+100);
+% G = tf([-6400,1600],[1,5,408,416,1600]);
 while true
     G = tf(10*[rand(1,kkk)],[1,rand(1,kkk-1)]);
     if isstable(G)
@@ -44,29 +44,32 @@ end
 
 figure('position',[-900,0,600,600])
 % fbode(G,[],':','linewidth',3.0);
-bode(G)
+[mag,~,wout] = bode(G,{1e-2,1e2});
+semilogx(wout, mag2db(squeeze(mag)),'b:','LineWidth',3.0);
 hold on
 
-condition = [kkk-1,kkk,hhh,hhh];
+condition = [kkk-1,kkk,hhh,hhh]; % number of variable
+% condition = [4,2,hhh,hhh];
 
 rng('shuffle')
 seeds = randi(2^30,100,2);
 idx = 1;
 parfor_progress(100);
-for itr = 1:100
+for itr = 1:10
     % input setting
     rng(seeds(itr,1))
     u = randn(N,1)*1;
     % noise setting
     rng(seeds(itr,2))
-    d = randn(N,1)*1;
+    d = randn(N,1)*0.5;
     y =  lsim(G_d, u) + lsim(H_d, d);
     data = iddata(y, u, Ts);
     
 %     try
-    sys = RIVC(data,condition);
+    sys = RIVC(data,condition,1);
 %     fbode(sys.G,[]);
-    bode(sys.G,'r');
+    [mag,~,wout] = bode(sys.G,{1e-2,1e2});
+    semilogx(wout, mag2db(squeeze(mag)),'r');
 %     catch ME
 %         fprintf('%d th ERROR \n',idx);
 %         idx = idx +1;

@@ -6,8 +6,10 @@
 % Doubt :
 % noise free output x is not using at Instrumental Variables.
 % We need not to calculate "x".
+
+% na,nb,nc,nd are not dimension but number of variables.
 %% main function
-function sys = RIVC(data,condition)
+function sys = RIVC(data,condition,lambda)
 % % % % G = (s+1)*(s+5)/(s+3)/(s+10);
 % % % % 
 % % % % N = 10000;
@@ -28,25 +30,18 @@ function sys = RIVC(data,condition)
     u  = data.u;
     Ts = data.Ts;
     N  = data.N;
-    
-    if ~isobject(condition)
-        % coefiicinet number
-        nf = condition(1);
-        nb = condition(2);
-        nc = condition(3);
-        nd = condition(4);
-        % init system (prefiletring)
-        s = tf('s');
-        lambda = 1e-6;
-        init_sys = 1/(s+lambda)^nf;
-    else
-        init_sys = conditino;
-        [z,p,~] = zpkdata(init_sys,'v');
-        nf = numel(p);
-        nb = numel(z);
-        nc = nf;
-        nd = nf;
+
+    % coefiicinet number
+    nf = condition(1);
+    nb = condition(2);
+    nc = condition(3);
+    nd = condition(4);
+    % init system (prefiletring)
+    s = tf('s');
+    if nargin < 3
+        lambda = 1;
     end
+    init_sys = 1/(s+lambda)^nf;
     [num, den] = tfdata(init_sys,'v');
         
     
