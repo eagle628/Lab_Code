@@ -2,7 +2,7 @@ clear
 close all
 %% genereate Network
 seed = 10;
-Node_number = 10;
+Node_number = 100;
 n_ori = network_swing_simple(Node_number, [1,2], [2,10]*1e-2, 1, [1,5], 0.1, seed);
 n_ori.Adj_ref = n_ori.Adj_ref*0;
 n_ori.plot()
@@ -44,7 +44,7 @@ Ts = 0.01;
 t = (0:N-1)'*Ts;
 
 
-model_dim = 6;
+model_dim = 2;
 
 max_itr = 100;
 parfor_progress(max_itr);
@@ -54,6 +54,7 @@ wout_result_set = cell(max_itr,1);
 
 sys_v = sys_ori(ob_v_p, cat(2,ID_in_p,Noise));
 sys_w = sys_ori(ob_w_p, cat(2,ID_in_p,Noise));
+error = 0;
 parfor itr = 1 : max_itr
     d = randn(N,2+numel(n_n)*2);
     d(:,1:2) = d(:,1:2)*id_in_p;
@@ -68,9 +69,11 @@ parfor itr = 1 : max_itr
     data.y = v;
 
     try
-%     G2 = CLIVC2(data,-sys_local_vw,[5,6],1);
-    G2 = CLRIVC(data,-sys_local_vw,[model_dim-1,model_dim,model_dim-1,model_dim-1],100);
+    G2 = CLIVC2(data,-sys_local_vw,[5,6],0.5);
+%     G2 = CLRIVC(data,-sys_local_vw,[model_dim-1,model_dim,model_dim-1,model_dim-1],100);
     [mag_result_set{itr},~,wout_result_set{itr}] = bode(G2, wrange);
+    catch
+        error = error+1;
     end
     parfor_progress();
 end
@@ -87,3 +90,5 @@ end
 semilogx(wout_ori,mag2db(squeeze(mag_ori)),'b:','LineWidth',3.0);
 ax = gca;
 ax.XScale ='log';
+
+fprintf('Error number is %d.\n',error)
