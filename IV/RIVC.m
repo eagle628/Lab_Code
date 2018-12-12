@@ -32,8 +32,8 @@ function sys = RIVC(data,condition,lambda)
     N  = data.N;
 
     % coefiicinet number
-    nf = condition(1);
-    nb = condition(2);
+    nf = condition(1); % nb (book)
+    nb = condition(2); % na (book)
     nc = condition(3);
     nd = condition(4);
     % init system (prefiletring)
