@@ -2,16 +2,14 @@ clear
 close all
 %% genereate Network
 seed = 10;
-Node_number = 100;
+Node_number = 30;
 n_ori = network_swing_simple(Node_number, [1,2], [2,10]*1e-2, 1, [1,5], 0.1, seed);
+% n_ori = network_swing_simple(Node_number, 1, [2,10]*1e-2, 1, [1,5], 0.1, seed);
 n_ori.Adj_ref = n_ori.Adj_ref*0;
 n_ori.plot()
 %% control & noise Node
 c_n = 1;
 n_n = [2:Node_number];
-%% signal power
-% id_in_p = 1;
-% noise_p = 10;
 %% Node Name
 ob_v_p  = {strcat('v_node',num2str(c_n))};
 ob_w_p  = {strcat('w_node',num2str(c_n))};
@@ -34,51 +32,79 @@ sys_local_vw = sys_local({'w'},{'v'});
 [mag_ori,~,wout_ori] = bode(sys_env);
 wrange = {wout_ori(1),wout_ori(end)};
 
+Loop = loopsens(sys_env,-sys_local_vw)
+isstable(sys_ori({'w_node1'},sys_ori.InputGroup.d_node1))
+isstable(sys_ori({'v_node1'},sys_ori.InputGroup.d_node1))
+isstable(sys_ori)
 %% vw generate
 rng('shuffle')
-id_in_p = 10;
-noise_p = 1;
+
+id_p = 1;
+noise_p = 0;
 
 N = 10000;
 Ts = 0.01;
 t = (0:N-1)'*Ts;
 
 
-model_dim = 2;
+model_dim = 6;
 
-max_itr = 100;
+max_itr = 1000;
+
 parfor_progress(max_itr);
 
 mag_result_set = cell(max_itr, 1);
 wout_result_set = cell(max_itr,1);
+data_set = cell(max_itr,1);
+IDsys_set = cell(max_itr,1);
 
-sys_v = sys_ori(ob_v_p, cat(2,ID_in_p,Noise));
-sys_w = sys_ori(ob_w_p, cat(2,ID_in_p,Noise));
+sys_v_id = sys_ori(ob_v_p, ID_in_p);
+sys_v_np = sys_ori(ob_v_p, Noise);
+sys_w_id = sys_ori(ob_w_p, ID_in_p);
+sys_w_np = sys_ori(ob_w_p, Noise);
 error = 0;
+Error_message = {};
 parfor itr = 1 : max_itr
-    d = randn(N,2+numel(n_n)*2);
-    d(:,1:2) = d(:,1:2)*id_in_p;
-    d(:,3:end) = d(:,3:end)*noise_p;
+    d_id = zeros(N, 2);
+%     d_id = randn(N, 2);
+    d_id(:,1) = randn(N, 1)*id_p;
+    d_np = zeros(N,numel(n_n)*2);
+    d_np(:,1:2:end) = randn(N,numel(n_n))*noise_p;
 
-    v = lsim(sys_v, d, t);
-    w = lsim(sys_w, d, t);
+    v_id = lsim(sys_v_id, d_id, t);
+    w_id = lsim(sys_w_id, d_id, t);
 
+    v_np = lsim(sys_v_np, d_np, t);
+    w_np = lsim(sys_w_np, d_np, t);
+    
+    v = v_id + v_np;
+    w = w_id + w_np;
+    
     data = struct();
     data.Ts = Ts;
     data.u = w;
     data.y = v;
+    data.r = w - lsim(c2d(sys_local_vw, Ts, 'foh'), v);
+    data.io = {v_id,v_np,w_id,w_np};
+    data_set{itr} = data;
 
     try
-    G2 = CLIVC2(data,-sys_local_vw,[5,6],0.5);
-%     G2 = CLRIVC(data,-sys_local_vw,[model_dim-1,model_dim,model_dim-1,model_dim-1],100);
-    [mag_result_set{itr},~,wout_result_set{itr}] = bode(G2, wrange);
-    catch
+%         G2 = CLIVC2(data,-sys_local_vw,[5,6],1);
+        sys = CLRIVC(data,-sys_local_vw,[model_dim-1,model_dim,model_dim-1,model_dim-1],100);
+%         sys = RIVC(data,[model_dim-1,model_dim,model_dim-1,model_dim-1],100);
+        [mag_result_set{itr},~,wout_result_set{itr}] = bode(sys.G, wrange);
+        IDsys_set{itr} = sys;
+    catch ME
         error = error+1;
+        Error_message = [Error_message,{ME}];
     end
     parfor_progress();
 end
 parfor_progress(0);
 
+fprintf('Error number is %d.\n',error)
+
+%%
 figure
 for itr = 1 : max_itr
     try
@@ -91,4 +117,43 @@ semilogx(wout_ori,mag2db(squeeze(mag_ori)),'b:','LineWidth',3.0);
 ax = gca;
 ax.XScale ='log';
 
-fprintf('Error number is %d.\n',error)
+%% 
+rsme_set = zeros(1,max_itr);
+
+for itr = 1 : max_itr
+    try
+        G_test = c2d(IDsys_set{itr}.G, Ts, 'foh');
+        cloop_d = loopsens(G_test,-c2d(sys_local_vw,Ts));
+        y_test = lsim(G_test*cloop_d.Si, data_set{itr}.r);
+        rsme_set(itr) = norm(data_set{itr}.io{1} - y_test);
+    catch
+        rsme_set(itr) = nan;
+    end
+end
+rsme_set = rsme_set(~isnan(rsme_set));
+
+figure;
+boxplot(rsme_set);
+%% 
+% BFR_set = zeros(1,max_itr);
+% for itr = 1 : max_itr
+%     try
+%         G_test = c2d(IDsys_set{itr}.G, Ts, 'foh');
+%         cloop_d = loopsens(G_test,-c2d(sys_local_vw,Ts));
+%         y_test = lsim(G_test*cloop_d.Si, data_set{itr}.r);
+%         BFR_set(itr) = 1-norm(data_set{itr}.io{1} - y_test)/norm(data_set{itr}.io{1} - mean(data_set{itr}.io{1}));
+%     catch
+%         BFR_set(itr) = nan;
+%     end
+% end
+% 
+% figure;
+% boxplot(BFR_set);
+%%
+t = (0:1:N-1)'*Ts;
+figure('name','I/O data');
+plot(t,data_set{1}.u,'b',t,data_set{1}.y,'r')
+legend('Input','Output')
+figure('Name','output S/N');
+plot(t,data_set{1}.io{1},'b',t,data_set{1}.io{2},'g')
+legend('Output : S','Output : N')

@@ -76,6 +76,9 @@ y = yyy + ddd;
 u = r - lsim(C_d, y);
 
 %% main
+
+sys = moesp_DT(iddata(zeros(N,1),[u,y], Ts), 3, 30);
+
 s = 30;
 n = 2;
 
@@ -134,6 +137,7 @@ D = DB(1:ny, :);
 B = DB(ny+1:ny+n, :);
 
 idsys = ss(A, B, C, D, Ts);
+
 %% local
 
 

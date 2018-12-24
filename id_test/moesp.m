@@ -88,8 +88,8 @@ bar(ss)
 %}
 
 % Input and output check
-error(nargchk(1,3,nargin));
-error(nargoutchk(0,4,nargout));
+narginchk(1,3);
+nargoutchk(0,4);
 
 [ndat,ny]=size(y);
 [mdat,nu]=size(u);

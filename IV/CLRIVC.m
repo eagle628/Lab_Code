@@ -1,4 +1,5 @@
-function G2 = CLRIVC(data, C, condition, lambda)
+function sys = CLRIVC(data, C, condition, lambda)
+
     % load data
     u  = data.u;
     y  = data.y;
@@ -21,14 +22,15 @@ function G2 = CLRIVC(data, C, condition, lambda)
     nb = condition(2);
     nc = condition(3);
     nd = condition(4);
-    
+
     % chose Initial CTfilter : f_c(p)
     if nargin < 4
         lambda = 1;
     end
     beta = 1;
     s = tf('s');
-    init_sys = (beta/(s+lambda))^na;
+%     init_sys = (beta/(s+lambda))^na;
+    init_sys = (beta/(lambda*s+1))^na;
     [num, den] = tfdata(init_sys,'v');
     % Iteration Part
     for itr1 = 1 : 3
@@ -95,4 +97,7 @@ function G2 = CLRIVC(data, C, condition, lambda)
         G2 = tf((rho(na+1:end))',[1,(rho(1:na))']);
         [num, den] = tfdata(G2,'v');
     end
+    sys = struct();
+    sys.G = G2;
+    sys.H = inv(noise_sys);
 end

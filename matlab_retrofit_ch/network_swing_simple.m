@@ -534,8 +534,9 @@ classdef network_swing_simple < handle
                 Adj_Mat = Adj_Mat+Adj_Mat';
                 D_mat = diag(sum(Adj_Mat,2));
                 Lap_G = D_mat-Adj_Mat;
-%                 connect = sum(eig(Lap_G)<1e-5)==1;
-                connect = (sum(eig(Lap_G)<1e-5) + sum(eig(Lap_G)<0))==1;
+                connect = sum(eig(Lap_G)<1e-5)==1;
+%                 connect = sum(eig(Lap_G)<1e-10)==1;
+%                 connect = (sum(eig(Lap_G)<1e-5) + sum(eig(Lap_G)<0))==1;
                     % Lap_G is semi-positive definit.
             end
             % Adjacency matrix
