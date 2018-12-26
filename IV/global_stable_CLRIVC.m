@@ -3,10 +3,10 @@ close all
 %% genereate Network
 seed = 10;
 Node_number = 4;
-n_ori = network_swing_simple(Node_number, [1,2], [2,10]*1e-2, 1, [1,5], 0.1, seed);
+net1 = network_swing_simple(Node_number, [1,2], [2,10]*1e-2, 1, [1,5], 0.1, seed);
 % n_ori = network_swing_simple(Node_number, 1, [2,10]*1e-2, 1, [1,5], 0.1, seed);
-n_ori.Adj_ref = n_ori.Adj_ref*0;
-n_ori.plot()
+net1.Adj_ref = net1.Adj_ref*0;
+% net1.plot()
 %% control & noise Node
 c_n = 1;
 n_n = [2:Node_number];
@@ -21,28 +21,35 @@ for i = 1 : numel(n_n)
 Noise(i) = {strcat('d_node',num2str(n_n(i)))};
 end
 %% add I/O port for identificaiton
-sys_ori = n_ori.get_sys();
+sys_all = net1.get_sys();
 add_io_node = unique([c_n,n_n]);
 for nnn = add_io_node
-    sys_ori = n_ori.add_io(sys_ori, nnn, strcat('node',num2str(nnn)));
+    sys_all = net1.add_io(sys_all, nnn, strcat('node',num2str(nnn)));
 end
-[sys_local, sys_env] = n_ori.get_sys_local(c_n);
+sys_stable = sys_all([1:8],[2:4]);
+K = lqr(sys_stable, eye(8), eye(3));
+K = sys_stable.B*K;
+% K = blkdiag(zeros(2), K(3:end,3:end));
+sys_stable = sys_all;
+sys_stable.A  = sys_stable.A - K;
+
+[sys_local, sys_env] = net1.get_sys_local(c_n);
+% sys_env.A = sys_env.A - K(3:end,3:end);
 sys_local_vw = sys_local({'w'},{'v'});
 %% env character
 [mag_ori,~,wout_ori] = bode(sys_env);
 wrange = {wout_ori(1),wout_ori(end)};
 
 Loop = loopsens(sys_env,-sys_local_vw)
-isstable(sys_ori({'w_node1'},sys_ori.InputGroup.d_node1))
-isstable(sys_ori({'v_node1'},sys_ori.InputGroup.d_node1))
-isstable(sys_ori)
+isstable(sys_stable({'w_node1'},sys_stable.InputGroup.d_node1))
+isstable(sys_stable({'v_node1'},sys_stable.InputGroup.d_node1))
+isstable(sys_stable)
 %% vw generate
 Q = diag([1,1000]);
 R = 1e-3;
-n_ori.add_controller(c_n, Q, R);
-sys_con = n_ori.get_sys_controlled(sys_ori);
-
-% sys_con = sys_ori;
+% n_ori.add_controller(c_n, Q, R);
+% sys_con = net1.get_sys_controlled(sys_stable);
+sys_con = sys_stable;
 
 
 rng('shuffle')
@@ -66,18 +73,20 @@ wout_result_set = cell(max_itr,1);
 data_set = cell(max_itr,1);
 IDsys_set = cell(max_itr,1);
 
-sys_v_id = sys_con(ob_v_p, ID_in_p);
-sys_v_np = sys_con(ob_v_p, Noise);
-sys_w_id = sys_con(ob_w_p, ID_in_p);
-sys_w_np = sys_con(ob_w_p, Noise);
+sys_v_id = balreal(sys_con(ob_v_p, ID_in_p));
+sys_v_np = balreal(sys_con(ob_v_p, Noise));
+sys_w_id = balreal(sys_con(ob_w_p, ID_in_p));
+sys_w_np = balreal(sys_con(ob_w_p, Noise));
 error = 0;
 Error_message = {};
 parfor itr = 1 : max_itr
     d_id = zeros(N, 2);
-%     d_id = randn(N, 2);
-    d_id(:,1) = randn(N, 1)*id_p;
-    d_np = zeros(N,numel(n_n)*2);
-    d_np(:,1:2:end) = randn(N,numel(n_n))*noise_p;
+    d_id = randn(N, 2);
+%     d_id(:,1) = randn(N, 1)*id_p;
+
+    d_np = randn(N,numel(n_n)*2)*noise_p;
+%     d_np = zeros(N,numel(n_n)*2);
+%     d_np(:,1:2:end) = randn(N,numel(n_n))*noise_p;
 
     v_id = lsim(sys_v_id, d_id, t);
     w_id = lsim(sys_w_id, d_id, t);

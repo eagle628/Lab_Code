@@ -58,12 +58,13 @@ singular = diag(S1);
 % C and A
 Ok = U1(:, 1:n)*diag(sqrt(singular(1:n)));
 % C=Ok(1:ny, :);
-% A=Ok(1:ny*(d-1), :)\Ok(ny+1:d*ny, :);
+% A=Ok(1:ny*(d-1), :)\Ok(ny+1:d*ny, :); 
 
 %%
 Q = sdpvar(n,n,'full');
 P = sdpvar(n,n,'symmetric');
-
+% Q = semivar(n,n,'full');
+% P = semivar(n,n,'symmetric');
 
 Objective = norm(Ok(1:ny*(s-1), :)*Q-Ok(ny+1:s*ny, :)*P,'fro');
 
