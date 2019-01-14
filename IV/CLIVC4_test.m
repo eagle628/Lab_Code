@@ -7,70 +7,79 @@
 clear
 close all
 %% Prepare Plan and Controller and Noise Filter
-rng(20)
-GGG = 7;
-% while true
-%     G = tf([rand(1,GGG-1),0],[1,rand(1,GGG-1)]);
-%     G = rss(GGG-1);
-%     G.D = randn(1);
-%     if isstable(G)
-%         break;
-%     end
-% end
-
-load ex_network_sys.mat sys_env sys_local_vw
-G = sys_env;
-
-na = GGG-1;
-nb = GGG;
-
-% na = 5;
-% nb = 6;
 % 
-iii = 1;
-while true
-rng(iii)
-CCC = 3;
-% while true
-    C = tf([rand(1,1)],[1,rand(1,CCC-2),0]);
-    feed = loopsens(G, C);
-    if feed.Stable
-        break;
+Flag1 = true;
+
+if Flag1 
+    rng(20)
+    GGG = 7;
+    while true
+%         G = tf([5*rand(1,GGG-1),1e-15],[1,10*rand(1,GGG-1)]);
+%         G = tf(5*[randn(1,GGG-1),0],[1,10*rand(1,GGG-1)]);
+        G = tf([-5*rand(1),5*randn(1,GGG-2),1e-10*randn(1)],[1,10*rand(1,GGG-1)]);
+%         G = tf([-5*rand(1),5*randn(1,GGG-2),0],[1,10*rand(1,GGG-1)]);
+    %     G = rss(GGG-1);
+    %     G.D = randn(1);
+%         if isstable(G) && (sum(real(zero(G)>0)) == 0)
+%         if (sum(real(zero(G)>0)) == 1)
+        if isstable(G)
+            break;
+        end
     end
-    iii = iii + 1;
+    disp('G_Zero')
+    zero(G)
+    disp('G_Pole')
+    pole(G)
+
+    % % load ex_network_sys5.mat sys_env sys_local_vw
+    % % G = balreal(sys_env;
+
+    rng(28)
+    CCC = 3;
+    while true
+        C = tf([rand(1,1)],[1,rand(1,CCC-2),0]);
+        feed = loopsens(G, C);
+%         if ~feed.Stable && (sum(feed.Poles>0) == 1) && (max(real(feed.Poles))<1e-8)
+        if feed.Stable
+            disp('Loop_Pole')
+            feed.Poles
+            break;
+        end
+    end
+    % C = -sys_local_vw;
+
+    N = 10000;
+    Ts = 0.01;
+
+    G_d = c2d(G, Ts, 'foh');
+    C_d = c2d(C, Ts, 'foh');
+
+    rng(1024)
+    HHH = GGG-1;
+    % while true
+    %     H_d = tf([1,randn(1,HHH)],[1,randn(1,HHH)],Ts);
+    %     if isstable(H_d)
+    %         break;
+    %     end
+    % end
+    H = ss(G);
+    % H.B = zeros(GGG-1, 1);
+    % H.B(4) = 1;
+
+    H_d = c2d(H, Ts, 'foh');
+
+else
+    load 
 end
-% C = sys_local_vw;
 
-N = 10000;
-Ts = 0.01;
-
-G_d = c2d(G, Ts, 'foh');
-C_d = c2d(C, Ts, 'foh');
-
-rng(1024)
-HHH = GGG-1;
-% while true
-%     H_d = tf([1,randn(1,HHH)],[1,randn(1,HHH)],Ts);
-%     if isstable(H_d)
-%         break;
-%     end
-% end
-H = ss(G);
-% H.B = zeros(GGG-1, 1);
-% H.B(4) = 1;
-
-H_d = c2d(H, Ts, 'foh');
-
-nc = HHH;
-nd = HHH;
-% nc = 5;
-% nd = 5;
-
-
+na = order(G);
+nb = order(G)+1;
+nc = na;
+nd = na;
 %% Generate Response : Availabel r1 r2 y u
 disp('Generate I/O data')
 
-max_itr = 1000;
+max_itr = 100;
 data_set = cell(1,max_itr);
 rng('shuffle')
 
@@ -149,10 +158,10 @@ for itr = 1 : max_itr
         y_test = lsim(G_test*cloop_d.Si, data_set{itr}.r);
         rsme_set(itr) = norm(data_set{itr}.yyy - y_test);
     catch
-        rsme_set(itr) = nan;
+        rsme_set(itr) = inf;
     end
 end
-rsme_set = rsme_set(~isnan(rsme_set));
+rsme_set = rsme_set(~isinf(rsme_set));
 
 figure;
 boxplot(rsme_set);

@@ -249,6 +249,9 @@ for i = 1:size(xs, 2)
     spectrum = real(spectrum);
 end
 % End of main fucntion
+if nargout == 0
+    plot(freq, spectrum)
+end
 end
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

@@ -1,10 +1,10 @@
 clear
 close all
 %% genereate Network
-seed = 10;
+seed = 9;
 Node_number = 4;
 n_ori = network_swing_simple(Node_number, [1,2], [2,10]*1e-2, 1, [1,5], 0.1, seed);
-% n_ori = network_swing_simple(Node_number, 1, [2,10]*1e-2, 1, [1,5], 0.1, seed);
+% n_ori = network_swing_simple(Node_number, 1, [2,10]*1e-2, 1, 1, 0.1, seed);
 n_ori.Adj_ref = n_ori.Adj_ref*0;
 n_ori.plot()
 %% control & noise Node
@@ -31,18 +31,20 @@ sys_local_vw = sys_local({'w'},{'v'});
 %% env character
 [mag_ori,~,wout_ori] = bode(sys_env);
 wrange = {wout_ori(1),wout_ori(end)};
-
-Loop = loopsens(sys_env,-sys_local_vw)
-isstable(sys_ori({'w_node1'},sys_ori.InputGroup.d_node1))
-isstable(sys_ori({'v_node1'},sys_ori.InputGroup.d_node1))
-isstable(sys_ori)
 %% vw generate
 Q = diag([1,1000]);
 R = 1e-3;
-n_ori.add_controller(c_n, Q, R);
+% n_ori.add_controller(c_n, Q, R);
+n_ori.add_controller(n_n);
 sys_con = n_ori.get_sys_controlled(sys_ori);
 
 % sys_con = sys_ori;
+
+Loop = loopsens(sys_env,-sys_local_vw)
+isstable(sys_con({'w_node1'},sys_ori.InputGroup.d_node1))
+isstable(sys_con({'v_node1'},sys_ori.InputGroup.d_node1))
+isstable(sys_con)
+
 
 
 rng('shuffle')
@@ -50,7 +52,7 @@ rng('shuffle')
 id_p = 1;
 noise_p = 0;
 
-N = 10000;
+N = 1000;
 Ts = 0.01;
 t = (0:N-1)'*Ts;
 
