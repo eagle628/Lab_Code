@@ -488,6 +488,7 @@ classdef network_swing_simple < handle
                     H = [];
                 else
 %                     Y = obj.Adj(obj.get_not_idx(idx), idx);
+
                     Y = obj.Adj(nidx, idx);
                     G = sys_e(:, 'v').b*Y; % extract input v term (summarize by n_local) (otherwise "w")
                     H = Y'*sys_e('theta', :).c; % interconnection signal Y_{ij}*\theta_{j} in v

@@ -1,5 +1,5 @@
 clear
-close all
+% close all
 
 % % % table = struct();
 % % % table(1).seed = 1;
@@ -32,16 +32,18 @@ seed = 1;
 Node_number = 4;
 net1 = network_swing_simple(Node_number, [1,2], [2,10]*1e-2, 1, [1,5], 0.1, seed);
 % net1 = network_swing_simple(Node_number, 1, [2,10]*1e-2, 1, [0,1], 0.1, seed);
-
+% net1 = network_swing_simple(Node_number, [1,100], [2,10]*1e-1, 1, [1,2], 0.9, seed);
+net1.Adj_ref = net1.Adj_ref*0;
 %% control & noise Node
-c_n = 2;
+c_n = 1;
 n_n = [];
-% 
+%% edge adjustment
 % tmp_idx = find(net1.Adj(c_n, :)~=0);
 % tmp_adj = 2 + 5*rand(1, length(tmp_idx));
 % net1.Adj(c_n ,tmp_idx) = tmp_adj;
 % net1.Adj(tmp_idx, c_n) = tmp_adj;
-% net1.Adj_ref = net1.Adj_ref*0;
+
+% net1.remove_edge([1,3]);
 net1.plot()
 %% Node Name
 ob_v_p  = {strcat('v_node',num2str(c_n))};
@@ -99,10 +101,10 @@ R = 1e-3;
 sys_con = net1.get_sys_controlled(sys_stable);
 
 
-rng('shuffle')
+rng(28)
 
 id_p = 1;
-noise_p = 0;
+noise_p = 1e-2;
 
 N = 10000;
 Ts = 0.01;
@@ -134,9 +136,12 @@ oe_IDsys_set = cell(max_itr,1);
 [sys_w_id, ~, Tw, Tiw] = balreal(c2d(sys_con(ob_w_p, ID_in_p), Ts, 'foh'));
 
 
+Flag2 = true;
+if numel(Noise) == 0
+    Flag2 = false;
+end
 
-Flag2 = isempty(Noise);
-if ~Flag2
+if Flag2
 %     sys_v_np = balreal(sys_con(ob_v_p, Noise));
 %     sys_w_np = balreal(sys_con(ob_w_p, Noise));
     sys_v_np = sys_con(ob_v_p, Noise);
@@ -149,17 +154,17 @@ error = 0;
 Error_message = {};
 parfor itr = 1 : max_itr
 %     d_id = zeros(N, 2);
-%     d_id(:, 2) = randn(N, 1)*id_p;
-    d_id = randn(N, 2);
+%     d_id(:, 2) = randn(N, 1);
+    d_id = randn(N, 2)*id_p;
 
-%     d_np = randn(N,numel(n_n)*2)*noise_p;
-    d_np = zeros(N,numel(n_n)*2);
+    d_np = randn(N,numel(n_n)*2)*noise_p;
+%     d_np = zeros(N,numel(n_n)*2);
 %     d_np(:,2:2:end) = randn(N,numel(n_n))*noise_p;
 
     v_id = lsim(sys_v_id, d_id, t);
     w_id = lsim(sys_w_id, d_id, t);
 
-    if ~Flag2
+    if Flag2
         v_np = lsim(sys_v_np, d_np, t);
         w_np = lsim(sys_w_np, d_np, t);
     else
@@ -182,9 +187,10 @@ parfor itr = 1 : max_itr
     data_set{itr} = data;
 
     try
+        pre_paams = 1;
 %         G2 = CLIVC2(data,-sys_local_vw,[5,6],1);
 %         sys = CLRIVC(data,balreal(-sys_local_vw),[model_dim,model_dim+1,model_dim,model_dim],1,10);
-        sys = CLRIVC(data,balreal(-sys_local_vw),[model_dim,model_dim+1,model_dim,model_dim],1,10);
+        sys = CLRIVC(data,balreal(-sys_local_vw),[model_dim,model_dim+1,model_dim,model_dim],1,1);
 %         sys = SPEM_CLRIVC(data,-sys_local_vw,[model_dim,model_dim+1,model_dim,model_dim],1);
 %         sys = RIVC(data,[model_dim-1,model_dim,model_dim-1,model_dim-1],100);
         [iv_mag_result_set{itr},~,iv_wout_result_set{itr}] = bode(sys.G, wout_ori);
@@ -203,17 +209,17 @@ fprintf('Error number is %d.\n',error)
 % % % save(location)
 % % % end
 
-%%
+%% identificaiton bode
 figure
-% % 
-% % for itr = 1 : max_itr
-% %     try
-% %     semilogx(iv_wout_result_set{itr},mag2db(squeeze(iv_mag_result_set{itr})),'r');
-% %     semilogx(oe_wout_result_set{itr},mag2db(squeeze(oe_mag_result_set{itr})),'g');
-% %     end
-% %     hold on, grid on ,box  on
-% %     drawnow
-% % end
+
+% % % for itr = 1 : max_itr
+% % %     try
+% % %     semilogx(iv_wout_result_set{itr},mag2db(squeeze(iv_mag_result_set{itr})),'r');
+% % %     semilogx(oe_wout_result_set{itr},mag2db(squeeze(oe_mag_result_set{itr})),'g');
+% % %     end
+% % %     hold on, grid on ,box  on
+% % %     drawnow
+% % % end
 
 iv_result = [];
 oe_result = [];
@@ -227,24 +233,73 @@ hold on, grid on ,box  on
 semilogx(wout_ori, mag2db(mean(iv_result,2)),'r')
 semilogx(wout_ori, mag2db(mean(oe_result,2)),'g')
 
-semilogx(wout_ori,mag2db(squeeze(mag_ori)),'b:','LineWidth',3.0);
+semilogx(wout_ori,mag2db(squeeze(mag_ori)),'b');
 ax = gca;
 ax.XScale ='log';
 
 legend('CL-RIVC','OE','Original','location','best')
 
-%% 
+%% Performance(PFM)
+figure
+
+iv_pfm_sys_set = cell(max_itr, 1);
+oe_pfm_sys_set = cell(max_itr, 1);
+
+iv_pfm_mag_set = cell(max_itr, 1);
+oe_pfm_mag_set = cell(max_itr, 1);
+iv_pfm_wout_set = cell(max_itr, 1);
+oe_pfm_wout_set = cell(max_itr, 1);
+
+pfm_wout = logspace(-6,6,400);
+
+parfor_progress(max_itr);
+parfor itr = 1 : max_itr
+   try
+       iv_pfm_sys_set{itr} = G_checkz_d(sys_env, sys_local, ss(iv_IDsys_set{itr}.G));
+       oe_pfm_sys_set{itr} = G_checkz_d(sys_env, sys_local, oe_IDsys_set{itr});
+       [iv_pfm_mag_set{itr},~,iv_pfm_wout_set{itr}] = bode(iv_pfm_sys_set{itr}, pfm_wout);
+       [oe_pfm_mag_set{itr},~,oe_pfm_wout_set{itr}] = bode(oe_pfm_sys_set{itr}, pfm_wout);
+   catch ME
+       iv_pfm_sys_set{itr} = ss([],[],[],0);
+       oe_pfm_sys_set{itr} = ss([],[],[],0);
+   end       
+   parfor_progress();
+end
+parfor_progress(0);
+
+iv_pfm_result = [];
+oe_pfm_result = [];
+for itr = 1 : max_itr
+    try
+    iv_pfm_result = [iv_pfm_result,squeeze(iv_pfm_mag_set{itr})];
+    oe_pfm_result = [oe_pfm_result,squeeze(oe_pfm_mag_set{itr})];
+    end
+end
+hold on, grid on ,box  on
+semilogx(pfm_wout, mag2db(mean(iv_pfm_result,2)),'r')
+semilogx(pfm_wout, mag2db(mean(oe_pfm_result,2)),'g')
+
+ideal_pfm = G_checkz_d(sys_env, sys_local, balred(sys_env,model_dim));
+[ideal_pfm_mag,~,ideal_pfm_wout] = bode(ideal_pfm, pfm_wout);
+
+semilogx(ideal_pfm_wout, mag2db(squeeze(ideal_pfm_mag)),'b');
+ax = gca;
+ax.XScale ='log';
+
+legend('CL-RIVC','OE','Original','location','best')
+
+%% RSME plot
 iv_rsme_set = zeros(1,max_itr);
 oe_rsme_set = zeros(1,max_itr);
 
 for itr = 1 : max_itr
     try
         G_test = c2d(iv_IDsys_set{itr}.G, Ts, 'foh');
-        cloop_d = loopsens(G_test,-c2d(sys_local_vw,Ts));
+        cloop_d = loopsens(G_test,-c2d(sys_local_vw, Ts, 'foh'));
         y_test = lsim(G_test*cloop_d.Si, data_set{itr}.r);
         iv_rsme_set(itr) = norm(data_set{itr}.io{1} - y_test);
         G_test = tf(oe_IDsys_set{itr});
-        cloop_d = loopsens(G_test,-c2d(sys_local_vw,Ts));
+        cloop_d = loopsens(G_test,-c2d(sys_local_vw, Ts, 'foh'));
         y_test = lsim(G_test*cloop_d.Si, data_set{itr}.r);
         oe_rsme_set(itr) = norm(data_set{itr}.io{1} - y_test);
     catch ME
@@ -257,7 +312,7 @@ oe_rsme_set = oe_rsme_set(~isinf(oe_rsme_set));
 
 figure;
 boxplot([iv_rsme_set',oe_rsme_set'],'Labels',{'iv','oe'});
-%%
+%% Draw Input Output data and SNR
 t = (0:1:N-1)'*Ts;
 figure('name','I/O data');
 plot(t,data_set{1}.u,'b',t,data_set{1}.y,'r')
@@ -265,3 +320,10 @@ legend('Input','Output')
 figure('Name','output S/N');
 plot(t,data_set{1}.io{1},'b',t,data_set{1}.io{2},'g')
 legend('Output : S','Output : N')
+
+disp('SNR : ')
+disp(snr(data_set{1}.io{1},data_set{1}.io{2}))
+
+%% 
+figure
+pzmap(sys_env)

@@ -8,7 +8,7 @@ function [sys_spem, sys_real] = G_checkz_d(sys_env, sys_local, sys_id, K2, K3)
     if sys_id.Ts ~= 0
         sys_id = ss(d2c(sys_id));
     end
-    if nargin < 5
+    if nargin == 4
         K = K2;
         K2 = K(1:2);
         K3 = K(3:end)*sys_id.B;
@@ -97,8 +97,8 @@ function [sys_spem, sys_real] = G_checkz_d(sys_env, sys_local, sys_id, K2, K3)
     G_feed_true.C = [De*Gamma, Ce];
     G_feed_true.D = eye(1);
 
-    sys_spem = minreal(S*G_feed_apx*(G_w_v_wh__d('v')-sys_id*G_w_v_wh__d('w')));
-    sys_real = minreal(S*G_feed_true*(sys_env-sys_id)*G_w_v_wh__d('w_hat'));
+    sys_spem = minreal(S*G_feed_apx*(G_w_v_wh__d('v')-sys_id*G_w_v_wh__d('w')), [], false);
+    sys_real = minreal(S*G_feed_true*(sys_env-sys_id)*G_w_v_wh__d('w_hat'), [], false);
 
     % sys_spem = S*G_feed_apx*(G_w_v_wh__d('v',:)-sys_id*G_w_v_wh__d('w',:));
     % sys_real = S*G_feed_true*(sys_env-sys_id)*G_w_v_wh__d('w_hat',:);
