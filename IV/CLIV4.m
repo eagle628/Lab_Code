@@ -6,7 +6,7 @@ function sys = CLIV4(data, C_d, n)
     N  = length(u);
     % contoroller
     if C_d.Ts == 0
-        C_d = c2d(C_d);
+        C_d = c2d(C_d, Ts);
     end
     if isfield(data, 'r')
         r = data.r;

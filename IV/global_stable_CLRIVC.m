@@ -30,12 +30,12 @@ clear
 %% genereate Network
 seed = 1;
 Node_number = 4;
-net1 = network_swing_simple(Node_number, [1,2], [2,10]*1e-2, 1, [1,5], 0.1, seed);
+net1 = network_swing_simple(Node_number, [1,2], [2,10]*1e-2, 1, [1,5], 0.9, seed);
 % net1 = network_swing_simple(Node_number, 1, [2,10]*1e-2, 1, [0,1], 0.1, seed);
 % net1 = network_swing_simple(Node_number, [1,100], [2,10]*1e-1, 1, [1,2], 0.9, seed);
 net1.Adj_ref = net1.Adj_ref*0;
 %% control & noise Node
-c_n = 1;
+c_n = 4;
 n_n = [];
 %% edge adjustment
 % tmp_idx = find(net1.Adj(c_n, :)~=0);
@@ -86,6 +86,8 @@ end
 %% env character
 [mag_ori,~,wout_ori] = bode(sys_env);
 wrange = {wout_ori(1),wout_ori(end)};
+figure
+semilogx(wout_ori,mag2db(squeeze(mag_ori)))
 
 Loop = loopsens(sys_env,-sys_local_vw);
 Loop.Stable
@@ -211,7 +213,8 @@ fprintf('Error number is %d.\n',error)
 
 %% identificaiton bode
 figure
-
+semilogx(wout_ori,mag2db(squeeze(mag_ori)),'b');
+hold on, grid on ,box  on
 % % % for itr = 1 : max_itr
 % % %     try
 % % %     semilogx(iv_wout_result_set{itr},mag2db(squeeze(iv_mag_result_set{itr})),'r');
@@ -229,19 +232,15 @@ for itr = 1 : max_itr
     oe_result = [oe_result,squeeze(oe_mag_result_set{itr})];
     end
 end
-hold on, grid on ,box  on
 semilogx(wout_ori, mag2db(mean(iv_result,2)),'r')
 semilogx(wout_ori, mag2db(mean(oe_result,2)),'g')
 
-semilogx(wout_ori,mag2db(squeeze(mag_ori)),'b');
 ax = gca;
 ax.XScale ='log';
 
-legend('CL-RIVC','OE','Original','location','best')
+legend('Original','CL-RIVC','OE','location','best')
 
 %% Performance(PFM)
-figure
-
 iv_pfm_sys_set = cell(max_itr, 1);
 oe_pfm_sys_set = cell(max_itr, 1);
 
@@ -266,6 +265,13 @@ parfor itr = 1 : max_itr
    parfor_progress();
 end
 parfor_progress(0);
+%%
+figure
+
+ideal_pfm = G_checkz_d(sys_env, sys_local, balred(sys_env,model_dim));
+[ideal_pfm_mag,~,ideal_pfm_wout] = bode(ideal_pfm, pfm_wout);
+semilogx(ideal_pfm_wout, mag2db(squeeze(ideal_pfm_mag)),'b');
+hold on, grid on ,box  on
 
 iv_pfm_result = [];
 oe_pfm_result = [];
@@ -275,18 +281,13 @@ for itr = 1 : max_itr
     oe_pfm_result = [oe_pfm_result,squeeze(oe_pfm_mag_set{itr})];
     end
 end
-hold on, grid on ,box  on
 semilogx(pfm_wout, mag2db(mean(iv_pfm_result,2)),'r')
 semilogx(pfm_wout, mag2db(mean(oe_pfm_result,2)),'g')
 
-ideal_pfm = G_checkz_d(sys_env, sys_local, balred(sys_env,model_dim));
-[ideal_pfm_mag,~,ideal_pfm_wout] = bode(ideal_pfm, pfm_wout);
-
-semilogx(ideal_pfm_wout, mag2db(squeeze(ideal_pfm_mag)),'b');
 ax = gca;
 ax.XScale ='log';
 
-legend('CL-RIVC','OE','Original','location','best')
+legend('Original','CL-RIVC','OE','location','best')
 
 %% RSME plot
 iv_rsme_set = zeros(1,max_itr);
