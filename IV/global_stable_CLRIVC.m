@@ -28,15 +28,17 @@ clear
 % % % 
 % % % function iter_func(seed, c_n, Flag1, location)
 %% genereate Network
-seed = 1;
-Node_number = 4;
-net1 = network_swing_simple(Node_number, [1,2], [2,10]*1e-2, 1, [1,5], 0.9, seed);
+seed = 2;
+Node_number = 3;
+SSS = load('C:\Users\NaoyaInoue\Desktop\figure_set\node3_confirm_ss_oe_spem\node1_100\np0\data');
+net1 = SSS.n_ori;
+% net1 = network_swing_simple(Node_number, [1,2], [2,10]*1e-2, 1, [1,5], 0.1, seed);
 % net1 = network_swing_simple(Node_number, 1, [2,10]*1e-2, 1, [0,1], 0.1, seed);
 % net1 = network_swing_simple(Node_number, [1,100], [2,10]*1e-1, 1, [1,2], 0.9, seed);
 net1.Adj_ref = net1.Adj_ref*0;
 %% control & noise Node
-c_n = 4;
-n_n = [];
+c_n = 1;
+n_n = [2,3];
 %% edge adjustment
 % tmp_idx = find(net1.Adj(c_n, :)~=0);
 % tmp_adj = 2 + 5*rand(1, length(tmp_idx));
@@ -106,15 +108,15 @@ sys_con = net1.get_sys_controlled(sys_stable);
 rng(28)
 
 id_p = 1;
-noise_p = 1e-2;
+noise_p = 4e-2;
 
 N = 10000;
 Ts = 0.01;
 t = (0:N-1)'*Ts;
 
 
-% model_dim = 2*(Node_number-1);
-model_dim = 6;
+model_dim = 2*(Node_number-1);
+% model_dim = 6;
 
 max_itr = 100;
 
@@ -215,14 +217,14 @@ fprintf('Error number is %d.\n',error)
 figure
 semilogx(wout_ori,mag2db(squeeze(mag_ori)),'b');
 hold on, grid on ,box  on
-% % % for itr = 1 : max_itr
-% % %     try
-% % %     semilogx(iv_wout_result_set{itr},mag2db(squeeze(iv_mag_result_set{itr})),'r');
-% % %     semilogx(oe_wout_result_set{itr},mag2db(squeeze(oe_mag_result_set{itr})),'g');
-% % %     end
-% % %     hold on, grid on ,box  on
-% % %     drawnow
-% % % end
+% % % % for itr = 1 : max_itr
+% % % %     try
+% % % %     semilogx(iv_wout_result_set{itr},mag2db(squeeze(iv_mag_result_set{itr})),'r');
+% % % %     semilogx(oe_wout_result_set{itr},mag2db(squeeze(oe_mag_result_set{itr})),'g');
+% % % %     end
+% % % %     hold on, grid on ,box  on
+% % % %     drawnow
+% % % % end
 
 iv_result = [];
 oe_result = [];
@@ -284,10 +286,17 @@ end
 semilogx(pfm_wout, mag2db(mean(iv_pfm_result,2)),'r')
 semilogx(pfm_wout, mag2db(mean(oe_pfm_result,2)),'g')
 
+% w/o model retro
+retro_pfm = G_checkz_d(sys_env, sys_local, ss([],[],[],0));
+[retro_pfm_mag,~,retro_pfm_wout] = bode(retro_pfm, pfm_wout);
+semilogx(retro_pfm_wout, mag2db(squeeze(retro_pfm_mag)),'m');
+hold on,grid on,box on
+
+
 ax = gca;
 ax.XScale ='log';
 
-legend('Original','CL-RIVC','OE','location','best')
+legend('Original','CL-RIVC','OE','w/o','location','best')
 
 %% RSME plot
 iv_rsme_set = zeros(1,max_itr);

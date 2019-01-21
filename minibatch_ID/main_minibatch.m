@@ -1,8 +1,8 @@
 clear 
 close all
 %% Generate Network
-seed = 3;
-Node_number = 3;
+seed = 2;
+Node_number = 4;
 n_ori = network_swing_simple(Node_number, [1,2], [2,10]*1e-1, 1, [1,5], 0.1, seed);
 % n_ori.Adj_ref = n_ori.Adj_ref*0;
 n_ori.plot()
@@ -11,7 +11,7 @@ c_n = 1;
 n_n = [2,3];
 %% signal power
 id_in_p = 1;
-noise_p = 0.01;
+noise_p = 0;
 %% Node Name
 ob_v_p  = {strcat('v_node',num2str(c_n))};
 ob_w_p  = {strcat('w_node',num2str(c_n))};
@@ -20,7 +20,9 @@ ID_in_p = {strcat('d_node',num2str(c_n))};
 ob_xhat_p = {'xhat_controlled1'}; % The last number should be Controllers Group number.
 Noise = cell(1,numel(n_n));
 for i = 1 : numel(n_n)
-Noise(i) = {strcat('d_node',num2str(n_n(i)))};
+Noise(i) = {strcat('d_node',num2st
+
+r(n_n(i)))};
 end
 %% add I/O port for identificaiton
 sys_ori = n_ori.get_sys();
@@ -45,7 +47,7 @@ N = 10000;
 Ts = 0.1;
 t = (0:N-1)'*Ts;
 %% minibatch
-maxitr = 1;
+maxitr = 12;
 state = 2*(Node_number-1);
 in = 1;
 out = 1;
@@ -60,7 +62,7 @@ parfor_progress(maxitr);
 
 % init_params = 1e-3;
 
-for itr = 1:maxitr
+parfor itr = 1:maxitr
     d = randn(N,2+numel(n_n)*2);
     d(:,1:2) = (d(:,1:2)+0.5)*id_in_p;
     d(:,3:end) = d(:,3:end)*noise_p;
@@ -79,9 +81,9 @@ for itr = 1:maxitr
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
     % For Identification
-    m = model_ss(gen_ss_rectifier(gen_ss_all(state, in, out), sys_local_vw));
+%     m = model_ss(gen_ss_rectifier(gen_ss_all(state, in, out), sys_local_vw));
 %     m = model_ss(gen_ss_rectifier(gen_ss_canonical(state, in, out), sys_local_vw));
-%     m = model_ss(gen_ss_rectifier(gen_ss_tridiag(state, in, out), sys_local_vw, [0 1]));
+    m = model_ss(gen_ss_rectifier(gen_ss_tridiag(state, in, out), sys_local_vw, [0 1]));
 %     m = model_ss(gen_ss_rectifier(gen_ss_canonical_zero(state, in, out), sys_local_vw));
     % init
 %     init_sys = sys_env;
@@ -104,10 +106,10 @@ for itr = 1:maxitr
     
 %     m.add_fixed_params('theta_C_4', 0);
 %%%%%%%%%%%%%%% fitting
-    m.max_iter = 10000;
+    m.max_iter = 5000;
     % optimizer
     rng('shuffle')
-    load('params.mat');
+%     load('params.mat');
 %     load('tekitou.mat')
 %     [num,den] = tfdata(sys_env,'v');
 %     den(2:end) = den(2:end)+randn(1,4)*0.1;
@@ -129,8 +131,8 @@ for itr = 1:maxitr
 
 %     init_params = ones(3*state-2+state*(in+out)+in*out, 1)*randn(1)*1e-4;init_params(end) = 1e-3;
 %     for itr1 = 1: 10
-        [theta ,J] = m.fit_adam(t, [w, v], zeros(N, 1), theta, 1e-6, 0.9, 0.999, 1e-4, 0.8);
-%         [theta ,J] = m.fit(t, [w, v], zeros(N, 1));
+%         [theta ,J] = m.fit_adam(t, [w, v], zeros(N, 1), theta, 1e-6, 0.9, 0.999, 1e-4, 0.8);
+        [theta ,J] = m.fit(t, [w, v], zeros(N, 1));
 %         [theta ,J] = m.fit_adamax(t, [w, v], zeros(N, 1), theta, 1e-12, 0.9, 0.999, 0.8);
 %         [theta ,J] = m.fit_rmsprop(t, [w, v], zeros(N, 1), theta, [], [], [], 0.8);
 %         [theta ,J] = m.fit_SMORMS3(t, [w, v], zeros(N,1), theta, 1e-10, [], 0.8);
