@@ -8,13 +8,15 @@ function [sys_spem, sys_real] = G_checkz_d(sys_env, sys_local, sys_id, K2, K3)
     if sys_id.Ts ~= 0
         sys_id = ss(d2c(sys_id));
     end
+    [a,b,c,d] = ssdata(sys_id);
+    sys_id = ss(a,b,c,d);
     if nargin == 4
         K = K2;
         K2 = K(1:2);
         K3 = K(3:end)*sys_id.B;
     end
     if nargin < 4
-        Q = diag([1, 1000]);
+        Q = diag([1, 1]);
         R = 1e-3;
         [~, K, ~, ~] = Retrofit.design(sys_local, sys_id, Q, R);
         K2 = K(1:2);

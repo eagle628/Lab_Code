@@ -28,22 +28,22 @@ clear
 % % % 
 % % % function iter_func(seed, c_n, Flag1, location)
 %% genereate Network
-seed = 2;
-Node_number = 3;
-SSS = load('C:\Users\NaoyaInoue\Desktop\figure_set\node3_confirm_ss_oe_spem\node1_100\np0\data');
-net1 = SSS.n_ori;
+seed = 4;
+Node_number = 30;
+% SSS = load('C:\Users\NaoyaInoue\Desktop\figure_set\node3_confirm_ss_oe_spem\node1_100\np001\data');
+% net1 = SSS.n_ori;
 % net1 = network_swing_simple(Node_number, [1,2], [2,10]*1e-2, 1, [1,5], 0.1, seed);
 % net1 = network_swing_simple(Node_number, 1, [2,10]*1e-2, 1, [0,1], 0.1, seed);
-% net1 = network_swing_simple(Node_number, [1,100], [2,10]*1e-1, 1, [1,2], 0.9, seed);
+net1 = network_swing_simple(Node_number, [1,2], [2,10]*1e-2, 1, [1,2], 0.1, seed);
 net1.Adj_ref = net1.Adj_ref*0;
 %% control & noise Node
 c_n = 1;
 n_n = [2,3];
 %% edge adjustment
-% tmp_idx = find(net1.Adj(c_n, :)~=0);
-% tmp_adj = 2 + 5*rand(1, length(tmp_idx));
-% net1.Adj(c_n ,tmp_idx) = tmp_adj;
-% net1.Adj(tmp_idx, c_n) = tmp_adj;
+tmp_idx = find(net1.Adj(c_n, :)~=0);
+tmp_adj = 2 + 5*rand(1, length(tmp_idx));
+net1.Adj(c_n ,tmp_idx) = tmp_adj;
+net1.Adj(tmp_idx, c_n) = tmp_adj;
 
 % net1.remove_edge([1,3]);
 net1.plot()
@@ -101,22 +101,25 @@ Q = diag([1,1000]);
 R = 1e-3;
 % net1.add_controller(c_n, Q, R);
 % net1.add_controller(n_n);
-% net1.add_controller(c_n);
+net1.add_controller(c_n);
 sys_con = net1.get_sys_controlled(sys_stable);
 
 
 rng(28)
 
 id_p = 1;
-noise_p = 4e-2;
+% noise_p = 4e-2;
+noise_p = 0.1;
+% noise_p = 1;
 
 N = 10000;
 Ts = 0.01;
 t = (0:N-1)'*Ts;
 
 
-model_dim = 2*(Node_number-1);
-% model_dim = 6;
+% model_dim = 2*(Node_number-1);
+model_dim = 6;
+% model_dim = 1;
 
 max_itr = 100;
 
@@ -193,8 +196,9 @@ parfor itr = 1 : max_itr
     try
         pre_paams = 1;
 %         G2 = CLIVC2(data,-sys_local_vw,[5,6],1);
-%         sys = CLRIVC(data,balreal(-sys_local_vw),[model_dim,model_dim+1,model_dim,model_dim],1,10);
-        sys = CLRIVC(data,balreal(-sys_local_vw),[model_dim,model_dim+1,model_dim,model_dim],1,1);
+        sys = CLRIVC(data,balreal(-sys_local_vw),[model_dim,model_dim+1,model_dim,model_dim],1,10);
+%         sys = CLRIVC(data,balreal(-sys_local_vw),[model_dim,model_dim+1,model_dim,model_dim],1,5);
+%         sys = CLRIVC(data,ss([],[],[],0),[model_dim,model_dim+1,model_dim,model_dim],1,10);
 %         sys = SPEM_CLRIVC(data,-sys_local_vw,[model_dim,model_dim+1,model_dim,model_dim],1);
 %         sys = RIVC(data,[model_dim-1,model_dim,model_dim-1,model_dim-1],100);
         [iv_mag_result_set{itr},~,iv_wout_result_set{itr}] = bode(sys.G, wout_ori);
@@ -214,7 +218,7 @@ fprintf('Error number is %d.\n',error)
 % % % end
 
 %% identificaiton bode
-figure
+figure('Name','Bode diagram')
 semilogx(wout_ori,mag2db(squeeze(mag_ori)),'b');
 hold on, grid on ,box  on
 % % % % for itr = 1 : max_itr
@@ -226,21 +230,59 @@ hold on, grid on ,box  on
 % % % %     drawnow
 % % % % end
 
-iv_result = [];
-oe_result = [];
+iv_bode_result = [];
+oe_bode_result = [];
 for itr = 1 : max_itr
     try
-    iv_result = [iv_result,squeeze(iv_mag_result_set{itr})];
-    oe_result = [oe_result,squeeze(oe_mag_result_set{itr})];
+    iv_bode_result = [iv_bode_result,squeeze(iv_mag_result_set{itr})];
+    oe_bode_result = [oe_bode_result,squeeze(oe_mag_result_set{itr})];
     end
 end
-semilogx(wout_ori, mag2db(mean(iv_result,2)),'r')
-semilogx(wout_ori, mag2db(mean(oe_result,2)),'g')
+semilogx(wout_ori, mag2db(mean(iv_bode_result,2)),'r')
+semilogx(wout_ori, mag2db(mean(oe_bode_result,2)),'g')
 
 ax = gca;
 ax.XScale ='log';
 
 legend('Original','CL-RIVC','OE','location','best')
+%% identificaiton accuracy H_infty
+iv_sigma_result_set = cell(max_itr, 1);
+oe_sigma_result_set = cell(max_itr, 1);
+
+sigma_wout = logspace(-6,6,400);
+
+parfor_progress(max_itr)
+error = 0;
+parfor itr = 1: max_itr
+    try
+        iv_sigma_result_set{itr} = sigma(sys_env - iv_IDsys_set{itr}.G, sigma_wout);
+        oe_sigma_result_set{itr} = sigma(sys_env - d2c(tf(oe_IDsys_set{itr})), sigma_wout);
+    catch ME
+        error = error + 1;
+    end
+end
+
+iv_sigma_result = [];
+oe_sigma_result = [];
+for itr = 1 : max_itr
+    try
+        iv_sigma_result = [iv_sigma_result, iv_sigma_result_set{itr}'];
+        oe_sigma_result = [oe_sigma_result, oe_sigma_result_set{itr}'];
+    catch ME
+        disp(ME)
+    end
+end
+
+figure('Name','identification accracy')
+hold on, grid on ,box  on
+semilogx(sigma_wout, mag2db(mean(iv_sigma_result,2)),'r')
+semilogx(sigma_wout, mag2db(mean(oe_sigma_result,2)),'g')
+
+ax = gca;
+ax.XScale ='log';
+
+legend('CL-RIVC','OE','location','best')
+
 
 %% Performance(PFM)
 iv_pfm_sys_set = cell(max_itr, 1);
@@ -268,7 +310,7 @@ parfor itr = 1 : max_itr
 end
 parfor_progress(0);
 %%
-figure
+figure('Name','Performance')
 
 ideal_pfm = G_checkz_d(sys_env, sys_local, balred(sys_env,model_dim));
 [ideal_pfm_mag,~,ideal_pfm_wout] = bode(ideal_pfm, pfm_wout);
@@ -298,30 +340,53 @@ ax.XScale ='log';
 
 legend('Original','CL-RIVC','OE','w/o','location','best')
 
-%% RSME plot
-iv_rsme_set = zeros(1,max_itr);
-oe_rsme_set = zeros(1,max_itr);
+%% RSME plot (Closed Loop)
+iv_rsme_cl_set = zeros(1,max_itr);
+oe_rsme_cl_set = zeros(1,max_itr);
 
 for itr = 1 : max_itr
     try
         G_test = c2d(iv_IDsys_set{itr}.G, Ts, 'foh');
         cloop_d = loopsens(G_test,-c2d(sys_local_vw, Ts, 'foh'));
         y_test = lsim(G_test*cloop_d.Si, data_set{itr}.r);
-        iv_rsme_set(itr) = norm(data_set{itr}.io{1} - y_test);
+        iv_rsme_cl_set(itr) = norm(data_set{itr}.io{1} - y_test)/length(data_set{itr}.io{1});
         G_test = tf(oe_IDsys_set{itr});
         cloop_d = loopsens(G_test,-c2d(sys_local_vw, Ts, 'foh'));
         y_test = lsim(G_test*cloop_d.Si, data_set{itr}.r);
-        oe_rsme_set(itr) = norm(data_set{itr}.io{1} - y_test);
+        oe_rsme_cl_set(itr) = norm(data_set{itr}.io{1} - y_test)/length(data_set{itr}.io{1});
     catch ME
-        iv_rsme_set(itr) = inf;
-        oe_rsme_set(itr) = inf;
+        iv_rsme_cl_set(itr) = inf;
+        oe_rsme_cl_set(itr) = inf;
     end
 end
-iv_rsme_set = iv_rsme_set(~isinf(iv_rsme_set));
-oe_rsme_set = oe_rsme_set(~isinf(oe_rsme_set));
+iv_rsme_cl_set = iv_rsme_cl_set(~isinf(iv_rsme_cl_set));
+oe_rsme_cl_set = oe_rsme_cl_set(~isinf(oe_rsme_cl_set));
 
-figure;
-boxplot([iv_rsme_set',oe_rsme_set'],'Labels',{'iv','oe'});
+figure('Name','RSME of Closed Loop')
+boxplot([iv_rsme_cl_set',oe_rsme_cl_set'],'Labels',{'iv','oe'});
+%% RSME plot (Open Loop)
+iv_rsme_ol_set = zeros(1,max_itr);
+oe_rsme_ol_set = zeros(1,max_itr);
+
+for itr = 1 : max_itr
+    try
+        G_test = c2d(iv_IDsys_set{itr}.G, Ts, 'foh');
+        y_test = lsim(G_test, data_set{itr}.u);
+        iv_rsme_ol_set(itr) = norm(data_set{itr}.io{1} - y_test)/length(data_set{itr}.io{1});
+        G_test = tf(oe_IDsys_set{itr});
+        y_test = lsim(G_test, data_set{itr}.u);
+        oe_rsme_ol_set(itr) = norm(data_set{itr}.io{1} - y_test)/length(data_set{itr}.io{1});
+    catch ME
+        iv_rsme_ol_set(itr) = inf;
+        oe_rsme_ol_set(itr) = inf;
+    end
+end
+iv_rsme_ol_set = iv_rsme_ol_set(~isinf(iv_rsme_ol_set));
+oe_rsme_ol_set = oe_rsme_ol_set(~isinf(oe_rsme_ol_set));
+
+figure('Name','RSME of Open Loop')
+boxplot([iv_rsme_ol_set',oe_rsme_ol_set'],'Labels',{'iv','oe'});
+
 %% Draw Input Output data and SNR
 t = (0:1:N-1)'*Ts;
 figure('name','I/O data');
@@ -335,5 +400,5 @@ disp('SNR : ')
 disp(snr(data_set{1}.io{1},data_set{1}.io{2}))
 
 %% 
-figure
+figure('Name','Pole & Zero')
 pzmap(sys_env)

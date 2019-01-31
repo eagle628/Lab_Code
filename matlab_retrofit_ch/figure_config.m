@@ -49,6 +49,8 @@ classdef figure_config
             H.axes.ax3.XGrid = 'on';
             H.axes.ax3.Box = 'on';
             H.axes.ax3.NextPlot = 'add';
+            linkaxes([H.axes.ax1,H.axes.ax2,H.axes.ax3],'x')
+            H.axes.ax1.XLim = [0, inf];
         end
         
         % Plot Retro y & \hat{y}
