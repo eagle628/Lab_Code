@@ -111,8 +111,25 @@ function sys = CLRIVC(data, C, condition, lambda, iteration)
         catch ME
             sys.E = ME;
         end
-        % output
-        sys.G = G2;
-        sys.H = inv(noise_sys);
     end
+    % output
+    sys.G = G2;
+    sys.H = inv(noise_sys);
+    sys.cov1 = inv(N*phi_f_clrivc'*phi_f_clrivc);
+    sys.cov2 = var(y - lsim(c2d(G2, Ts, 'foh'), u))*inv(phi_f_clrivc'*phi_f_clrivc);
+%     [num, den] = tfdata(G2,'v');
+%     cov_den_data = zeros(N, na);
+%     for itr = 0 : na-1
+%         num = zeros(size(num));
+%         num(end-itr) = 1;
+%         cov_den_data(:, end-itr) = lsim(c2d(-tf(num, den)*G2, Ts, 'foh'), u);
+%     end
+%     cov_num_data = zeros(N,nb);
+%     for itr = 0 : nb-1
+%         num = zeros(size(num));
+%         num(end-itr) = 1;
+%         cov_num_data(:, end-itr) = lsim(c2d(tf(num, den), Ts, 'foh'), u);
+%     end
+%     cov_data = [cov_num_data, cov_den_data];
+%     sys.cov2 = inv(N*cov_data'*cov_data);
 end

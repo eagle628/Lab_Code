@@ -91,6 +91,7 @@ function [sys_spem, sys_real] = G_checkz_d(sys_env, sys_local, sys_id, K2, K3)
     G_feed_true.A = [
                     A+L*De*Gamma, L*Ce;
                     Be*Gamma, Ae;
+
                     ];
     G_feed_true.B = [
                     L;

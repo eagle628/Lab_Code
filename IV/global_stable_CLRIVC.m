@@ -29,7 +29,7 @@ clear
 % % % function iter_func(seed, c_n, Flag1, location)
 %% genereate Network
 seed = 4;
-Node_number = 30;
+Node_number = 4;
 % SSS = load('C:\Users\NaoyaInoue\Desktop\figure_set\node3_confirm_ss_oe_spem\node1_100\np001\data');
 % net1 = SSS.n_ori;
 % net1 = network_swing_simple(Node_number, [1,2], [2,10]*1e-2, 1, [1,5], 0.1, seed);
@@ -38,7 +38,7 @@ net1 = network_swing_simple(Node_number, [1,2], [2,10]*1e-2, 1, [1,2], 0.1, seed
 net1.Adj_ref = net1.Adj_ref*0;
 %% control & noise Node
 c_n = 1;
-n_n = [2,3];
+n_n = [2];
 %% edge adjustment
 tmp_idx = find(net1.Adj(c_n, :)~=0);
 tmp_adj = 2 + 5*rand(1, length(tmp_idx));
@@ -105,11 +105,12 @@ net1.add_controller(c_n);
 sys_con = net1.get_sys_controlled(sys_stable);
 
 
-rng(28)
+% rng(28)
+rng('shuffle')
 
 id_p = 1;
-% noise_p = 4e-2;
-noise_p = 0.1;
+noise_p = 4e-2;
+% noise_p = 0.1;
 % noise_p = 1;
 
 N = 10000;
@@ -121,7 +122,7 @@ t = (0:N-1)'*Ts;
 model_dim = 6;
 % model_dim = 1;
 
-max_itr = 100;
+max_itr = 1000;
 
 parfor_progress(max_itr);
 
@@ -182,13 +183,21 @@ parfor itr = 1 : max_itr
     v = v_id + v_np;
     w = w_id + w_np;
     
+    
+    bpFilt = designfilt('bandpassfir','FilterOrder',20, ...
+                        'CutoffFrequency1',1e-3,'CutoffFrequency2',20, ...
+                        'SampleRate',100);
+    x = randn(N,1);
+    y = filtfilt(bpFilt,x);
     data = struct();
     data.Ts = Ts;
 %     data.u = movmean(w, 5);
 %     data.y = movmean(v, 5);
 %     data.r = movmean(w - lsim(c2d(sys_local_vw, Ts, 'foh'), v), 5);
-    data.u = w;
-    data.y = v;
+    data.u = filtfilt(bpFilt,w);
+    data.y = filtfilt(bpFilt,v);
+%     data.u = w;
+%     data.y = v;
     data.r = w - lsim(c2d(sys_local_vw, Ts, 'foh'), v);
     data.io = {v_id,v_np,w_id,w_np};
     data_set{itr} = data;
@@ -398,6 +407,35 @@ legend('Output : S','Output : N')
 
 disp('SNR : ')
 disp(snr(data_set{1}.io{1},data_set{1}.io{2}))
+
+%% covanrince matrix
+iv_cov = zeros(2*model_dim+1, 2*model_dim+1);
+
+error = 0;
+
+for itr = 1 : max_itr
+    try
+        iv_cov = iv_cov + iv_IDsys_set{itr}.cov;
+    catch ME
+        error = error + 1;
+    end
+end
+
+figure('Name','Theoretical Covariance Marix');
+surf(iv_cov./(max_itr-error))
+view(2)
+
+% sim covariance
+% % num_iv = zeros(max_itr, 7);
+% % den_iv = zeros(max_itr, 6);
+% % parfor itr = 1 : max_itr
+% % [num,den] = tfdata(iv_IDsys_set{itr}.G,'v');
+% % num_iv(itr, :) = num;
+% % den_iv(itr, :) = den(2:end);
+% % end
+% % figure('Name','Practical Covariance Marix');
+% % surf(cov([den_iv, num_iv]))
+% % view(2)
 
 %% 
 figure('Name','Pole & Zero')
