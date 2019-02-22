@@ -15,8 +15,8 @@ if Flag1
     GGG = 7;
     while true
 %         G = tf([5*rand(1,GGG-1),1e-15],[1,10*rand(1,GGG-1)]);
-%         G = tf(5*[randn(1,GGG-1),0],[1,10*rand(1,GGG-1)]);
-        G = tf([-5*rand(1),5*randn(1,GGG-2),1e-10*randn(1)],[1,10*rand(1,GGG-1)]);
+        G = tf(5*[randn(1,GGG-1),0],[1,10*rand(1,GGG-1)]);
+%         G = tf([-5*rand(1),5*randn(1,GGG-2),1e-10*randn(1)],[1,10*rand(1,GGG-1)]);
 %         G = tf([-5*rand(1),5*randn(1,GGG-2),0],[1,10*rand(1,GGG-1)]);
     %     G = rss(GGG-1);
     %     G.D = randn(1);
@@ -56,17 +56,17 @@ if Flag1
 
     rng(1024)
     HHH = GGG-1;
-    % while true
-    %     H_d = tf([1,randn(1,HHH)],[1,randn(1,HHH)],Ts);
-    %     if isstable(H_d)
-    %         break;
-    %     end
-    % end
-    H = ss(G);
+    while true
+        H_d = tf([1,randn(1,HHH)],[1,randn(1,HHH)],Ts);
+        if isstable(H_d)
+            break;
+        end
+    end
+%     H = ss(G);
     % H.B = zeros(GGG-1, 1);
     % H.B(4) = 1;
 
-    H_d = c2d(H, Ts, 'foh');
+%     H_d = c2d(H, Ts, 'foh');
 
 else
     load 
@@ -116,15 +116,17 @@ wout_result_set = cell(1,max_itr);
 IDsys_set = cell(1,max_itr);
 parfor_progress(max_itr);
 error = 0;
-parfor itr = 1 : max_itr
+for itr = 1 : max_itr
     try
 %         IDsys_set{itr} = CLIVC2(data_set{itr},C_d,[na,nb],1);
 %         [mag,~,wout] = bode(IDsys_set{itr},wrange);
-        IDsys_set{itr} = CLRIVC(data_set{itr},C_d,[na,nb,nc,nd],1);
+        IDsys_set{itr} = CLRIVC(data_set{itr},C_d,[na,nb,nc,nd],1,10);
+%         [num,den] = tfdata(G);
+%         IDsys_set{itr} = CLRIVC_opt(data_set{itr},C_d,[na,nb,nc,nd],inv(tf(den,1)*d2c(H_d)));
         [mag,~,wout] = bode(IDsys_set{itr}.G,wrange);
         mag_result_set{itr} = mag;
         wout_result_set{itr} = wout;
-    catch
+    catch ME
         error = error + 1;
     end
     parfor_progress();

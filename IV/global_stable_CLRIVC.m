@@ -25,7 +25,7 @@ clear
 % % %         end
 % % %     end
 % % % end
-% % % 
+% % %  
 % % % function iter_func(seed, c_n, Flag1, location)
 %% genereate Network
 seed = 4;
@@ -282,6 +282,7 @@ for itr = 1 : max_itr
     end
 end
 
+%%
 figure('Name','identification accracy')
 hold on, grid on ,box  on
 semilogx(sigma_wout, mag2db(mean(iv_sigma_result,2)),'r')
@@ -415,7 +416,7 @@ error = 0;
 
 for itr = 1 : max_itr
     try
-        iv_cov = iv_cov + iv_IDsys_set{itr}.cov;
+        iv_cov = iv_cov + iv_IDsys_set{itr}.cov2;
     catch ME
         error = error + 1;
     end
