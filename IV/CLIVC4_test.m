@@ -22,9 +22,13 @@ if Flag1
     %     G.D = randn(1);
 %         if isstable(G) && (sum(real(zero(G)>0)) == 0)
 %         if (sum(real(zero(G)>0)) == 1)
-        if isstable(G)
-            break;
-        end
+%         G = rss(GGG-1);
+%         [~,~,~,d] = ssdata(G);
+%         if d ~= 0
+            if isstable(G)
+                break;
+            end
+%         end
     end
     disp('G_Zero')
     zero(G)
@@ -37,7 +41,8 @@ if Flag1
     rng(28)
     CCC = 3;
     while true
-        C = tf([rand(1,1)],[1,rand(1,CCC-2),0]);
+%         C = tf([rand(1,1)],[1,rand(1,CCC-2),0]);
+        C = rss(CCC);
         feed = loopsens(G, C);
 %         if ~feed.Stable && (sum(feed.Poles>0) == 1) && (max(real(feed.Poles))<1e-8)
         if feed.Stable
@@ -116,7 +121,7 @@ wout_result_set = cell(1,max_itr);
 IDsys_set = cell(1,max_itr);
 parfor_progress(max_itr);
 error = 0;
-for itr = 1 : max_itr
+parfor itr = 1 : max_itr
     try
 %         IDsys_set{itr} = CLIVC2(data_set{itr},C_d,[na,nb],1);
 %         [mag,~,wout] = bode(IDsys_set{itr},wrange);

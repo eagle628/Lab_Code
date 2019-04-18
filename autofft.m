@@ -120,7 +120,7 @@ if size(xs, 1) == 1         % samples
     xs = xs(:);                     
 end
 if size(ts(:), 1) == 1      % sampling frequency
-	fs = ts;                    
+	fs = ts;
 else
     fs = 1 / (ts(2) - ts(1)); 
 end

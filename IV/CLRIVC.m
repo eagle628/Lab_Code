@@ -15,6 +15,7 @@ function sys = CLRIVC(data, C, condition, lambda, iteration)
         r = data.r;
     else
         % clculate r
+        
         r = u + lsim(C_d, y);
     end
     % conditon
@@ -24,7 +25,7 @@ function sys = CLRIVC(data, C, condition, lambda, iteration)
     nd = condition(4);
     
     if nargin < 5 || isempty(iteration)
-        iteration = 5;
+        iteration = 1;
         if isempty(lambda)
             lambda = 1;
         end
@@ -115,8 +116,9 @@ function sys = CLRIVC(data, C, condition, lambda, iteration)
     % output
     sys.G = G2;
     sys.H = inv(noise_sys);
-    sys.cov1 = inv(N*phi_f_clrivc'*phi_f_clrivc);
-    sys.cov2 = var(y - lsim(c2d(G2, Ts, 'foh'), u))*inv(phi_f_clrivc'*phi_f_clrivc);
+    sys.cov1 = inv(N*(phi_f_clrivc')*phi_f_clrivc);
+    sys.cov2 = inv(N*FI_cal(sys, data, na));
+%     sys.cov2 = var(y - lsim(c2d(G2, Ts, 'foh'), u))/((phi_f_clrivc')*phi_f_clrivc);
 %     [num, den] = tfdata(G2,'v');
 %     cov_den_data = zeros(N, na);
 %     for itr = 0 : na-1

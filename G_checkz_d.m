@@ -4,24 +4,18 @@
 % 引数が3の時：sys_idを環境システムとして，勝手にLQRでゲインが確定する．
 
 %%
-function [sys_spem, sys_real] = G_checkz_d(sys_env, sys_local, sys_id, K2, K3)
+function [sys_spem, sys_real] = G_checkz_d(sys_env, sys_local, sys_id, K)
     if sys_id.Ts ~= 0
         sys_id = ss(d2c(sys_id));
     end
     [a,b,c,d] = ssdata(sys_id);
     sys_id = ss(a,b,c,d);
-    if nargin == 4
-        K = K2;
-        K2 = K(1:2);
-        K3 = K(3:end)*sys_id.B;
-    end
     if nargin < 4
         Q = diag([1, 1]);
         R = 1e-3;
         [~, K, ~, ~] = Retrofit.design(sys_local, sys_id, Q, R);
-        K2 = K(1:2);
-        K3 = K(3:end)*sys_id.B;
     end
+    K2 = K(1:2);
 
     Ae = sys_env.A;
     Be = sys_env.B;
@@ -31,7 +25,7 @@ function [sys_spem, sys_real] = G_checkz_d(sys_env, sys_local, sys_id, K2, K3)
     A = sys_local.A;
     L = sys_local({'y'},{'v'}).B;
     B = sys_local({'y'},{'u'}).B;
-    R = sys_local({'y'},{'u'}).B;
+    R = sys_local({'y'},{'u'}).B;% omegaにノイズが導入されたとき
     % R = [0;1];
     C = sys_local({'y'},{'u'}).C;
     Gamma = sys_local({'w'},{'u'}).C;
@@ -44,6 +38,10 @@ function [sys_spem, sys_real] = G_checkz_d(sys_env, sys_local, sys_id, K2, K3)
     Ce_apx = sys_id.C;
     De_apx = sys_id.D;
 
+%     new_local_sys = Retrofit.generate_fb(sys_local, sys_id);
+%     new_local_sys = new_local_sys('y','u');
+%     K3 = K(3:end)*new_local_sys.B;
+    K3 = K(3:end)*sys_id.B;
 
     % % % % % % % w_hat & w & vを生成するシステム
     l_dim = order(sys_local);
@@ -54,6 +52,7 @@ function [sys_spem, sys_real] = G_checkz_d(sys_env, sys_local, sys_id, K2, K3)
             A+L*De*Gamma, L*Ce, L*(De-De_apx)*Gamma, -L*Ce_apx;
             Be*Gamma, Ae, Be*Gamma, zeros(e_dim,id_dim);
             zeros(l_dim,l_dim), zeros(l_dim,e_dim), A+L*De_apx*Gamma+B*K2*C+B*K3*Gamma, L*Ce_apx;
+%             zeros(l_dim,l_dim), zeros(l_dim,e_dim), A+L*De_apx*Gamma+tmp, L*Ce_apx;
             zeros(id_dim,l_dim), zeros(id_dim,e_dim), Be_apx*Gamma, Ae_apx;
             ];
     B_xi = [
@@ -106,3 +105,12 @@ function [sys_spem, sys_real] = G_checkz_d(sys_env, sys_local, sys_id, K2, K3)
     % sys_spem = S*G_feed_apx*(G_w_v_wh__d('v',:)-sys_id*G_w_v_wh__d('w',:));
     % sys_real = S*G_feed_true*(sys_env-sys_id)*G_w_v_wh__d('w_hat',:);
 end
+
+
+%% 
+%{
+XR = [
+eye(2, 2), sys_local({'y'},{'v'})*feedback(iv_IDsys_set{1}.G,-sys_local({'w'},{'v'})), -sys_local({'y'},{'v'})*feedback(1, -iv_IDsys_set{1}.G*sys_local({'w'},{'v'}));
+zeros(1, 2), feedback(1,-sys_local({'w'},{'v'})*iv_IDsys_set{1}.G), feedback(-sys_local({'w'},{'v'}),iv_IDsys_set{1}.G)
+];
+%}

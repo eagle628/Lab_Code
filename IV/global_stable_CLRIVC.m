@@ -38,7 +38,7 @@ net1 = network_swing_simple(Node_number, [1,2], [2,10]*1e-2, 1, [1,2], 0.1, seed
 net1.Adj_ref = net1.Adj_ref*0;
 %% control & noise Node
 c_n = 1;
-n_n = [2];
+n_n = [2,3];
 %% edge adjustment
 tmp_idx = find(net1.Adj(c_n, :)~=0);
 tmp_adj = 2 + 5*rand(1, length(tmp_idx));
@@ -122,7 +122,7 @@ t = (0:N-1)'*Ts;
 model_dim = 6;
 % model_dim = 1;
 
-max_itr = 1000;
+max_itr = 100;
 
 parfor_progress(max_itr);
 
@@ -194,10 +194,10 @@ parfor itr = 1 : max_itr
 %     data.u = movmean(w, 5);
 %     data.y = movmean(v, 5);
 %     data.r = movmean(w - lsim(c2d(sys_local_vw, Ts, 'foh'), v), 5);
-    data.u = filtfilt(bpFilt,w);
-    data.y = filtfilt(bpFilt,v);
-%     data.u = w;
-%     data.y = v;
+%     data.u = filtfilt(bpFilt,w);
+%     data.y = filtfilt(bpFilt,v);
+    data.u = w;
+    data.y = v;
     data.r = w - lsim(c2d(sys_local_vw, Ts, 'foh'), v);
     data.io = {v_id,v_np,w_id,w_np};
     data_set{itr} = data;
@@ -205,13 +205,15 @@ parfor itr = 1 : max_itr
     try
         pre_paams = 1;
 %         G2 = CLIVC2(data,-sys_local_vw,[5,6],1);
-        sys = CLRIVC(data,balreal(-sys_local_vw),[model_dim,model_dim+1,model_dim,model_dim],1,10);
+        sys = CLRIVC(data,balreal(-sys_local_vw),[model_dim,model_dim+1,model_dim,model_dim],1,5);
 %         sys = CLRIVC(data,balreal(-sys_local_vw),[model_dim,model_dim+1,model_dim,model_dim],1,5);
 %         sys = CLRIVC(data,ss([],[],[],0),[model_dim,model_dim+1,model_dim,model_dim],1,10);
 %         sys = SPEM_CLRIVC(data,-sys_local_vw,[model_dim,model_dim+1,model_dim,model_dim],1);
 %         sys = RIVC(data,[model_dim-1,model_dim,model_dim-1,model_dim-1],100);
         [iv_mag_result_set{itr},~,iv_wout_result_set{itr}] = bode(sys.G, wout_ori);
         iv_IDsys_set{itr} = sys;
+%         sys = CLRIVC(data,balreal(-sys_local_vw),[model_dim,model_dim+1,model_dim,model_dim],1,10);
+%         oe_IDsys_set{itr} = c2d(sys.G, Ts);
         oe_IDsys_set{itr} = oe(iddata(v, w, Ts), [model_dim+1, model_dim, 0]);
         [oe_mag_result_set{itr},~,oe_wout_result_set{itr}] = bode(oe_IDsys_set{itr}, wout_ori);
     catch ME
@@ -230,31 +232,31 @@ fprintf('Error number is %d.\n',error)
 figure('Name','Bode diagram')
 semilogx(wout_ori,mag2db(squeeze(mag_ori)),'b');
 hold on, grid on ,box  on
-% % % % for itr = 1 : max_itr
-% % % %     try
-% % % %     semilogx(iv_wout_result_set{itr},mag2db(squeeze(iv_mag_result_set{itr})),'r');
-% % % %     semilogx(oe_wout_result_set{itr},mag2db(squeeze(oe_mag_result_set{itr})),'g');
-% % % %     end
-% % % %     hold on, grid on ,box  on
-% % % %     drawnow
-% % % % end
-
-iv_bode_result = [];
-oe_bode_result = [];
 for itr = 1 : max_itr
     try
-    iv_bode_result = [iv_bode_result,squeeze(iv_mag_result_set{itr})];
-    oe_bode_result = [oe_bode_result,squeeze(oe_mag_result_set{itr})];
+    semilogx(iv_wout_result_set{itr},mag2db(squeeze(iv_mag_result_set{itr})),'r');
+    semilogx(oe_wout_result_set{itr},mag2db(squeeze(oe_mag_result_set{itr})),'g');
     end
+    hold on, grid on ,box  on
+    drawnow
 end
-semilogx(wout_ori, mag2db(mean(iv_bode_result,2)),'r')
-semilogx(wout_ori, mag2db(mean(oe_bode_result,2)),'g')
+
+% % % % iv_bode_result = [];
+% % % % oe_bode_result = [];
+% % % % for itr = 1 : max_itr
+% % % %     try
+% % % %     iv_bode_result = [iv_bode_result,squeeze(iv_mag_result_set{itr})];
+% % % %     oe_bode_result = [oe_bode_result,squeeze(oe_mag_result_set{itr})];
+% % % %     end
+% % % % end
+% % % % semilogx(wout_ori, mag2db(mean(iv_bode_result,2)),'r')
+% % % % semilogx(wout_ori, mag2db(mean(oe_bode_result,2)),'g')
 
 ax = gca;
 ax.XScale ='log';
 
 legend('Original','CL-RIVC','OE','location','best')
-%% identificaiton accuracy H_infty
+%% identificaiton accuracy H_2
 iv_sigma_result_set = cell(max_itr, 1);
 oe_sigma_result_set = cell(max_itr, 1);
 
@@ -441,3 +443,31 @@ view(2)
 %% 
 figure('Name','Pole & Zero')
 pzmap(sys_env)
+
+
+%% bode performance & real performance 
+
+number = 10;
+sim_N = 1e4;
+
+% net1.add_controller(c_n, ss(iv_IDsys_set{number}.G), Q, R);
+net1.add_controller(c_n, ss(d2c(oe_IDsys_set{number})), Q, R);
+tmp_sys = net1.get_sys_controlled(sys_all);
+ddd2 = [randn(sim_N,1), zeros(sim_N,1)];
+t = (0:sim_N-1)'*Ts;
+yyy2 = lsim(tmp_sys({'y_node1'},{'d_node1'}), ddd2, t, 'foh');
+figure,plot(t,yyy2)
+[tmp_spec1, req1] = autofft(yyy2(:,1), t);
+[tmp_spec2, req2] = autofft(yyy2(:,2), t);
+rad1 = req1*2*pi;
+rad2 = req2*2*pi;
+figure
+semilogx(rad1, mag2db(tmp_spec1))
+hold on
+semilogx(rad2, mag2db(tmp_spec2))
+% semilogx(iv_pfm_wout_set{number},mag2db(squeeze(iv_pfm_mag_set{number})))
+semilogx(oe_pfm_wout_set{number},mag2db(squeeze(oe_pfm_mag_set{number})))
+grid on
+legend('\theta','\omega','performance')
+
+net1.controllers ={};
