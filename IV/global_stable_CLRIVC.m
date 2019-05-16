@@ -29,7 +29,7 @@ clear
 % % % function iter_func(seed, c_n, Flag1, location)
 %% genereate Network
 seed = 4;
-Node_number = 4;
+Node_number = 30;
 % SSS = load('C:\Users\NaoyaInoue\Desktop\figure_set\node3_confirm_ss_oe_spem\node1_100\np001\data');
 % net1 = SSS.n_ori;
 % net1 = network_swing_simple(Node_number, [1,2], [2,10]*1e-2, 1, [1,5], 0.1, seed);
@@ -122,7 +122,7 @@ t = (0:N-1)'*Ts;
 model_dim = 6;
 % model_dim = 1;
 
-max_itr = 100;
+max_itr = 10;
 
 parfor_progress(max_itr);
 
@@ -232,31 +232,33 @@ fprintf('Error number is %d.\n',error)
 figure('Name','Bode diagram')
 semilogx(wout_ori,mag2db(squeeze(mag_ori)),'b');
 hold on, grid on ,box  on
+
+
+% % % for itr = 1 : max_itr
+% % %     try
+% % %     semilogx(iv_wout_result_set{itr},mag2db(squeeze(iv_mag_result_set{itr})),'r');
+% % %     semilogx(oe_wout_result_set{itr},mag2db(squeeze(oe_mag_result_set{itr})),'g');
+% % %     end
+% % %     hold on, grid on ,box  on
+% % %     drawnow
+% % % end
+
+iv_bode_result = [];
+oe_bode_result = [];
 for itr = 1 : max_itr
     try
-    semilogx(iv_wout_result_set{itr},mag2db(squeeze(iv_mag_result_set{itr})),'r');
-    semilogx(oe_wout_result_set{itr},mag2db(squeeze(oe_mag_result_set{itr})),'g');
+    iv_bode_result = [iv_bode_result,squeeze(iv_mag_result_set{itr})];
+    oe_bode_result = [oe_bode_result,squeeze(oe_mag_result_set{itr})];
     end
-    hold on, grid on ,box  on
-    drawnow
 end
-
-% % % % iv_bode_result = [];
-% % % % oe_bode_result = [];
-% % % % for itr = 1 : max_itr
-% % % %     try
-% % % %     iv_bode_result = [iv_bode_result,squeeze(iv_mag_result_set{itr})];
-% % % %     oe_bode_result = [oe_bode_result,squeeze(oe_mag_result_set{itr})];
-% % % %     end
-% % % % end
-% % % % semilogx(wout_ori, mag2db(mean(iv_bode_result,2)),'r')
-% % % % semilogx(wout_ori, mag2db(mean(oe_bode_result,2)),'g')
+semilogx(wout_ori, mag2db(mean(iv_bode_result,2)),'r')
+semilogx(wout_ori, mag2db(mean(oe_bode_result,2)),'g')
 
 ax = gca;
 ax.XScale ='log';
 
 legend('Original','CL-RIVC','OE','location','best')
-%% identificaiton accuracy H_2
+%% identificaiton accuracy H_2 calculation
 iv_sigma_result_set = cell(max_itr, 1);
 oe_sigma_result_set = cell(max_itr, 1);
 
@@ -284,7 +286,7 @@ for itr = 1 : max_itr
     end
 end
 
-%%
+%% identificaiton accuracy H_2 drawing
 figure('Name','identification accracy')
 hold on, grid on ,box  on
 semilogx(sigma_wout, mag2db(mean(iv_sigma_result,2)),'r')
@@ -447,27 +449,42 @@ pzmap(sys_env)
 
 %% bode performance & real performance 
 
+rng(6)
+
 number = 10;
-sim_N = 1e4;
+sim_N = 1e5;
 
 % net1.add_controller(c_n, ss(iv_IDsys_set{number}.G), Q, R);
-net1.add_controller(c_n, ss(d2c(oe_IDsys_set{number})), Q, R);
-tmp_sys = net1.get_sys_controlled(sys_all);
-ddd2 = [randn(sim_N,1), zeros(sim_N,1)];
+net1.add_controller(c_n, ss(d2c(oe_IDsys_set{number},'foh')), Q, R);
+% test_sys = rss(6); net1.add_controller(c_n, test_sys, Q, R);
+tmp_all_sys = net1.get_sys_controlled(sys_all);
+
+ddd2 = [randn(sim_N,1), randn(sim_N,1)];
 t = (0:sim_N-1)'*Ts;
-yyy2 = lsim(tmp_sys({'y_node1'},{'d_node1'}), ddd2, t, 'foh');
-figure,plot(t,yyy2)
-[tmp_spec1, req1] = autofft(yyy2(:,1), t);
-[tmp_spec2, req2] = autofft(yyy2(:,2), t);
+yyy = lsim(tmp_all_sys({'y_node1'},{'d_node1'}), ddd2, t, 'foh');
+xxx = lsim(tmp_all_sys({'xhat_controlled1'},{'d_node1'}), ddd2, t, 'foh');
+yyy2 = xxx;
+figure,plot(t,yyy(:, 2))
+
+fftset = struct('averaging','none','window','m');
+[tmp_spec1, req1] = autofft(yyy2(:,1), t, fftset);
+[tmp_spec2, req2] = autofft(yyy2(:,2), t, fftset);
 rad1 = req1*2*pi;
 rad2 = req2*2*pi;
 figure
 semilogx(rad1, mag2db(tmp_spec1))
 hold on
 semilogx(rad2, mag2db(tmp_spec2))
+% tmp_pfm = G_checkz_d(sys_env, sys_local, iv_IDsys_set{number}.G);
+tmp_pfm = G_checkz_d(sys_env, sys_local, oe_IDsys_set{number});
+% tmp_pfm = G_checkz_d(sys_env, sys_local, test_sys);
+[tmp_mag, ~, tmp_wout] = bode(tmp_pfm,{1e-3,1e3});
+semilogx(tmp_wout,mag2db(squeeze(tmp_mag)))
 % semilogx(iv_pfm_wout_set{number},mag2db(squeeze(iv_pfm_mag_set{number})))
-semilogx(oe_pfm_wout_set{number},mag2db(squeeze(oe_pfm_mag_set{number})))
+% semilogx(oe_pfm_wout_set{number},mag2db(squeeze(oe_pfm_mag_set{number})))
 grid on
 legend('\theta','\omega','performance')
 
 net1.controllers ={};
+
+rng('shuffle')

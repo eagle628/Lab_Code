@@ -41,7 +41,8 @@ function [sys_spem, sys_real] = G_checkz_d(sys_env, sys_local, sys_id, K)
 %     new_local_sys = Retrofit.generate_fb(sys_local, sys_id);
 %     new_local_sys = new_local_sys('y','u');
 %     K3 = K(3:end)*new_local_sys.B;
-    K3 = K(3:end)*sys_id.B;
+%     K3 = K(3:end)*sys_id.B;
+    K3 = sys_id.C*K(3:end)';
 
     % % % % % % % w_hat & w & vを生成するシステム
     l_dim = order(sys_local);
