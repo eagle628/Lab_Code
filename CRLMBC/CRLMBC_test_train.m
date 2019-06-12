@@ -1,4 +1,4 @@
-classdef CRLMBC_test_train
+classdef CRLMBC_test_train < handle
     %UNTITLED3 このクラスの概要をここに記述
     %   詳細説明をここに記述
     
@@ -10,6 +10,7 @@ classdef CRLMBC_test_train
         alpha = 0.05
         beta = 0.001
         gamma = 0.9
+        gamma2 = 0.999
         max_episode = 1e3
     end
     
@@ -30,10 +31,11 @@ classdef CRLMBC_test_train
             obj.t = (0:model.Ts:Te)';
             obj.basis_N = basis_N;
 %             obj.c = randn(obj.basis_N, 2);
-            m = 0.1*(-5:5)';
-            obj.c = [kron(m,ones(11,1)),repmat(m,11,1)];
+            m = 0.2*(-5:5)';
+            n = 0.8*(-5:5)';
+            obj.c = [kron(m,ones(11,1)),repmat(n,11,1)]; 
             obj.sigma2_basis = ones(obj.basis_N, 1);
-            obj.sigma2_pi = 0.1;
+            obj.sigma2_pi = 0.01;
         end
         
         function J = cost(obj, x, u)
@@ -69,13 +71,13 @@ classdef CRLMBC_test_train
             end
         end
         
-        function [x_all, u_mpc_all, u_rl_all] = sim(obj, ini)
+        function [x_all, u_mpc_all, u_rl_all, omega] = actor_critic(obj, ini)
             x_all = zeros(obj.sim_N, 2);
             u_mpc_all = zeros(obj.sim_N, 1);
             u_rl_all = zeros(obj.sim_N, 1);
             x_all(1, :) = ini';
             % only first episode initialize
-            theta = zeros(obj.basis_N, 1);
+            theta = randn(obj.basis_N, 1);
             omega = zeros(obj.basis_N, 1);
             % model based control Gain
             K = dlqr(obj.model.A, obj.model.B, obj.Q, obj.R);
@@ -91,7 +93,7 @@ classdef CRLMBC_test_train
                     else
 %                         if sum(abs(theta) > 0.5) == 0
                             r = obj.reward(x_all(itr, :), u_mpc_all(itr-1, :)+u_rl_all(itr-1, :)); % REWARD is got at previous time.
-                            r_all = r_all+r;
+                            r_all = r_all+obj.gamma^(itr-1)*r;
                             V_k0 = obj.state_basis_func(x_all(itr, :))'*theta;
                             V_k1 = obj.state_basis_func(x_all(itr-1, :))'*theta;
                             delta = r + obj.gamma*V_k0 - V_k1;
@@ -101,7 +103,7 @@ classdef CRLMBC_test_train
                             z_omega = obj.gamma*obj.lambda_omega*z_omega + zeta*e_k1;
                             theta = theta + obj.alpha*delta*z_theta;
                             omega = omega + obj.beta*delta*z_omega;
-                            zeta = obj.gamma*zeta;
+                            zeta = obj.gamma2*zeta;
                             u_rl = obj.state_basis_func(x_all(itr, :))'*omega + obj.sigma2_pi*randn(1);
 %                             u_rl = obj.state_basis_func(x_all(itr, :))'*omega;
 %                         else
@@ -121,7 +123,8 @@ classdef CRLMBC_test_train
 %                         end
                     end
                     u_mbc = -K*x_all(itr, :)';
-                    ne_x = obj.model.true_dynamics(x_all(itr,:), u_mbc+u_rl);
+%                     u_mbc = 0;
+                    ne_x = obj.model.dynamics(x_all(itr,:), u_mbc+u_rl);
                     x_all(itr+1, :) = ne_x';
                     u_mpc_all(itr, :) = u_mbc;
                     u_rl_all(itr, :) = u_rl;
@@ -139,6 +142,22 @@ classdef CRLMBC_test_train
                 ylabel('Integral Reward')
                 hold on
                 drawnow
+            end
+        end
+        
+        function x_all = sim(obj, ini, omega)
+            x_all = zeros(obj.sim_N, 2);
+            x_all(1, :) = ini';
+            K = dlqr(obj.model.A, obj.model.B, obj.Q, obj.R);
+            for itr = 1 : obj.sim_N-1
+                if itr == 1
+                    u_rl = 0;
+                else
+                    u_rl = obj.state_basis_func(x_all(itr, :))'*omega;
+                end
+                u_mbc = -K*x_all(itr, :)';
+                ne_x = obj.model.true_dynamics(x_all(itr,:), u_mbc+u_rl);
+                x_all(itr+1, :) = ne_x';
             end
         end
     end

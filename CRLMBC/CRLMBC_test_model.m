@@ -23,7 +23,7 @@ classdef CRLMBC_test_model
             obj.B = Ts*[0; 1/(M*l^2)];
         end
         
-        function ne_x = true_dynamics(obj, pre_x, pre_u)
+        function ne_x = dynamics(obj, pre_x, pre_u)
             ne_x = [
                     pre_x(1) + obj.Ts*pre_x(2);
                     pre_x(2) + obj.Ts*(obj.g/obj.l*sin(pre_x(1)) - obj.eta/(obj.M*obj.l^2)*pre_x(2) + 1/(obj.M*obj.l^2)*pre_u);
