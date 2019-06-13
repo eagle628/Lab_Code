@@ -1,4 +1,4 @@
-classdef CRLMBC_test_model < handle
+classdef CRLMBC_test_model
     % CRMBCの数値検証用プログラム
     
     properties
@@ -40,10 +40,7 @@ classdef CRLMBC_test_model < handle
         end
         
         function x_hat = observer(obj, pre_x_hat, u, y)
-            if isempty(obj.L)
-                obj.set_observer_gain();
-            end
-            x_hat = obj.A*pre_x_hat' + obj.B*u' - obj.L*(y' - obj.C*obj.A*pre_x_hat' - obj.C*obj.B*u' - obj.D*u');
+           x_hat = obj.A*pre_x_hat + obj.B*u - obj.L*(y - obj.C*obj.A*pre_x_hat - obj.C:obj.B*u - obj.D*u);
         end
         
         function set_observer_gain(obj, max)
@@ -54,12 +51,8 @@ classdef CRLMBC_test_model < handle
             ny = size(obj.C, 1);
             Flag = 1;
             while Flag
-                test_L = randn(nx, ny);
-                stable = (eye(nx, nx) + test_L*obj.C)*obj.A;
-                stable = eig(stable);
-                Flag = sum(abs(stable) > max);
-            end
-            obj.L = test_L;
+                L = randn(nx, ny);
+                stable = (eye(nx, nx) + L*obj.C
         end
     end
 end
