@@ -17,7 +17,7 @@ train = RL_state_feedback_train(model, 3, 121);
 % plot(train.t, y)
 
 figure
-[x, u_mpc, u_rl, omega] = train.actor_critic([0.4;0]);
+[x, u_mpc, u_rl, omega, theta] = train.actor_critic([0.4;0]);
 
 figure
 plot(u_mpc);
@@ -31,15 +31,20 @@ figure
 plot(train.t, x_all(:,1), 'r')
 hold on
 
+%%
 x = train.sim_lqrcontroller([0.4;0]);
 plot(train.t,x(:,1),'b')
 
 legend('RL+LQR','LQR')
 
 
-%% IRL
-% train = LQR_IRL_VI_alg_train(model, 10);
-% train.train([0.4;0.2]);
-
-% figure,
-% plot(train.t, x);
+%% apx
+% % % % rng(0)
+% % % % 
+% % % % model = test_apx_model();
+% % % % model.set_observer_gain(1);
+% % % % 
+% % % % train = RL_state_feedback_and_observer_train(model, 3, 121);
+% % % % 
+% % % % figure
+% % % % [true_x, apx_x, u_mpc, u_rl, omega] = train.actor_critic(ones(model.true_nx,1));

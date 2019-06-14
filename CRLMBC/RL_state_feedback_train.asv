@@ -9,7 +9,7 @@ classdef RL_state_feedback_train < handle
         lambda_omega = 0.99
         alpha = 0.005
         beta = 0.0001
-        gamma = 0.99
+        gamma = 0.9
         gamma2 = 0.999
         max_episode = 2e3
     end
@@ -31,12 +31,11 @@ classdef RL_state_feedback_train < handle
             obj.t = (0:model.Ts:Te)';
             obj.basis_N = basis_N;
 %             obj.c = randn(obj.basis_N, size(obj.model.A, 1));
-%             obj.c = zeros(obj.basis_N, obj.model.apx_nx);
-            m = 0.1*(-5:5)';
-            n = 0.1*(-5:5)';
+            
+            m = 0.2*(-5:5)';
+            n = 0.8*(-5:5)';
             obj.c = [kron(m,ones(11,1)),repmat(n,11,1)]; 
             obj.sigma2_basis = ones(obj.basis_N, 1);
-%             obj.sigma2_basis = randn(obj.basis_N, 1);
             obj.sigma2_pi = 0.01;
         end
         
@@ -74,7 +73,7 @@ classdef RL_state_feedback_train < handle
             end
         end
         
-        function [apx_x_all, u_mpc_all, u_rl_all, omega, theta] = actor_critic(obj, ini)
+        function [apx_x_all, u_mpc_all, u_rl_all, omega] = actor_critic(obj, ini)
             cost_history = zeros(obj.max_episode, 1);
             reward_history = zeros(obj.max_episode, 1);
             apx_x_all = zeros(obj.sim_N, obj.model.apx_nx);
@@ -146,7 +145,7 @@ classdef RL_state_feedback_train < handle
             x_all(1, :) = ini';
             K = dlqr(obj.model.A, obj.model.B, obj.Q, obj.R);
             for itr = 1 : obj.sim_N-1
-                u_rl = obj.state_basis_func(x_all(itr, :))'*omega + obj.sigma2_pi*randn(1, obj.model.nu);
+                u_rl = obj.state_basis_func(x_all(itr, :))'*omega;% + obj.sigma2_pi*randn(1, nu);
                 u_mbc = -K*x_all(itr, :)';
                 ne_x = obj.model.dynamics(x_all(itr,:), u_mbc+u_rl);
                 x_all(itr+1, :) = ne_x';
