@@ -7,10 +7,10 @@ classdef RL_state_feedback_train < handle
         R = 1
         lambda_theta = 0.99
         lambda_omega = 0.99
-        alpha = 0.005
-        beta = 0.0001
-        gamma = 0.99
-        gamma2 = 0.999
+        alpha = 0.05
+        beta = 0.001
+        gamma = 0.9
+        gamma2 = 0.9
         max_episode = 2e3
     end
     
@@ -33,11 +33,11 @@ classdef RL_state_feedback_train < handle
 %             obj.c = randn(obj.basis_N, size(obj.model.A, 1));
 %             obj.c = zeros(obj.basis_N, obj.model.apx_nx);
             m = 0.1*(-5:5)';
-            n = 0.1*(-5:5)';
+            n = 0.2*(-5:5)';
             obj.c = [kron(m,ones(11,1)),repmat(n,11,1)]; 
             obj.sigma2_basis = ones(obj.basis_N, 1);
 %             obj.sigma2_basis = randn(obj.basis_N, 1);
-            obj.sigma2_pi = 0.01;
+            obj.sigma2_pi = 0.1;
         end
         
         function J = cost(obj, x, u)
@@ -75,6 +75,7 @@ classdef RL_state_feedback_train < handle
         end
         
         function [apx_x_all, u_mpc_all, u_rl_all, omega, theta] = actor_critic(obj, ini)
+            rng('shuffle')
             cost_history = zeros(obj.max_episode, 1);
             reward_history = zeros(obj.max_episode, 1);
             apx_x_all = zeros(obj.sim_N, obj.model.apx_nx);
@@ -102,7 +103,7 @@ classdef RL_state_feedback_train < handle
                             r_all = r_all+obj.gamma^(itr-1)*r;
                             V_k0 = obj.state_basis_func(apx_x_all(itr, :))'*theta;
                             V_k1 = obj.state_basis_func(apx_x_all(itr-1, :))'*theta;
-                            delta = r + obj.gamma*V_k0 - V_k1;
+                            delta = (r + obj.gamma*V_k0 - V_k1);
                             z_theta = obj.gamma*obj.lambda_theta*z_theta + zeta*obj.state_basis_func(apx_x_all(itr-1, :));
                             e_k1 = (u_rl_all(itr-1, :)-obj.state_basis_func(apx_x_all(itr-1, :))'*omega)/obj.sigma2_pi*obj.state_basis_func(apx_x_all(itr-1, :));
 %                             e_k1 = obj.state_basis_func(x_all(itr-1, :));

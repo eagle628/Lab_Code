@@ -36,11 +36,17 @@ classdef CRLMBC_test_model < RL_model
         end
         
         function [ne_x, y] = dynamics(obj, pre_x, pre_u)
-            ne_x = [
-                    pre_x(1) + obj.Ts*pre_x(2);
-                    pre_x(2) + obj.Ts*(obj.g/obj.l*sin(pre_x(1)) - obj.eta/(obj.M*obj.l^2)*pre_x(2) + 1/(obj.M*obj.l^2)*pre_u);
+            func = @(x, u, Ts) [
+                    x(2), ...
+                    (obj.g/obj.l*sin(x(1)) - obj.eta/(obj.M*obj.l^2)*x(2) + 1/(obj.M*obj.l^2)*u);
                     ];
+            ne_x = (obj.RK4(func, pre_x, pre_u))';
             y = ne_x;
+            
+%             [
+%                 x(1) + Ts*x(2), ...
+%                 x(2) + Ts*(obj.g/obj.l*sin(x(1)) - obj.eta/(obj.M*obj.l^2)*x(2) + 1/(obj.M*obj.l^2)*u);
+%             ];
         end        
 
         function ne_x = approximate_dynamics(obj, pre_x, pre_u)
@@ -48,5 +54,6 @@ classdef CRLMBC_test_model < RL_model
         end
         
     end
+
 end
 

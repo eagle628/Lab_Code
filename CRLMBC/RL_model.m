@@ -45,6 +45,14 @@ classdef RL_model < handle
             end
             obj.L = test_L;
         end
+
+        function ne_x = RK4(obj, system, pre_x, pre_u)
+            k1 = system(pre_x, pre_u);
+            k2 = system(pre_x+obj.Ts/2*k1, pre_u);
+            k3 = system(pre_x+obj.Ts/2*k2, pre_u);
+            k4 = system(pre_x+obj.Ts*k2, pre_u);
+            ne_x = pre_x+obj.Ts/6*(k1+2*k2+2*k3+k4);
+        end
     end
 end
 
