@@ -49,8 +49,8 @@ classdef CRLMBC_test_model < RL_model
 %             ];
         end        
 
-        function ne_x = approximate_dynamics(obj, pre_x, pre_u)
-            ne_x = obj.A*pre_x + obj.B*pre_u;            
+        function ne_x = apx_dynamics(obj, pre_x, pre_u)
+            ne_x = obj.A*pre_x' + obj.B*pre_u';            
         end
         
     end

@@ -8,7 +8,8 @@ model.set_observer_gain(0.5);
 
 %% state feedback  and CRLMBC
 % train = RL_state_feedback_and_observer_train(model, 3, 121);
-train = RL_state_feedback_train(model, 3, 121);
+% train = RL_state_feedback_train(model, 3, 121);
+train = RL_state_feedback_v2_train(model, 3, 625);
 % train = LQR_model_free_state_feedback_train(model, 10);
 % K = train.train([0.4;0]);
 % 
@@ -17,7 +18,8 @@ train = RL_state_feedback_train(model, 3, 121);
 % plot(train.t, y)
 
 figure
-[x, u_mpc, u_rl, omega, theta] = train.actor_critic([0.4;0]);
+[x, u_mpc, u_rl, omega, theta] = train.actor_critic_with_eligibility_traces([0.4;0]);
+% [x, u_mpc, u_rl, omega, theta] = train.one_step_actor_critic([0.4;0]);
 
 figure
 plot(u_mpc);
@@ -37,6 +39,14 @@ plot(train.t,x(:,1),'b')
 
 legend('RL+LQR','LQR')
 
+
+K = dlqr(model.A,model.B,train.Q,train.R);
+u = (-K*x')';
+
+reward = 0;
+for itr = 2 : train.sim_N
+    reward = reward+ train.gamma^(itr-1)*train.reward(x(itr, :), u(itr-1, :));
+end
 
 %% apx
 % % % % rng(0)
