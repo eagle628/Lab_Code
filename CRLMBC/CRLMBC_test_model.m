@@ -1,4 +1,4 @@
-classdef CRLMBC_test_model < RL_model
+classdef CRLMBC_test_model < environment_model
     % 摩擦有倒立振子のモデル
     
     properties

@@ -3,13 +3,13 @@ close all
 
 rng(0)
 
-model = CRLMBC_test_model(0.5,0.15,9.8,0.05,0.01);
+model = CRLMBC_test_model(0.5,0.15,9.8,0.5,0.1);
 model.set_observer_gain(0.5);
 
 %% state feedback  and CRLMBC
 % train = RL_state_feedback_and_observer_train(model, 3, 121);
 % train = RL_state_feedback_train(model, 3, 121);
-train = RL_state_feedback_v2_train(model, 3, 625);
+train = RL_state_feedback_v2_train(model, 3, 11^2);
 % train = LQR_model_free_state_feedback_train(model, 10);
 % K = train.train([0.4;0]);
 % 
@@ -18,7 +18,7 @@ train = RL_state_feedback_v2_train(model, 3, 625);
 % plot(train.t, y)
 
 figure
-[x, u_mpc, u_rl, omega, theta] = train.actor_critic_with_eligibility_traces([0.4;0]);
+[x, u_mpc, u_rl, omega, theta] = train.actor_critic_with_eligibility_traces_episodic([0.4;0]);
 % [x, u_mpc, u_rl, omega, theta] = train.one_step_actor_critic([0.4;0]);
 
 figure

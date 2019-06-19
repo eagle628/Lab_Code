@@ -1,4 +1,4 @@
-classdef RL_model < handle
+classdef environment_model < handle
     %UNTITLED4 このクラスの概要をここに記述
     %   詳細説明をここに記述
     
@@ -50,7 +50,7 @@ classdef RL_model < handle
             k1 = system(pre_x, pre_u);
             k2 = system(pre_x+obj.Ts/2*k1, pre_u);
             k3 = system(pre_x+obj.Ts/2*k2, pre_u);
-            k4 = system(pre_x+obj.Ts*k2, pre_u);
+            k4 = system(pre_x+obj.Ts*k3, pre_u);
             ne_x = pre_x+obj.Ts/6*(k1+2*k2+2*k3+k4);
         end
     end

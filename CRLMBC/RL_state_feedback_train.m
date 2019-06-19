@@ -74,7 +74,7 @@ classdef RL_state_feedback_train < handle
             end 
         end
         
-        function [apx_x_all, u_mpc_all, u_rl_all, omega, theta] = actor_critic_with_eligibility_traces(obj, ini)
+        function [apx_x_all, u_mpc_all, u_rl_all, omega, theta] = actor_critic_with_eligibility_traces_episodic(obj, ini)
             rng('shuffle')
             cost_history = zeros(obj.max_episode, 1);
             reward_history = zeros(obj.max_episode, 1);

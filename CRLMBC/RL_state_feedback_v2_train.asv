@@ -12,7 +12,6 @@ classdef RL_state_feedback_v2_train < handle
         gamma = 0.9
         gamma2 = 0.9
         max_episode = 5e3
-        e
     end
     
     properties
@@ -42,7 +41,7 @@ classdef RL_state_feedback_v2_train < handle
 %             obj.c = [kron(m,ones(11,1)),repmat(n,11,1)]; 
             obj.sigma2_basis = ones(obj.basis_N, 1);
 %             obj.sigma2_basis = randn(obj.basis_N, 1);
-            obj.sigma2_pi = 0.1;
+            obj.sigma2_pi = 1;
         end
         
         function J = cost(obj, x_all, u_all)
@@ -53,14 +52,15 @@ classdef RL_state_feedback_v2_train < handle
         end
         
         function R = reward(obj, x, u)
-            R = -1/100*(x*obj.Q*x' + u*obj.R*u');
+            R = -1/10*(x*obj.Q*x' + u*obj.R*u');
+%             R = -1/100*(x(1)*10*x(1)' + u*obj.R*u');
         end
         
         function phi = state_basis_func(obj, x)
            phi = exp(-sum((x-obj.c).^2, 2)./(2*obj.sigma2_basis));
         end
         
-        function [apx_x_all, mpc_u_all, rl_u_all, omega, theta] = actor_critic_with_eligibility_traces(obj, ini)
+        function [apx_x_all, mpc_u_all, rl_u_all, omega, theta] = actor_critic_with_eligibility_traces_episodic(obj, ini)
             rng('shuffle')
             cost_history = zeros(obj.max_episode, 1);
             reward_history = zeros(obj.max_episode, 1);
@@ -81,6 +81,8 @@ classdef RL_state_feedback_v2_train < handle
                 z_omega = zeros(obj.basis_N, 1);
                 zeta = 1;
                 reward = 0;
+                % explration gain
+                epi
                for k = 1 : obj.sim_N-1
                    % MBC input
                    mpc_u_all(k, :) = -K*apx_x_all(k, :)';
@@ -100,6 +102,7 @@ classdef RL_state_feedback_v2_train < handle
                        zeta = obj.gamma2*zeta;
                    end
                    mu_rl = obj.state_basis_func(apx_x_all(k, :))'*omega;
+%                    rl_u_all(k, :) = mu_rl + double(rand(1)<obj.epsilon)*obj.sigma2_pi*randn(1, obj.model.nu);
                    rl_u_all(k, :) = mu_rl + obj.sigma2_pi*randn(1, obj.model.nu);
                    [apx_x_all(k+1, :), y] = obj.model.dynamics(apx_x_all(k, :), rl_u_all(k, :) + mpc_u_all(k, :));
                    r = obj.reward(apx_x_all(k+1, :), rl_u_all(k, :)+mpc_u_all(k, :));
@@ -111,12 +114,14 @@ classdef RL_state_feedback_v2_train < handle
             end
         end
         
+        
+        
         function x_all = sim(obj, ini, omega)
             x_all = zeros(obj.sim_N, obj.model.apx_nx);
             x_all(1, :) = ini';
             K = dlqr(obj.model.A, obj.model.B, obj.Q, obj.R);
             for itr = 1 : obj.sim_N-1
-                u_rl = obj.state_basis_func(x_all(itr, :))'*omega + obj.sigma2_pi*randn(1, obj.model.nu);
+                u_rl = obj.state_basis_func(x_all(itr, :))'*omega ;%+ obj.sigma2_pi*randn(1, obj.model.nu);
                 u_mbc = -K*x_all(itr, :)';
                 ne_x = obj.model.dynamics(x_all(itr,:), u_mbc+u_rl);
                 x_all(itr+1, :) = ne_x';

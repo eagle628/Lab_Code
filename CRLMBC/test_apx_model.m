@@ -1,4 +1,4 @@
-classdef test_apx_model < RL_model
+classdef test_apx_model < environment_model
     
     properties
         A

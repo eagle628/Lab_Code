@@ -9,10 +9,9 @@ classdef RL_state_feedback_v2_train < handle
         lambda_omega = 0.99
         alpha = 0.001
         beta = 0.001
-        gamma = 0.99
+        gamma = 0.9
         gamma2 = 0.9
         max_episode = 5e3
-        epsilon = 0.1
     end
     
     properties
@@ -40,7 +39,7 @@ classdef RL_state_feedback_v2_train < handle
 %             m = (-5:5)';
 %             n = (-5:5)';
 %             obj.c = [kron(m,ones(11,1)),repmat(n,11,1)]; 
-            obj.sigma2_basis = ones(obj.basis_N, 1);
+            obj.sigma2_basis = 0.1*ones(obj.basis_N, 1);
 %             obj.sigma2_basis = randn(obj.basis_N, 1);
             obj.sigma2_pi = 0.1;
         end
@@ -53,15 +52,15 @@ classdef RL_state_feedback_v2_train < handle
         end
         
         function R = reward(obj, x, u)
-%             R = -1/100*(x*obj.Q*x' + u*obj.R*u');
-            R = -1/100*(x(1)*10*x(1)' + u*obj.R*u');
+            R = -1/10*(x*obj.Q*x' + u*obj.R*u');
+%             R = -1/100*(x(1)*10*x(1)' + u*obj.R*u');
         end
         
         function phi = state_basis_func(obj, x)
            phi = exp(-sum((x-obj.c).^2, 2)./(2*obj.sigma2_basis));
         end
         
-        function [apx_x_all, mpc_u_all, rl_u_all, omega, theta] = actor_critic_with_eligibility_traces(obj, ini)
+        function [apx_x_all, mpc_u_all, rl_u_all, omega, theta] = actor_critic_with_eligibility_traces_episodic(obj, ini)
             rng('shuffle')
             cost_history = zeros(obj.max_episode, 1);
             reward_history = zeros(obj.max_episode, 1);
@@ -73,8 +72,8 @@ classdef RL_state_feedback_v2_train < handle
             % set episode initial
             apx_x_all(1, :) = ini';
             % params initialize
-%             theta = zeros(obj.basis_N, 1);
-            theta = ones(obj.basis_N, 1)*0.01;
+            theta = zeros(obj.basis_N, 1);
+%             theta = ones(obj.basis_N, 1)*0.01;
             omega = zeros(obj.basis_N, obj.model.nu);
             for episode = 1 : obj.max_episode
                 % episode initialize
@@ -82,7 +81,9 @@ classdef RL_state_feedback_v2_train < handle
                 z_omega = zeros(obj.basis_N, 1);
                 zeta = 1;
                 reward = 0;
-               for k = 1 : obj.sim_N-1
+                % explration gain
+                gain = 2^(-floor(episode/1000));
+                for k = 1 : obj.sim_N-1
                    % MBC input
                    mpc_u_all(k, :) = -K*apx_x_all(k, :)';
                    % reinforcement learning
@@ -101,7 +102,8 @@ classdef RL_state_feedback_v2_train < handle
                        zeta = obj.gamma2*zeta;
                    end
                    mu_rl = obj.state_basis_func(apx_x_all(k, :))'*omega;
-                   rl_u_all(k, :) = mu_rl + double(rand(1)<obj.epsilon)*obj.sigma2_pi*randn(1, obj.model.nu);
+%                    rl_u_all(k, :) = mu_rl + double(rand(1)<obj.epsilon)*obj.sigma2_pi*randn(1, obj.model.nu);
+                   rl_u_all(k, :) = mu_rl + gain*obj.sigma2_pi*randn(1, obj.model.nu);
                    [apx_x_all(k+1, :), y] = obj.model.dynamics(apx_x_all(k, :), rl_u_all(k, :) + mpc_u_all(k, :));
                    r = obj.reward(apx_x_all(k+1, :), rl_u_all(k, :)+mpc_u_all(k, :));
                    reward =  reward + obj.gamma^(k-1)*r;
@@ -111,6 +113,8 @@ classdef RL_state_feedback_v2_train < handle
                callback_RL(episode, obj.t, apx_x_all, cost_history, reward_history)
             end
         end
+        
+        
         
         function x_all = sim(obj, ini, omega)
             x_all = zeros(obj.sim_N, obj.model.apx_nx);
