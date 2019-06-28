@@ -70,7 +70,7 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
 %                 gain = 1;
                 for k = 1 : obj.sim_N-1
                    % MBC input
-                   mpc_u_all(k, :) = -K*apx_x_all(k, :)';
+                   mpc_u_all(k, :) = -K*x_all(k, :)';
 %                    mpc_u_all(k, :) = 0;
                    % RL input
                    rl_u_all(k, :) = obj.policy.stocastic_policy(x_all(k, :), theta_mu);
