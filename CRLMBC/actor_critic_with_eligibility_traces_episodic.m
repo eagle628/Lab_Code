@@ -1,6 +1,6 @@
-classdef RL_state_feedback_v2_train < handle
-% CRLMBC_test
-% 近似モデルとプラントが同一次元でしかできない．さらに，オブザーバんーなし
+classdef actor_critic_with_eligibility_traces_episodic < RL_train
+    %UNTITLED15 このクラスの概要をここに記述
+    %   詳細説明をここに記述
     
     properties(Constant)
         Q = diag([10,1])
@@ -15,15 +15,12 @@ classdef RL_state_feedback_v2_train < handle
     end
     
     properties
-        model
         sim_N
         t
-        policy
-        value
     end
     
     methods
-        function obj = RL_state_feedback_v2_train(model, Te, basis_N, seed)
+        function obj = actor_critic_with_eligibility_traces_episodic(model, Te, basis_N, seed)
             if nargin < 4
                 seed = rng();
             end
@@ -43,28 +40,7 @@ classdef RL_state_feedback_v2_train < handle
             obj.value  =  value_RBF(RBF1);
         end
         
-        function J = cost(obj, x_all, u_all)
-           J = 0;
-           for itr =  1 : obj.sim_N-1
-               J = J + x_all(itr, :)*obj.Q*x_all(itr, :)' + u_all(itr, :)*obj.R*u_all(itr, :)';
-           end
-        end
-        
-        function R = reward(obj, x, u)
-            R = -1/10*(x*obj.Q*x' + u*obj.R*u');
-%             R = -1/100*(x(1)*10*x(1)' + u*obj.R*u');
-        end
-        
-%         function phi = state_basis_func(obj, x)
-%            phi = exp(-sum((x-obj.c).^2, 2)./(2*obj.sigma2_basis));
-%         end
-%         
-%         function phi = state_basis_func2(obj, x)
-%            phi = exp(-sqrt(sum((x-obj.c).^2, 2))./(2*obj.sigma2_basis));
-% %            phi = exp(-sum((x-obj.c2).^2, 2)./(2*obj.sigma2_basis2));
-%         end
-        
-        function [apx_x_all, mpc_u_all, rl_u_all, theta_mu, w] = actor_critic_with_eligibility_traces_episodic(obj, ini)
+        function [apx_x_all, mpc_u_all, rl_u_all, theta_mu, w] = train(obj, ini)
             rng('shuffle')
             cost_history = zeros(obj.max_episode, 1);
             reward_history = zeros(obj.max_episode, 1);
@@ -154,6 +130,17 @@ classdef RL_state_feedback_v2_train < handle
             end
         end
         
+        function J = cost(obj, x_all, u_all)
+           J = 0;
+           for itr =  1 : obj.sim_N-1
+               J = J + x_all(itr, :)*obj.Q*x_all(itr, :)' + u_all(itr, :)*obj.R*u_all(itr, :)';
+           end
+        end
+        
+        function R = reward(obj, x, u)
+            R = -1/10*(x*obj.Q*x' + u*obj.R*u');
+%             R = -1/100*(x(1)*10*x(1)' + u*obj.R*u');
+        end
         
         function x_all = sim(obj, ini, w)
             x_all = zeros(obj.sim_N, obj.model.apx_nx);
@@ -225,3 +212,4 @@ classdef RL_state_feedback_v2_train < handle
         end
     end
 end
+
