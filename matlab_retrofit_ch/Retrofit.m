@@ -226,6 +226,41 @@ classdef Retrofit
         end
         %
        
+        function rect_sys = generate_rectifier(sys_local, sys_env)
+            % y,w,v ---> yhat what
+            if nargin < 2
+                sys_env = ss(0);
+            end
+            [A_L,B_L,C_L_w,~]   = ssdata(sys_local({'w'},{'v'}));
+            C_L_y = sys_local({'y'},{'v'}).C;
+            [A_E,B_E,C_E,D_E] = ssdata(sys_env);
+
+            A_rect = [A_E, -B_E*C_L_w; -B_L*C_E, A_L-B_L*D_E*C_L_w];
+            B_rect = [
+                        zeros(size(B_E, 1), size(C_L_y, 1)), B_E, tools.zeros(B_E, B_L);
+                        zeros(size(B_L, 1), size(C_L_y, 1)), -B_L*D_E, B_L
+                        ];
+            C_rect = [
+                        tools.zeros(C_L_y, A_E), -C_L_y;
+                        tools.zeros(C_L_w, A_E), -C_L_w;
+                        eye(size(A_E)), tools.zeros(A_E, A_L);
+                        tools.zeros(A_L, A_E), eye(size(A_L));
+                        ];
+            D_rect = [
+                        eye(size(C_L_y , 1)), tools.zeros(C_L_y ,B_L), tools.zeros(C_L_y ,B_L);
+                        zeros(size(B_L, 2),size(C_L_y , 1)), eye(size(B_L, 2)), zeros(size(B_L, 2));
+                        ];
+            D_rect = [ D_rect ; zeros(size(C_rect,1) - size(D_rect,1),size(D_rect, 2))];
+            rect_sys = ss(A_rect, B_rect, C_rect, D_rect);
+            rect_sys.InputGroup.y = 1:size(C_L_y, 2);
+            rect_sys.InputGroup.w = size(C_L_y, 2) + (1:size(B_L, 2));
+            rect_sys.InputGroup.v = size(C_L_y, 2) + size(B_L, 2) + (1:size(B_L, 2));
+            rect_sys.OutputGroup.yhat = 1:size(C_L_y, 2);
+            rect_sys.OutputGroup.what = size(C_L_y, 2) + (1:size(B_L, 2));
+            rect_sys.OutputGroup.x_e = size(C_L_y, 2) + size(B_L, 2) + (1:size(A_E, 1));
+            rect_sys.OutputGroup.x_l = size(C_L_y, 2) + size(B_L, 2) + size(A_E, 1) + (1:size(A_L, 1));
+            rect_sys.OutputGroup.x = size(C_L_y, 2) + size(B_L, 2) + (1:size(A_E, 1)+size(A_L, 1));
+        end
     end
     
 end

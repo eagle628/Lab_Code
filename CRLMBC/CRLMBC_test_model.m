@@ -6,12 +6,7 @@ classdef CRLMBC_test_model < environment_model
         B
         C
         D
-        L
-        Ts
-        true_nx
-        apx_nx
-        nu
-        ny
+        K
         l
         M
         g
@@ -20,8 +15,10 @@ classdef CRLMBC_test_model < environment_model
     
     methods
         function obj = CRLMBC_test_model(l, M, g, eta, Ts)
-            obj.A = eye(2) + Ts*[0, 1;g/l, -eta/(M*l^2)];
-            obj.B = Ts*[0; 1/(M*l^2)];
+%             obj.A = eye(2) + Ts*[0, 1;g/l, -eta/(M*l^2)];
+            obj.A = [0, 1;g/l, -eta/(M*l^2)];
+%             obj.B = Ts*[0; 1/(M*l^2)];
+            obj.B = [0; 1/(M*l^2)];
             obj.C = eye(2);
             obj.D = zeros(2, 1);
             obj.Ts = Ts;
@@ -35,12 +32,13 @@ classdef CRLMBC_test_model < environment_model
             obj.eta = eta;
         end
         
-        function [ne_x, y] = dynamics(obj, pre_x, pre_u)
-            func = @(x, u, Ts) [
-                    x(2), ...
+        function ne_x = dynamics(obj, pre_x, pre_u)
+            func = @(x, u) [
+                    x(2); ...
                     (obj.g/obj.l*sin(x(1)) - obj.eta/(obj.M*obj.l^2)*x(2) + 1/(obj.M*obj.l^2)*u);
                     ];
-            ne_x = (obj.RK4(func, pre_x, pre_u))';
+            ne_x = obj.RK4(func, pre_x, pre_u);
+%             ne_x = obj.Euler(func, pre_x, pre_u);
             y = ne_x;
             
 %             [
@@ -50,9 +48,16 @@ classdef CRLMBC_test_model < environment_model
         end        
 
         function ne_x = apx_dynamics(obj, pre_x, pre_u)
-            ne_x = obj.A*pre_x' + obj.B*pre_u';            
+            system = @(x, u) obj.A*x + obj.B*u;
+            ne_x = obj.RK4(system,pre_x, pre_u);          
         end
         
+        function u = control_law(obj, set)
+            switch set.law
+                case 'lqr'
+                    u = -set.K*set.x;
+            end
+        end
     end
 
 end
