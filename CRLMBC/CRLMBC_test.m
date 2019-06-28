@@ -9,20 +9,7 @@ model = CRLMBC_test_model(0.5,0.15,9.8,0.05,0.01);
 
 %% state feedback  and CRLMBC
 seed = 1024;
-% train = RL_state_feedback_and_observer_train(model, 3, 121);
-% train = RL_state_feedback_train(model, 3, 121);
-% train = RL_state_feedback_v2_train(model, 3, 21^2, seed);
-train = actor_critic_with_eligibility_traces_episodic(model, 3, 21^2, seed);
-
-% train = LQR_model_free_state_feedback_train(model, 10);
-% K = train.train([0.4;0]);
-% 
-% y = train.sim([0.4;0], K);
-% figure
-% plot(train.t, y)
-
-% [x, u_mpc, u_rl, theta, w] = train.actor_critic_with_eligibility_traces_episodic([-0.4;0]);
-% [x, u_mpc, u_rl, omega, theta] = train.one_step_actor_critic([0.4;0]);
+train = general_actor_critic_with_eligibility_traces_episodic(model, 3, 21^2, seed);
 
 [x, u_mpc, u_rl, theta, w] = train.train([0.4, 0]);
 

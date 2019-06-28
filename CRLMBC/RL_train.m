@@ -10,6 +10,7 @@ classdef RL_train < handle
     
     methods(Abstract)
         train(obj)
+        reward(obj)
     end
 end
 

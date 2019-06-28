@@ -15,10 +15,6 @@ classdef environment_model < handle
     end
     
     methods
-        function [ne_x, y] = approximate_dynamics(obj, pre_x, pre_u)
-            ne_x = obj.A*pre_x + obj.B*pre_u;
-            y = obj.C*pre_x + obj.D*pre_u;
-        end
         
 %         function x_hat = observer(obj, pre_x_hat, u, y)
 %             if isempty(obj.L)

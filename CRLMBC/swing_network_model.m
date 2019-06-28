@@ -17,11 +17,7 @@ classdef swing_network_model < environment_model
         c_n
         A
         B
-        Ts
-        true_nx
-        apx_nx
-        nu
-        ny
+        rect_x
     end
     
     methods
@@ -40,6 +36,7 @@ classdef swing_network_model < environment_model
             obj.Ts = Ts;
             obj.true_nx = 2*obj.net.N-2;
             obj.apx_nx = 2*obj.net.N-2;
+            obj.rect_x = 2;
             obj.nu = 1;
             obj.ny = 1;
             
@@ -55,14 +52,14 @@ classdef swing_network_model < environment_model
             obj.observer_yvw_d_L = @(x, u) c_ywv_d_L*x + d_ywv_d_L*u;       
         end
         
-        function [all_ne_x, all_ne_y, rect_ne_x] = dynamics(obj, all_pre_x, rect_pre_x, all_pre_y, u)
+        function [all_ne_x, all_ne_ywv, rect_ne_x] = dynamics(obj, all_pre_x, rect_pre_x, all_pre_y, u)
             all_ne_x  = obj.RK4(obj.system_ywv_d_L, all_pre_x, u);
-            all_ne_y  = obj.RK4(obj.observer_ywv_d_L, all_ne_x, u);
+            all_ne_ywv  = obj.RK4(obj.observer_ywv_d_L, all_ne_x, u);
             rect_ne_x = obj.RK4(obj.system_rect, rect_pre_x, all_pre_y);
         end
         
         function u = control_law(obj, set)
-            
+            u = (set.K*set.rect_x_all(k, :)')' - (set.K*set.ywv_all(k,1:2)')';
         end
     end
 end

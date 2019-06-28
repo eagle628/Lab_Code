@@ -32,7 +32,8 @@ classdef CRLMBC_test_model < environment_model
             obj.eta = eta;
         end
         
-        function ne_x = dynamics(obj, pre_x, pre_u)
+        function [ne_x, y] = dynamics(obj, pre_x, pre_u)
+            narginchk(3, inf)
             func = @(x, u) [
                     x(2); ...
                     (obj.g/obj.l*sin(x(1)) - obj.eta/(obj.M*obj.l^2)*x(2) + 1/(obj.M*obj.l^2)*u);
@@ -47,17 +48,12 @@ classdef CRLMBC_test_model < environment_model
 %             ];
         end        
 
-        function ne_x = apx_dynamics(obj, pre_x, pre_u)
-            system = @(x, u) obj.A*x + obj.B*u;
-            ne_x = obj.RK4(system,pre_x, pre_u);          
+        function [ne_x, y] = approximate_dynamics(obj, pre_x, pre_u)
+            func = @(x,u) obj.A*x + obj.B*u;
+            ne_x = obj.RK4(func, pre_x, pre_u);
+            y = obj.C*ne_x + obj.D*pre_u;
         end
         
-        function u = control_law(obj, set)
-            switch set.law
-                case 'lqr'
-                    u = -set.K*set.x;
-            end
-        end
     end
 
 end
