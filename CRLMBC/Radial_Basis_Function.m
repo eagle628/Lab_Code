@@ -16,7 +16,8 @@ classdef Radial_Basis_Function
         end
         
         function phi = basis_func(obj, x)
-           phi = exp(-sum((x-obj.mu).^2, 2)./(2*obj.sigma.^2));
+           phi = exp(-sum((gpuArray(single(x))-gpuArray(single(obj.mu))).^2, 2)./(2*single(obj.sigma).^2));
+           phi = gather(phi);
         end
     end
 end
