@@ -5,6 +5,7 @@ close all
 rng(0)
 
 model = CRLMBC_test_model(0.5,0.15,9.8,0.05,0.01);
+% Ts が0.1とはとても思えない．応答図ヲ見る限りも確実に0.1ではない．もしくは，オイラー法ではない別の近似を用いている．
 % % % % % model.set_observer_gain(0.5);
 
 

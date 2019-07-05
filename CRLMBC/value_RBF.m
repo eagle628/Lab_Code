@@ -15,6 +15,8 @@ classdef value_RBF < approximate_function_class
         function value = est_value(obj, state, w)
             obj.set_params(w);
             value = obj.apx_function.basis_func(state)'*w;
+%             value = arrayfun(@obj.apx_function.basis_func, gpuArray(single(state)), gpuArray(single(w)));
+%             value = gather(value);
         end
         
         function grad = value_grad(obj, state)

@@ -12,12 +12,20 @@ classdef Radial_Basis_Function
         function obj = Radial_Basis_Function(N, mu, sigma)
             obj.sigma = sigma;
             obj.N = N;
-            obj.mu = mu; 
+            if obj.N > 10000
+                obj.mu = gpuArray(single(mu)); 
+            else
+                obj.mu = mu;
+            end
         end
         
         function phi = basis_func(obj, x)
-           phi = exp(-sum((gpuArray(single(x))-gpuArray(single(obj.mu))).^2, 2)./(2*single(obj.sigma).^2));
-           phi = gather(phi);
+            if obj.N > 10000
+                phi = exp(-sum((gpuArray(single(x))-gpuArray(single(obj.mu))).^2, 2)./(2*single(obj.sigma).^2));
+                phi = gather(phi);
+            else
+                phi = exp(-sum((x-obj.mu).^2, 2))./(2*obj.sigma.^2);
+            end
         end
     end
 end

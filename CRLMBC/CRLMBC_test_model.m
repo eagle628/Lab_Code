@@ -11,6 +11,7 @@ classdef CRLMBC_test_model < environment_model
         M
         g
         eta
+        controlled_sys
     end
     
     methods
@@ -32,26 +33,33 @@ classdef CRLMBC_test_model < environment_model
             obj.eta = eta;
         end
         
+
+        function set_controlled_sys(obj, K)
+            func = @(x, u) [
+                    x(2); ...
+                    (obj.g/obj.l*sin(x(1)) - obj.eta/(obj.M*obj.l^2)*x(2) + 1/(obj.M*obj.l^2)*u);
+                    ]-obj.B*K*x;
+            obj.controlled_sys = func;
+        end
+        
+        function [ne_x, y] = control_dynamics(obj, pre_x, pre_u)
+            ne_x = obj.RK4(obj.controlled_sys, pre_x, pre_u);
+            y = ne_x;
+        end    
+        
         function [ne_x, y] = dynamics(obj, pre_x, pre_u)
-            narginchk(3, inf)
             func = @(x, u) [
                     x(2); ...
                     (obj.g/obj.l*sin(x(1)) - obj.eta/(obj.M*obj.l^2)*x(2) + 1/(obj.M*obj.l^2)*u);
                     ];
-            ne_x = obj.RK4(func, pre_x, pre_u);
-%             ne_x = obj.Euler(func, pre_x, pre_u);
-            y = ne_x;
-            
-%             [
-%                 x(1) + Ts*x(2), ...
-%                 x(2) + Ts*(obj.g/obj.l*sin(x(1)) - obj.eta/(obj.M*obj.l^2)*x(2) + 1/(obj.M*obj.l^2)*u);
-%             ];
-        end        
+            ne_x = func(pre_x, pre_u);
+            y = ne_x; 
+        end
 
         function [ne_x, y] = approximate_dynamics(obj, pre_x, pre_u)
-            func = @(x,u) obj.A*x + obj.B*u;
+            func = @(x, u) obj.A*x + obj.B*u;
             ne_x = obj.RK4(func, pre_x, pre_u);
-            y = obj.C*ne_x + obj.D*pre_u;
+            y = obj.C*pre_x + obj.D*pre_u;
         end
         
     end

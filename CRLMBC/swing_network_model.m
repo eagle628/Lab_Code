@@ -82,6 +82,7 @@ classdef swing_network_model < environment_model
         end
         
         function set_controlled_system(obj, Q, R)
+            obj.net.controllers = {};
             obj.net.add_controller(obj.c_n, obj.apx_sys_env, Q, R);
             sys_controlled = obj.net.get_sys_controlled(obj.sys_all);
             sys_controlled_extract = sys_controlled({obj.port_y, obj.port_xhat, obj.port_w, obj.port_v}, {obj.port_d_L, obj.port_control});
@@ -93,14 +94,14 @@ classdef swing_network_model < environment_model
             obj.system = [a,b;c,d;];
         end
         
-        function [local_ne_x, env_ne_x, ne_ywv, rect_ne_x] = dynamics(obj, local_pre_x, env_pre_x, rect_pre_x, all_pre_ywv, u)
+        function [local_ne_x, env_ne_x, ne_ywv, rect_ne_x] = dynamics(obj, local_pre_x, env_pre_x, rect_pre_x, all_pre_ywv, u, d_L)
 %             all_pre_x = obj.L_and_E_to_all(local_pre_x, env_pre_x);
 %             all_ne_x  = obj.RK4(obj.system_ywv_con_u, all_pre_x, u);
 %             ne_ywv    = obj.observer_ywv_con_u(all_ne_x, u);
 %             rect_ne_x = obj.RK4(obj.system_rect, rect_pre_x, all_pre_ywv);
 %             [local_ne_x, env_ne_x] = obj.all_to_L_ans_E(all_ne_x);
             all_pre_x = obj.L_and_E_to_all(local_pre_x, env_pre_x);
-            xy = obj.system*[all_pre_x;rect_pre_x;0;0;u];
+            xy = obj.system*[all_pre_x;rect_pre_x; d_L ;u];
             all_ne_x = xy(1 : obj.local_nx+obj.env_nx);
             rect_ne_x = xy(obj.local_nx+obj.env_nx+1 : obj.local_nx+obj.env_nx+obj.rect_nx);
             ne_ywv = xy(obj.local_nx+obj.env_nx+obj.rect_nx+1 : end);
