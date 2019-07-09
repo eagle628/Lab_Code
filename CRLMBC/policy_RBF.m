@@ -25,13 +25,26 @@ classdef policy_RBF < approximate_function_class
             input = obj.apx_function.basis_func(state)'*theta;
         end
         
-        function grad = policy_grad(obj, pre_input, state, theta)
-            grad = ((pre_input - obj.apx_function.basis_func(state)'*theta)./(obj.sigma^2))*obj.apx_function.basis_func(state);
+        function grad = policy_grad_mu(obj, pre_input, state, theta1, theta2)
+            narginchk(4, inf)
+            grad = ((pre_input - obj.apx_function.basis_func(state)'*theta1)./(obj.sigma^2))*obj.apx_function.basis_func(state);
 %             tmp1 = arrayfun(@obj.determistic_policy, gpuArray(single(state)), gpuArray(single(theta)));
 %             tmp2 = arrayfun(@obj.apx_function.basis_func, gpuArray(single(state)), gpuArray(single(theta)));
 %             grad = ((pre_input - gather(tmp1))./(obj.sigma)^2)*gather(tmp2);
         end
         
+        function grad = policy_grad_sigma(obj, pre_input, state, theta1, theta2)
+            narginchk(4, inf)
+            grad =  ((pre_input - obj.apx_function.basis_func(state)'*theta1)^2 - (obj.sigma).^2)./(obj.sigma) * (1-obj.sigma);
+        end
+        
+        function set_policy_sigma(obj, theta2)
+            obj.sigma = 1/(1+exp(-theta2));
+        end
+        
+        function sigma = get_policy_sigma(obj)
+            sigma = obj.sigma;
+        end
     end
 end
 

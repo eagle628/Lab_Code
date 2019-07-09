@@ -27,6 +27,14 @@ classdef Radial_Basis_Function
                 phi = exp(-sum((x-obj.mu).^2, 2))./(2*obj.sigma.^2);
             end
         end
+        
+%         function set_mu(obj, mu)
+%             obj.mu = mu;
+%         end
+%         
+%         function set_sigma(obj, sigma)
+%             obj.sigma = sigma;
+%         end
     end
 end
 

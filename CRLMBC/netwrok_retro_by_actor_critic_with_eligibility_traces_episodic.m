@@ -118,7 +118,7 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
                    delta = r + obj.gamma*V_k1 - V_k0;
                    % eligibility traces update
                    z_w = obj.gamma*obj.lambda_theta*z_w + zeta *obj.value.value_grad([local_x_all(k, :), rect_x_all(k, :)]);
-                   e_k1_mu = obj.policy.policy_grad(rl_u_all(k, :), [local_x_all(k, :), rect_x_all(k, :)], theta_mu);
+                   e_k1_mu = obj.policy.policy_grad_mu(rl_u_all(k, :), [local_x_all(k, :), rect_x_all(k, :)], theta_mu);
 %                    G = 1/(1-obj.aplha_f)*(G - obj.alpha_f*(G*e_k1_mu)*(G*e_k1_mu)'/(1-obj.alpha_f+obj.alpha_f*e_k1_mu'*G*e_K1_mu));
                    z_theta_mu = obj.gamma*obj.lambda_omega*z_theta_mu + zeta*e_k1_mu;
 %                        e_k1_sigma = ((rl_u_all(k-1, :) - mu_rl).^2/(pi_sigma^2)-1)*obj.state_basis_func2(apx_x_all(k-1, :));
