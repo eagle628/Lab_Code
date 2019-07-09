@@ -2,7 +2,7 @@ close all
 clear
 
 %% Release GPU memory
-% gpuDevice(1)
+gpuDevice(1)
 
 %%
 
@@ -51,7 +51,7 @@ net1.add_controller = {};
 model = swing_network_model(net, c_n, Ts, balred(sys_env,apx_nx));
 
 seed2 = 1024;
-basis_N = 5;
+basis_N = 3;
 train = netwrok_retro_by_actor_critic_with_eligibility_traces_episodic(model, Te, basis_N, seed2);
 
 [local_x_all, mpc_u_all, rl_u_all, theta_mu, w, reward_history] = train.train([0;0]);
