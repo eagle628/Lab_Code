@@ -6,11 +6,12 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
         R = 1
         lambda_theta = 0.99
         lambda_omega = 0.99
-        alpha = 0.005
-        beta = 0.001
-        gamma = 0.999
+        alpha = 0.0005
+        beta_mu = 0.0001
+        beta_sigma = 0.01
+        gamma = 0.99
         gamma2 = 0.9
-        max_episode = 1e4%3.5e3
+        max_episode = 3.5e3
     end
     
     properties
@@ -28,16 +29,16 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
             obj.sim_N = Te/model.Ts + 1;
             obj.t = (0:model.Ts:Te)';
             nnn = sqrt(basis_N);
-            range = [-4,4];
+            range = [-2,2];
             width = (range(2)-range(1))/(nnn-1);
             m = (range(1):width:range(2))';
-            range = [-4,4];
+            range = [-2,2];
             width = (range(2)-range(1))/(nnn-1);
             mm = (range(1):width:range(2))';
             mu = [kron(m,ones(nnn,1)),repmat(mm,nnn,1)]; 
-            sigma = 0.5*ones(basis_N, 1);
+            sigma = 0.25*ones(basis_N, 1);
             RBF1 = Radial_Basis_Function(basis_N, mu, sigma);
-            sigma_pi = 1;
+            sigma_pi = sqrt(1);
             obj.policy = policy_RBF(RBF1, sigma_pi);
             obj.value  =  value_RBF(RBF1);
         end
@@ -57,16 +58,16 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
             x_all(1, :) = ini';% When network model, local system state
             % params initialize
             % as much as possible (only information that we have)
-            w = set_w(obj, K);
-%             w = obj.value.get_params();
+%             w = set_w(obj, K);
+            w = obj.value.get_params();
             theta_mu = obj.policy.get_params();
-%             theta_sigma = obj.policy.get_policy_sigma();
+            theta_sigma = obj.policy.get_policy_sigma();
             % start episode learning
             for episode = 1 : obj.max_episode
                 % episode initialize
                 z_w = zeros(obj.value.apx_function.N, 1);
                 z_theta_mu = zeros(obj.policy.apx_function.N, 1);
-%                 z_theta_sigma = zeros(obj.model.nu, 1);
+                z_theta_sigma = zeros(obj.model.nu, 1);
                 zeta = 1;
                 reward = 0;
                 % explration gain
@@ -100,18 +101,22 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
                     z_w = obj.gamma*obj.lambda_theta*z_w + zeta*obj.value.value_grad(x_all(k, :));
                     e_k1_mu = obj.policy.policy_grad_mu(rl_u_all(k, :), x_all(k, :), theta_mu);
                     z_theta_mu = obj.gamma*obj.lambda_omega*z_theta_mu + zeta*e_k1_mu;
-%                     e_k1_sigma = obj.policy.policy_grad_sigma(rl_u_all(k, :), x_all(k, :), theta_mu);
-%                     z_theta_sigma = obj.gamma*obj.lambda_omega*z_theta_sigma + zeta*e_k1_sigma;
+                    e_k1_sigma = obj.policy.policy_grad_sigma(rl_u_all(k, :), x_all(k, :), theta_mu);
+                    z_theta_sigma = obj.gamma*obj.lambda_omega*z_theta_sigma + zeta*e_k1_sigma;
                     % apx function update
                     w = w + obj.alpha*delta*z_w;
-                    theta_mu = theta_mu + obj.beta*delta*z_theta_mu;
-%                     theta_sigma = theta_sigma + obj.beta*delta*z_theta_sigma;
-%                     obj.policy.set_policy_sigma(theta_sigma);
+                    theta_mu = theta_mu + obj.beta_mu*delta*z_theta_mu;
+                    theta_sigma = theta_sigma + obj.beta_sigma*delta*z_theta_sigma;
+                    obj.policy.set_policy_sigma(theta_sigma);
                     zeta = obj.gamma2*zeta;
-                    if abs(x_all(k,1) ) > 0.5 || abs(x_all(k,2)) > 4
-                         break;
-                    end
-               end
+%                     if abs(x_all(k,1) ) > 0.5 || abs(x_all(k,2)) > 4
+%                          break;
+%                     end
+%                     figure(3)
+%                     stem(w)
+%                     drawnow
+                end
+%                close 3
                reward_history(episode) = reward;
                cost_history(episode) = obj.cost(x_all, rl_u_all+mpc_u_all);
                figure(1)
@@ -182,15 +187,15 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
             options = optimoptions('lsqnonlin','Display','iter','SpecifyObjectiveGradient',true);
             w = lsqnonlin(@(w)obj.apx_cost_function(state, target, w),w0,[],[],options);
 % %             
-            [X,Y] = meshgrid(-0.5:.1:0.5, -2:.4:2);
-            mesh_size = size(X, 1);
-            Z = zeros(mesh_size, mesh_size);
-            for itr1 = 1 : mesh_size
-               for itr2 = 1 :mesh_size
-                    Z(itr1, itr2) = obj.value.est_value([X(itr1,itr2),Y(itr1,itr2)], w);
-               end
-            end
-            mesh(X,Y,Z)
+% %             [X,Y] = meshgrid(-0.5:.1:0.5, -2:.4:2);
+% %             mesh_size = size(X, 1);
+% %             Z = zeros(mesh_size, mesh_size);
+% %             for itr1 = 1 : mesh_size
+% %                for itr2 = 1 :mesh_size
+% %                     Z(itr1, itr2) = obj.value.est_value([X(itr1,itr2),Y(itr1,itr2)], w);
+% %                end
+% %             end
+% %             mesh(X,Y,Z)
             
         end
         

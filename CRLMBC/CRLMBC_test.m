@@ -11,7 +11,7 @@ model = CRLMBC_test_model(0.5,0.15,9.8,0.05,0.01);
 
 %% state feedback  and CRLMBC
 seed = 1024;
-train = general_actor_critic_with_eligibility_traces_episodic(model, 3, 21^2, seed);
+train = general_actor_critic_with_eligibility_traces_episodic(model, 2, 5^2, seed);
 
 [x, u_mpc, u_rl, theta, w] = train.train([0.4, 0]);
 

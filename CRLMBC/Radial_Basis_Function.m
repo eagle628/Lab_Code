@@ -20,7 +20,7 @@ classdef Radial_Basis_Function
         end
         
         function phi = basis_func(obj, x)
-            if obj.N > 10000
+            if obj.N > 10000 % gpuがあると気持ち早くなる．
                 phi = exp(-sum((gpuArray(single(x))-gpuArray(single(obj.mu))).^2, 2)./(2*single(obj.sigma).^2));
                 phi = gather(phi);
             else

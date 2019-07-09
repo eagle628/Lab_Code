@@ -37,8 +37,8 @@ classdef CRLMBC_test_model < environment_model
         function set_controlled_sys(obj, K)
             func = @(x, u) [
                     x(2); ...
-                    (obj.g/obj.l*sin(x(1)) - obj.eta/(obj.M*obj.l^2)*x(2) + 1/(obj.M*obj.l^2)*u);
-                    ]-obj.B*K*x;
+                    (obj.g/obj.l*sin(x(1)) - obj.eta/(obj.M*obj.l^2)*x(2) + 1/(obj.M*obj.l^2)*(u-K*x));
+                    ];
             obj.controlled_sys = func;
         end
         
