@@ -8,7 +8,8 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
         lambda_theta = 0.99
         lambda_omega = 0.99
         alpha = 0.005
-        beta = 0.001
+        beta_mu = 0.001
+        beta_sigma = 0.01
         alpha_f = 0.001
         gamma = 0.9
         gamma2 = 0.9
@@ -75,12 +76,13 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
 %             w = set_w(obj, K);
             w = obj.value.get_params();
             theta_mu = obj.policy.get_params();
+            theta_sigma = obj.policy.get_policy_sigma();
             % start episode learning
             for episode = 1 : obj.max_episode
                 % episode initialize
                 z_w = zeros(obj.value.apx_function.N, 1);
                 z_theta_mu = zeros(obj.policy.apx_function.N, 1);
-%                 z_theta_sigma = zeros(obj.basis_N, 1);
+                z_theta_sigma = zeros(obj.model.nu, 1);
                 zeta = 1;
                 reward = 0;
                 % explration gain
@@ -121,11 +123,13 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
                    e_k1_mu = obj.policy.policy_grad_mu(rl_u_all(k, :), [local_x_all(k, :), rect_x_all(k, :)], theta_mu);
 %                    G = 1/(1-obj.aplha_f)*(G - obj.alpha_f*(G*e_k1_mu)*(G*e_k1_mu)'/(1-obj.alpha_f+obj.alpha_f*e_k1_mu'*G*e_K1_mu));
                    z_theta_mu = obj.gamma*obj.lambda_omega*z_theta_mu + zeta*e_k1_mu;
-%                        e_k1_sigma = ((rl_u_all(k-1, :) - mu_rl).^2/(pi_sigma^2)-1)*obj.state_basis_func2(apx_x_all(k-1, :));
-%                        z_theta_sigma = obj.gamma*obj.lambda_omega*z_theta_sigma + zeta*e_k1_sigma;
+                   e_k1_sigma = obj.policy.policy_grad_sigma(rl_u_all(k, :), [local_x_all(k, :), rect_x_all(k, :)], theta_mu);
+                   z_theta_sigma = obj.gamma*obj.lambda_omega*z_theta_sigma + zeta*e_k1_sigma;
                    % apx function update
                    w = w + obj.alpha*delta*z_w;
-                   theta_mu = theta_mu + obj.beta*delta*z_theta_mu;
+                   theta_mu = theta_mu + obj.beta_mu*delta*z_theta_mu;
+                   theta_sigma = theta_sigma + obj.beta_sigma*delta*z_theta_sigma;
+                   obj.policy.set_policy_sigma(theta_sigma);
                    zeta = obj.gamma2*zeta;
 %                     if abs(apx_x_all(k,1) ) > 1
 %                         break;

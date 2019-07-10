@@ -10,7 +10,7 @@ seed1 = 6;
 Node_number = 10;
 net = network_swing_simple(Node_number, [1,2], [2,10]*1e-2, 1, [1,2], 0.1, seed1);
 c_n = 1;
-Ts = 0.1;
+Ts = 0.01;
 Te = 10;
 
 % model = swing_network_model(net, c_n, Ts);
