@@ -3,14 +3,14 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
     
     properties(Constant)
         Q1 = 1
-        Q = diag([1000,1])
+        Q = diag([1,1])
         R = 1
         lambda_theta = 0.99
         lambda_omega = 0.99
-        alpha = 0.005
-        beta_mu = 0.001
-        beta_sigma = 0.01
-        alpha_f = 0.001
+        alpha = 0.05
+        beta_mu = 0.01
+        beta_sigma = 0.1
+        alpha_f = 0.001 % fisher weghit %% invalid
         gamma = 0.9
         gamma2 = 0.9
         max_episode = 3.5e3
@@ -31,7 +31,7 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
             obj.model = model;
             obj.sim_N = Te/model.Ts + 1;
             obj.t = (0:model.Ts:Te)';
-            range = [-1,1];
+            range = [-2,2];
             width = (range(2)-range(1))/(basis_N-1);
             m = range(1):width:range(2);
             nnn = obj.model.local_nx + obj.model.rect_nx;
@@ -40,9 +40,9 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
                 mu = combvec(mu, m); % col vector combinater function
             end
             mu = mu';
-            sigma = 0.5*ones(size(mu, 1), 1);
+            sigma = 1*ones(size(mu, 1), 1);
             RBF1 = Radial_Basis_Function(size(mu, 1), mu, sigma);
-            sigma_pi = 1;
+            sigma_pi = 0.5;
             obj.policy = policy_RBF(RBF1, sigma_pi);
             obj.value  =  value_RBF(RBF1);
         end
@@ -58,19 +58,19 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
             mpc_u_all = zeros(obj.sim_N, obj.model.nu);
             % calculate MBC gain
             if obj.model.apx_nx == 0
-%                 K = lqr(obj.model.A, obj.model.B, obj.Q, obj.R);
+                K = lqr(obj.model.A, obj.model.B, obj.Q, obj.R);
                 obj.model.set_controlled_system(obj.Q, obj.R);
             else
-%                 K = lqr(obj.model.A, obj.model.B, blkdiag(obj.Q, eye(obj.model.apx_nx)*obj.Q1), obj.R);
+                K = lqr(obj.model.A, obj.model.B, blkdiag(obj.Q, eye(obj.model.apx_nx)*obj.Q1), obj.R);
                 obj.model.set_controlled_system(blkdiag(obj.Q, eye(obj.model.apx_nx)*obj.Q1), obj.R);
             end
-%             K1 = K(1:obj.model.local_nx);
-%             K2 = K(obj.model.local_nx+1 : end);
+            K1 = K(1:obj.model.local_nx);
+            K2 = K(obj.model.local_nx+1 : end);
             % set episode initial
             local_x_all(1, :) = ini';% When network model, local system state
             % local noise
-%             d_L = zeros(obj.sim_N, 2);
-            d_L = randn(obj.sim_N, 2);
+            d_L = zeros(obj.sim_N, 2);
+%             d_L = randn(obj.sim_N, 2);
             % params initialize
             % as much as possible (only information that we have)
 %             w = set_w(obj, K);
@@ -93,14 +93,14 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
 %                 G = eye(obj.policy.apx_function.N);
                 for k = 1 : obj.sim_N-1
                    % MBC input
-                   mpc_u_all(k, :) = 0; % LQR Controller already implemented
-%                    mpc_u_all(k, :) = ([K1,-K2]*rect_x_all(k, :)')' -(K1*ywv_all(k, 1:obj.model.ny)')';
+                   % LQR Controller already implemented, So Record Only
+                   mpc_u_all(k, :) = ([K1,-K2]*rect_x_all(k, :)')' -(K1*y_xhat_w_v_all(k, 1:obj.model.ny)')';
                    % RL input
                    rl_u_all(k, :) = obj.policy.stocastic_policy([local_x_all(k, :), rect_x_all(k, :)], theta_mu);
                    %  observe S_(k+1)
                    [local_ne_x, env_ne_x, ne_ywv, rect_ne_x] = ...
                         obj.model.dynamics(local_x_all(k, :)', env_x_all(k, :)',rect_x_all(k, :)', y_xhat_w_v_all(k, :)', rl_u_all(k, :) + mpc_u_all(k, :), d_L(k, :)');
-                   
+
                     local_x_all(k+1, :) = local_ne_x';
                    env_x_all(k+1, :) = env_ne_x';
                    y_xhat_w_v_all(k+1, :) = ne_ywv';
@@ -148,6 +148,7 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
                 subplot(3,1,3)
                 plot(nonzeros(reward_history),'-b')
                 ylabel('Culumative Reward')
+                ylim([-5,0])
                 drawnow
 %                cost_history(episode) = obj.cost([local_x_all(k, :), rect_x_all(k, :)], rl_u_all+mpc_u_all);
 %                figure(1)

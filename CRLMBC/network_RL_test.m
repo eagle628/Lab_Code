@@ -7,7 +7,7 @@ gpuDevice(1)
 %%
 
 seed1 = 6;
-Node_number = 10;
+Node_number = 4;
 net = network_swing_simple(Node_number, [1,2], [2,10]*1e-2, 1, [1,2], 0.1, seed1);
 c_n = 1;
 Ts = 0.01;
@@ -48,13 +48,13 @@ net1.add_controller = {};
 
 %% RL
 
-model = swing_network_model(net, c_n, Ts, balred(sys_env,apx_nx));
+model = swing_network_model(net, c_n, Ts, balreal(balred(sys_env,apx_nx)));
 
 seed2 = 1024;
 basis_N = 3;
 train = netwrok_retro_by_actor_critic_with_eligibility_traces_episodic(model, Te, basis_N, seed2);
 
-[local_x_all, mpc_u_all, rl_u_all, theta_mu, w, reward_history] = train.train([0;0]);
+[local_x_all, mpc_u_all, rl_u_all, theta_mu, w, reward_history] = train.train([1;0]);
 %%
 [local_x_all1, env_x_all1, rect_x_all1, y_xhat_w_v_all1, rl_u_all1] = train.sim([], 6);
 [local_x_all2, env_x_all2, rect_x_all2, y_xhat_w_v_all2] = train.sim_lqrcontroller(6);

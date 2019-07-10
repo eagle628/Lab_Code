@@ -153,6 +153,7 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
             K = lqr(obj.model.A, obj.model.B, obj.Q, obj.R);
             for itr = 1 : obj.sim_N-1
                 u_rl = obj.policy.determistic_policy(x_all(itr, :), w);
+%                 u_rl = obj.policy.stocastic_policy(x_all(itr, :), w);
                 u_mbc = 0;%-K*x_all(itr, :)';
                 ne_x = (obj.model.control_dynamics(x_all(itr,:)', u_mbc+u_rl))';
                 x_all(itr+1, :) = ne_x;
