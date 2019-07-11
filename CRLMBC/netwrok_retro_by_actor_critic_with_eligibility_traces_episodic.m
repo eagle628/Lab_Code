@@ -13,7 +13,7 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
         alpha_f = 0.001 % fisher weghit %% invalid
         gamma = 0.9
         gamma2 = 0.9
-        max_episode = 3.5e3
+        max_episode = 100%3.5e3
     end
     
     properties
@@ -47,9 +47,15 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
             obj.value  =  value_RBF(RBF1);
         end
         
-        function [local_x_all, mpc_u_all, rl_u_all, theta_mu, w, reward_history] = train(obj, ini)
-            rng('shuffle')
+        function [local_x_all, mpc_u_all, rl_u_all, theta_mu_history, theta_sigma_history, w_history, reward_history] = train(obj, ini, seed)
+            if nargin < 3
+                seed = rng();
+            end
+            rng(seed)
             reward_history = zeros(obj.max_episode, 1);
+%             w_history = zeros(obj.value.apx_function.N, obj.max_episode*obj.sim_N);
+%             theta_mu_history = zeros(obj.policy.apx_function.N, obj.max_episode*obj.sim_N);
+%             theta_sigma_history = zeros(obj.model.nu, obj.max_episode*obj.sim_N);
             local_x_all = zeros(obj.sim_N, obj.model.local_nx);
             env_x_all = zeros(obj.sim_N, obj.model.env_nx);
             rect_x_all = zeros(obj.sim_N, obj.model.rect_nx);
@@ -106,7 +112,7 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
                    y_xhat_w_v_all(k+1, :) = ne_ywv';
                    rect_x_all(k+1, :) = rect_ne_x';
                    % Get Reward r
-                   if abs(local_x_all(k,1) ) > 1
+                   if abs(local_x_all(k,2) ) > 2
                        r = -100;
                    else
                        r = obj.reward(rect_x_all(k+1, :), rl_u_all(k, :)+mpc_u_all(k, :));
@@ -134,6 +140,11 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
 %                     if abs(apx_x_all(k,1) ) > 1
 %                         break;
 %                     end
+                    % record history
+%                     record_point = obj.sim_N*(episode-1)+k;
+%                     w_history(:, record_point) = w;
+%                     theta_mu_history(:, record_point) = theta_mu;
+%                     theta_sigma_history(:, record_point) = theta_sigma;
                end
                 reward_history(episode) = reward;
                 subplot(3,1,1)
@@ -168,8 +179,8 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
             R = -1/10*(x(lidx)*x(lidx) + u*obj.R*u');
         end
         
-        function [local_x_all, env_x_all, rect_x_all, y_xhat_w_v_all, rl_u_all] = sim(obj, theta_mu, seed)
-            if nargin < 3
+        function [local_x_all, env_x_all, rect_x_all, y_xhat_w_v_all, rl_u_all] = sim(obj, theta_mu, ini, seed)
+            if nargin < 4
                 seed = rng();
             end
             rng(seed);
@@ -183,6 +194,8 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
             y_xhat_w_v_all = zeros(obj.sim_N, obj.model.ny+obj.model.ny+obj.model.nw+obj.model.nv);
             rl_u_all = zeros(obj.sim_N, obj.model.nu);
             mpc_u_all = zeros(obj.sim_N, obj.model.nu);
+            % set initial
+            local_x_all(1, :) = ini';
             % calculate MBC gain
             if obj.model.apx_nx == 0
 %                 K = lqr(obj.model.A, obj.model.B, obj.Q, obj.R);
@@ -201,6 +214,7 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
 %                    mpc_u_all(k, :) = ([K1,-K2]*rect_x_all(k, :)')' -(K1*ywv_all(k, 1:obj.model.ny)')';
                % RL input
                rl_u_all(k, :) = obj.policy.determistic_policy([local_x_all(k, :), rect_x_all(k, :)], theta_mu);
+%                rl_u_all(k, :) = obj.policy.stocastic_policy([local_x_all(k, :), rect_x_all(k, :)], theta_mu);
                %  observe S_(k+1)
                [local_ne_x, env_ne_x, ne_ywv, rect_ne_x] = ...
                     obj.model.dynamics(local_x_all(k, :)', env_x_all(k, :)',rect_x_all(k, :)', y_xhat_w_v_all(k, :)', rl_u_all(k, :) + mpc_u_all(k, :), d_L(k, :)');
@@ -212,8 +226,8 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
            end
         end
 %         
-        function [local_x_all, env_x_all, rect_x_all, y_xhat_w_v_all] = sim_lqrcontroller(obj, seed)
-            if nargin < 2
+        function [local_x_all, env_x_all, rect_x_all, y_xhat_w_v_all] = sim_lqrcontroller(obj, ini, seed)
+            if nargin < 3
                 seed = rng();
             end
             rng(seed);
@@ -222,6 +236,8 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
             env_x_all = zeros(obj.sim_N, obj.model.env_nx);
             rect_x_all = zeros(obj.sim_N, obj.model.rect_nx);
             y_xhat_w_v_all = zeros(obj.sim_N, obj.model.ny+obj.model.ny+obj.model.nw+obj.model.nv);
+            % set initial
+            local_x_all(1, :) = ini';
             % calculate MBC gain
             if obj.model.apx_nx == 0
 %                 K = lqr(obj.model.A, obj.model.B, obj.Q, obj.R);

@@ -2,7 +2,7 @@ close all
 clear
 
 %% Release GPU memory
-gpuDevice(1)
+gpuDevice(1);
 
 %%
 
@@ -42,29 +42,53 @@ data.u = w;
 data.y = v;
 sys_local_vw = sys_local({'w'},{'v'});
 model_dim = apx_nx;
-sys = CLRIVC(data,balreal(-sys_local_vw),[model_dim,model_dim+1,model_dim,model_dim],1,5);
+sys_iv = CLRIVC(data,balreal(-sys_local_vw),[model_dim,model_dim+1,model_dim,model_dim],1,5);
+sys_iv_G = balreal(ss(sys_iv.G));
+sys_oe = balreal(d2c(ss(oe(iddata(v, w, Ts), [model_dim+1, model_dim, 0]))));
+sys_real = balreal(balred(sys_env,apx_nx));
 
 net1.add_controller = {};
 
-%% RL
+%% experiment condition
+name = {'oe','iv','real'};
 
-model = swing_network_model(net, c_n, Ts, balreal(balred(sys_env,apx_nx)));
+apx_model = {sys_oe, sys_iv_G, sys_real};
+for idx = 1 :3
 
-seed2 = 1024;
-basis_N = 3;
-train = netwrok_retro_by_actor_critic_with_eligibility_traces_episodic(model, Te, basis_N, seed2);
+try
+    gpuDevice(1);
+    %% RL
 
-[local_x_all, mpc_u_all, rl_u_all, theta_mu, w, reward_history] = train.train([1;0]);
-%%
-[local_x_all1, env_x_all1, rect_x_all1, y_xhat_w_v_all1, rl_u_all1] = train.sim([], 6);
-[local_x_all2, env_x_all2, rect_x_all2, y_xhat_w_v_all2] = train.sim_lqrcontroller(6);
+    model = swing_network_model(net, c_n, Ts, apx_model{idx});
 
-figure
-subplot(2,1,1)
-plot(train.t, local_x_all1(:,1),'r-')
-hold on
-plot(train.t, local_x_all2(:,1),'r:')
-subplot(2,1,2)
-plot(train.t, local_x_all1(:,2),'b-')
-hold on
-plot(train.t, local_x_all2(:,2),'b:')
+    seed2 = 1024;
+    basis_N = 3;
+    train = netwrok_retro_by_actor_critic_with_eligibility_traces_episodic(model, Te, basis_N, seed2);
+
+    initial = [1;0];
+    [local_x_all, mpc_u_all, rl_u_all, theta_mu_history, theta_sigma_history, w_history, reward_history] = train.train(initial);
+    %%
+    [local_x_all1, env_x_all1, rect_x_all1, y_xhat_w_v_all1, rl_u_all1] = train.sim([], initial, 6);
+    [local_x_all2, env_x_all2, rect_x_all2, y_xhat_w_v_all2] = train.sim_lqrcontroller(initial, 6);
+
+    save(strcat('RL_net4_',name{idx}));
+    close all
+catch ME
+    disp(ME)
+    break;
+end
+end
+
+
+mail_message('RL Train End')
+% % figure
+% % subplot(2,1,1)
+% % plot(train.t, local_x_all1(:,1),'r-')
+% % hold on
+% % plot(train.t, local_x_all2(:,1),'r:')
+% % ylabel('\thetta[rad]')
+% % subplot(2,1,2)
+% % plot(train.t, local_x_all1(:,2),'b-')
+% % hold on
+% % plot(train.t, local_x_all2(:,2),'b:')
+% % ylabel('\omega[frq]')
