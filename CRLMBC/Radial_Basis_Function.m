@@ -1,6 +1,5 @@
 classdef Radial_Basis_Function
-    %UNTITLED10 このクラスの概要をここに記述
-    %   詳細説明をここに記述
+    % Gausian Radial Basis function Class
     
     properties
         N

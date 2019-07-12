@@ -13,7 +13,8 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
         alpha_f = 0.001 % fisher weghit %% invalid
         gamma = 0.9
         gamma2 = 0.9
-        max_episode = 100%3.5e3
+        max_episode = 1000%3.5e3
+        snapshot_N = 5;
     end
     
     properties
@@ -22,32 +23,15 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
     end
     
     methods
-        function obj = netwrok_retro_by_actor_critic_with_eligibility_traces_episodic(model, Te, basis_N, seed)
-            rng('shuffle')
-            if nargin < 4
-                seed = rng();
-            end
-            rng(seed)
+        function obj = netwrok_retro_by_actor_critic_with_eligibility_traces_episodic(model, policy, value, Te)
             obj.model = model;
             obj.sim_N = Te/model.Ts + 1;
             obj.t = (0:model.Ts:Te)';
-            range = [-2,2];
-            width = (range(2)-range(1))/(basis_N-1);
-            m = range(1):width:range(2);
-            nnn = obj.model.local_nx + obj.model.rect_nx;
-            mu = m;
-            for itr = 1 : nnn-1
-                mu = combvec(mu, m); % col vector combinater function
-            end
-            mu = mu';
-            sigma = 1*ones(size(mu, 1), 1);
-            RBF1 = Radial_Basis_Function(size(mu, 1), mu, sigma);
-            sigma_pi = 0.5;
-            obj.policy = policy_RBF(RBF1, sigma_pi);
-            obj.value  =  value_RBF(RBF1);
+            obj.policy = policy;
+            obj.value  =  value;
         end
         
-        function [local_x_all, mpc_u_all, rl_u_all, theta_mu_history, theta_sigma_history, w_history, reward_history] = train(obj, ini, seed)
+        function [local_x_all, mpc_u_all, rl_u_all, theta_mu_snpashot, theta_sigma_snpashot, w_snpashot, reward_history] = train(obj, ini, seed)
             if nargin < 3
                 seed = rng();
             end
@@ -62,14 +46,16 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
             y_xhat_w_v_all = zeros(obj.sim_N, obj.model.ny+obj.model.ny+obj.model.nw+obj.model.nv);
             rl_u_all = zeros(obj.sim_N, obj.model.nu);
             mpc_u_all = zeros(obj.sim_N, obj.model.nu);
+            % record point
+            record_point = ceil(obj.max_episode/obj.snapshot_N);
+            record_point = 1:record_point:obj.max_episode;
+            record_point = [record_point, obj.max_episode];
+            w_snpashot = zeros(obj.value.apx_function.N, 1);
+            theta_mu_snpashot = zeros(obj.policy.apx_function.N, 1);
+            theta_sigma_snpashot = zeros(obj.model.nu, 1);
             % calculate MBC gain
-            if obj.model.apx_nx == 0
-                K = lqr(obj.model.A, obj.model.B, obj.Q, obj.R);
-                obj.model.set_controlled_system(obj.Q, obj.R);
-            else
-                K = lqr(obj.model.A, obj.model.B, blkdiag(obj.Q, eye(obj.model.apx_nx)*obj.Q1), obj.R);
-                obj.model.set_controlled_system(blkdiag(obj.Q, eye(obj.model.apx_nx)*obj.Q1), obj.R);
-            end
+            K = lqr(obj.model.A, obj.model.B, blkdiag(obj.Q, eye(obj.model.apx_nx)*obj.Q1), obj.R);
+            obj.model.set_controlled_system(blkdiag(obj.Q, eye(obj.model.apx_nx)*obj.Q1), obj.R);
             K1 = K(1:obj.model.local_nx);
             K2 = K(obj.model.local_nx+1 : end);
             % set episode initial
@@ -98,55 +84,58 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
                 % initialize fisher matrix
 %                 G = eye(obj.policy.apx_function.N);
                 for k = 1 : obj.sim_N-1
-                   % MBC input
-                   % LQR Controller already implemented, So Record Only
-                   mpc_u_all(k, :) = ([K1,-K2]*rect_x_all(k, :)')' -(K1*y_xhat_w_v_all(k, 1:obj.model.ny)')';
-                   % RL input
-                   rl_u_all(k, :) = obj.policy.stocastic_policy([local_x_all(k, :), rect_x_all(k, :)], theta_mu);
-                   %  observe S_(k+1)
-                   [local_ne_x, env_ne_x, ne_ywv, rect_ne_x] = ...
+                    % MBC input
+                    % LQR Controller already implemented, So Record Only
+                    mpc_u_all(k, :) = ([K1,-K2]*rect_x_all(k, :)')' -(K1*y_xhat_w_v_all(k, 1:obj.model.ny)')';
+                    % RL input
+                    rl_u_all(k, :) = obj.policy.stocastic_policy([local_x_all(k, :), rect_x_all(k, :)], theta_mu);
+                    %  observe S_(k+1)
+                    [local_ne_x, env_ne_x, ne_ywv, rect_ne_x] = ...
                         obj.model.dynamics(local_x_all(k, :)', env_x_all(k, :)',rect_x_all(k, :)', y_xhat_w_v_all(k, :)', rl_u_all(k, :) + mpc_u_all(k, :), d_L(k, :)');
-
                     local_x_all(k+1, :) = local_ne_x';
-                   env_x_all(k+1, :) = env_ne_x';
-                   y_xhat_w_v_all(k+1, :) = ne_ywv';
-                   rect_x_all(k+1, :) = rect_ne_x';
-                   % Get Reward r
-                   if abs(local_x_all(k,2) ) > 2
-                       r = -100;
-                   else
-                       r = obj.reward(rect_x_all(k+1, :), rl_u_all(k, :)+mpc_u_all(k, :));
+                    env_x_all(k+1, :) = env_ne_x';
+                    y_xhat_w_v_all(k+1, :) = ne_ywv';
+                    rect_x_all(k+1, :) = rect_ne_x';
+                    % Get Reward r
+                    if abs(local_x_all(k,2) ) > 2
+                        r = -100;
+                    else
+                        r = obj.reward([local_x_all(k+1, :), rect_x_all(k+1, :)], rl_u_all(k, :)+mpc_u_all(k, :));
 %                         r = 0;
-                   end
-                   reward =  reward + obj.gamma^(k-1)*r;
-                   % TD Erorr
-                   V_k1 = obj.value.est_value([local_x_all(k+1, :), rect_x_all(k+1, :)], w);
-                   V_k0 = obj.value.est_value([local_x_all(k, :), rect_x_all(k, :)], w);
+                    end
+                    reward =  reward + obj.gamma^(k-1)*r;
+                    % TD Erorr
+                    V_k1 = obj.value.est_value([local_x_all(k+1, :), rect_x_all(k+1, :)], w);
+                    V_k0 = obj.value.est_value([local_x_all(k, :), rect_x_all(k, :)], w);
 %                     V_k1 = 0;V_k0 = 0;
-                   delta = r + obj.gamma*V_k1 - V_k0;
-                   % eligibility traces update
-                   z_w = obj.gamma*obj.lambda_theta*z_w + zeta *obj.value.value_grad([local_x_all(k, :), rect_x_all(k, :)]);
-                   e_k1_mu = obj.policy.policy_grad_mu(rl_u_all(k, :), [local_x_all(k, :), rect_x_all(k, :)], theta_mu);
+                    delta = r + obj.gamma*V_k1 - V_k0;
+                    % eligibility traces update
+                    z_w = obj.gamma*obj.lambda_theta*z_w + zeta *obj.value.value_grad([local_x_all(k, :), rect_x_all(k, :)]);
+                    e_k1_mu = obj.policy.policy_grad_mu(rl_u_all(k, :), [local_x_all(k, :), rect_x_all(k, :)], theta_mu);
 %                    G = 1/(1-obj.aplha_f)*(G - obj.alpha_f*(G*e_k1_mu)*(G*e_k1_mu)'/(1-obj.alpha_f+obj.alpha_f*e_k1_mu'*G*e_K1_mu));
-                   z_theta_mu = obj.gamma*obj.lambda_omega*z_theta_mu + zeta*e_k1_mu;
-                   e_k1_sigma = obj.policy.policy_grad_sigma(rl_u_all(k, :), [local_x_all(k, :), rect_x_all(k, :)], theta_mu);
-                   z_theta_sigma = obj.gamma*obj.lambda_omega*z_theta_sigma + zeta*e_k1_sigma;
-                   % apx function update
-                   w = w + obj.alpha*delta*z_w;
-                   theta_mu = theta_mu + obj.beta_mu*delta*z_theta_mu;
-                   theta_sigma = theta_sigma + obj.beta_sigma*delta*z_theta_sigma;
-                   obj.policy.set_policy_sigma(theta_sigma);
-                   zeta = obj.gamma2*zeta;
+                    z_theta_mu = obj.gamma*obj.lambda_omega*z_theta_mu + zeta*e_k1_mu;
+                    e_k1_sigma = obj.policy.policy_grad_sigma(rl_u_all(k, :), [local_x_all(k, :), rect_x_all(k, :)], theta_mu);
+                    z_theta_sigma = obj.gamma*obj.lambda_omega*z_theta_sigma + zeta*e_k1_sigma;
+                    % apx function update
+                    w = w + obj.alpha*delta*z_w;
+                    theta_mu = theta_mu + obj.beta_mu*delta*z_theta_mu;
+                    theta_sigma = theta_sigma + obj.beta_sigma*delta*z_theta_sigma;
+                    obj.policy.set_policy_sigma(theta_sigma);
+                    zeta = obj.gamma2*zeta;
 %                     if abs(apx_x_all(k,1) ) > 1
 %                         break;
 %                     end
-                    % record history
-%                     record_point = obj.sim_N*(episode-1)+k;
-%                     w_history(:, record_point) = w;
-%                     theta_mu_history(:, record_point) = theta_mu;
-%                     theta_sigma_history(:, record_point) = theta_sigma;
-               end
+                end
+                % record history
+                idx = find(record_point==episode);
+                if ~isempty(idx)
+                    record_point = obj.sim_N*(episode-1)+k;
+                    w_snpashot(:, idx) = w;
+                    theta_mu_snpashot(:, idx) = theta_mu;
+                    theta_sigma_snpashot(:, idx) = theta_sigma;
+                end
                 reward_history(episode) = reward;
+                % callback
                 subplot(3,1,1)
                 plot(obj.t, local_x_all)
                 title(['Episode-',num2str(episode)])
@@ -159,11 +148,11 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
                 subplot(3,1,3)
                 plot(nonzeros(reward_history),'-b')
                 ylabel('Culumative Reward')
-                ylim([-5,0])
+%                 ylim([-5,0])
                 drawnow
-%                cost_history(episode) = obj.cost([local_x_all(k, :), rect_x_all(k, :)], rl_u_all+mpc_u_all);
-%                figure(1)
-%                callback_RL(episode, obj.t, [local_x_all(k, :), rect_x_all(k, :)], cost_history, reward_history)
+%                 cost_history(episode) = obj.cost([local_x_all(k, :), rect_x_all(k, :)], rl_u_all+mpc_u_all);
+%                 figure(1)
+%                 callback_RL(episode, obj.t, [local_x_all(k, :), rect_x_all(k, :)], cost_history, reward_history)
             end
         end
         
@@ -176,7 +165,8 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
         
         function R = reward(obj, x, u)
             lidx = 2; % rectifier の周波数成分のみ小さくすれば良い
-            R = -1/10*(x(lidx)*x(lidx) + u*obj.R*u');
+            R = -1/10*(x(lidx)*obj.Q(2,2)*x(lidx) + u*obj.R*u');
+%             R = -1/10*(x*blkdiag(obj.Q, eye(obj.model.apx_nx)*obj.Q1)*x' + u*obj.R*u');
         end
         
         function [local_x_all, env_x_all, rect_x_all, y_xhat_w_v_all, rl_u_all] = sim(obj, theta_mu, ini, seed)
