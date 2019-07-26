@@ -95,7 +95,7 @@ try
     train_seed = 1024;
     train = netwrok_retro_by_actor_critic_with_eligibility_traces_episodic(model, policy, value, Te);
 
-    initial = [1;0];
+    initial = [0,0.1];
 %     initial = [0;1;];
     [local_x_all, mpc_u_all, rl_u_all, theta_mu_snpashot, theta_sigma_snpashot, w_snpashot, reward_history] = train.train(initial, train_seed);
     %%
@@ -105,7 +105,8 @@ try
     
 %     save(strcat('RL_net',num2str(Node_number),'_discount99_', name{idx}, '_reward_fix_Q_episode_1000_No2'));
 %     save(strcat('RL_net',num2str(Node_number),'_discount99_', name{idx}, '_reward_fix_Q_episode_2000_NonLQR'));
-    save(strcat('RL_net',num2str(Node_number),'_discount99_', name{idx}, '_reward_only_local_episode_',num2str(train.max_episode)));
+%     save(strcat('RL_net',num2str(Node_number),'_discount99_', name{idx}, '_reward_only_local_episode_',num2str(train.max_episode)));
+    save('test')
 catch ME
     mail_message(jsonencode(ME));
 end

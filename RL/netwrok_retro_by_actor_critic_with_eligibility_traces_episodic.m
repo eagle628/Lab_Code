@@ -46,7 +46,7 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
             local_x_all = zeros(obj.sim_N, obj.model.local_nx);
             env_x_all = zeros(obj.sim_N, obj.model.env_nx);
             rect_x_all = zeros(obj.sim_N, obj.model.rect_nx);
-            y_xhat_w_v_all = zeros(obj.sim_N, obj.model.ny+obj.model.ny+obj.model.nw+obj.model.nv);
+            y_w_v_all = zeros(obj.sim_N, obj.model.ny+obj.model.nw+obj.model.nv);
             rl_u_all = zeros(obj.sim_N, obj.model.nu);
             mpc_u_all = zeros(obj.sim_N, obj.model.nu);
             % record point
@@ -56,7 +56,7 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
             theta_sigma_snapshot = zeros(obj.model.nu, length(record_point));
             % calculate MBC gain
             K = lqr(obj.model.A, obj.model.B, blkdiag(obj.Q_c, eye(obj.model.apx_nx)*obj.Q1), obj.R);
-            obj.model.set_controlled_system(blkdiag(obj.Q_c, eye(obj.model.apx_nx)*obj.Q1), obj.R);
+%             obj.model.set_controlled_system(blkdiag(obj.Q_c, eye(obj.model.apx_nx)*obj.Q1), obj.R);
             K1 = K(1:obj.model.local_nx);
             K2 = K(obj.model.local_nx+1 : end);
             % set episode initial
@@ -73,7 +73,7 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
             % start episode learning
             record_idx = 1;
             for episode = 1 : obj.max_episode
-                % episode initialize
+                % episode initialize(eligibility)
                 z_w = zeros(obj.value.apx_function.N, 1);
                 z_theta_mu = zeros(obj.policy.apx_function.N, 1);
                 z_theta_sigma = zeros(obj.model.nu, 1);
@@ -87,16 +87,17 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
 %                 G = eye(obj.policy.apx_function.N);
                 for k = 1 : obj.sim_N-1
                     % MBC input
-                    % LQR Controller already implemented, So Record Only
-                    mpc_u_all(k, :) = ([K1,-K2]*rect_x_all(k, :)')' -(K1*y_xhat_w_v_all(k, 1:obj.model.ny)')';
+                    % LQR Controller 
+                    ywv = obj.model.dynamics(local_x_all(k, :)', env_x_all(k, :)');
+                    y_w_v_all(k, :) = ywv';
+                    mpc_u_all(k, :) = ([K1,-K2]*rect_x_all(k, :)')' -(K1*y_w_v_all(k, 1:obj.model.ny)')';
                     % RL input
                     rl_u_all(k, :) = obj.policy.stocastic_policy([local_x_all(k, :), rect_x_all(k, :)], theta_mu);
                     %  observe S_(k+1)
-                    [local_ne_x, env_ne_x, ne_ywv, rect_ne_x] = ...
-                        obj.model.dynamics(local_x_all(k, :)', env_x_all(k, :)',rect_x_all(k, :)', y_xhat_w_v_all(k, :)', rl_u_all(k, :) + mpc_u_all(k, :), d_L(k, :)');
+                    [~, local_ne_x, env_ne_x] = obj.model.dynamics(local_x_all(k, :)', env_x_all(k, :)', rl_u_all(k, :) + mpc_u_all(k, :), d_L(k, :)');
                     local_x_all(k+1, :) = local_ne_x';
                     env_x_all(k+1, :) = env_ne_x';
-                    y_xhat_w_v_all(k+1, :) = ne_ywv';
+                    [rect_ne_x, rect_yw] = obj.model.rect_dynamics(local_x_all(k, :)', env_x_all(k, :)', rect_x_all(k, :)');
                     rect_x_all(k+1, :) = rect_ne_x';
                     % Get Reward r
                     if abs(local_x_all(k,2) ) > 2
