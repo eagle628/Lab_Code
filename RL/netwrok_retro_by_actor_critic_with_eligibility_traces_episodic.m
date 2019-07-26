@@ -19,6 +19,8 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
     end
     
     properties
+        policy
+        value
         sim_N
         t
     end

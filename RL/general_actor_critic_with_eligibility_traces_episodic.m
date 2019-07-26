@@ -15,6 +15,8 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
     end
     
     properties
+        policy
+        value
         sim_N
         t
     end

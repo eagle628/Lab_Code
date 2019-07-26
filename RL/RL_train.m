@@ -4,8 +4,6 @@ classdef RL_train < handle
     
     properties
         model
-        policy
-        value
     end
     
     methods(Abstract)
