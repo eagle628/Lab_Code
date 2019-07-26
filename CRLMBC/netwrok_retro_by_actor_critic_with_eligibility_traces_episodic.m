@@ -3,18 +3,19 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
     
     properties(Constant)
         Q1 = 1
-        Q = diag([1,1])
+        Q_c = diag([1,1])
+        Q_r = diag([1,1000])
         R = 1
         lambda_theta = 0.99
         lambda_omega = 0.99
         alpha = 0.05
         beta_mu = 0.01
-        beta_sigma = 0.1
+        beta_sigma = 0.01
         alpha_f = 0.001 % fisher weghit %% invalid
-        gamma = 0.9
+        gamma = 0.99
         gamma2 = 0.9
-        max_episode = 1000%3.5e3
-        snapshot_N = 5;
+        max_episode = 2000%3.5e3
+        snapshot = 100;
     end
     
     properties
@@ -31,7 +32,7 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
             obj.value  =  value;
         end
         
-        function [local_x_all, mpc_u_all, rl_u_all, theta_mu_snpashot, theta_sigma_snpashot, w_snpashot, reward_history] = train(obj, ini, seed)
+        function [local_x_all, mpc_u_all, rl_u_all, theta_mu_snapshot, theta_sigma_snapshot, w_snapshot, reward_history] = train(obj, ini, seed)
             if nargin < 3
                 seed = rng();
             end
@@ -47,15 +48,13 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
             rl_u_all = zeros(obj.sim_N, obj.model.nu);
             mpc_u_all = zeros(obj.sim_N, obj.model.nu);
             % record point
-            record_point = ceil(obj.max_episode/obj.snapshot_N);
-            record_point = 1:record_point:obj.max_episode;
-            record_point = [record_point, obj.max_episode];
-            w_snpashot = zeros(obj.value.apx_function.N, 1);
-            theta_mu_snpashot = zeros(obj.policy.apx_function.N, 1);
-            theta_sigma_snpashot = zeros(obj.model.nu, 1);
+            record_point = obj.snapshot:obj.snapshot:obj.max_episode;
+            w_snapshot = zeros(obj.value.apx_function.N, length(record_point));
+            theta_mu_snapshot = zeros(obj.policy.apx_function.N, length(record_point));
+            theta_sigma_snapshot = zeros(obj.model.nu, length(record_point));
             % calculate MBC gain
-            K = lqr(obj.model.A, obj.model.B, blkdiag(obj.Q, eye(obj.model.apx_nx)*obj.Q1), obj.R);
-            obj.model.set_controlled_system(blkdiag(obj.Q, eye(obj.model.apx_nx)*obj.Q1), obj.R);
+            K = lqr(obj.model.A, obj.model.B, blkdiag(obj.Q_c, eye(obj.model.apx_nx)*obj.Q1), obj.R);
+            obj.model.set_controlled_system(blkdiag(obj.Q_c, eye(obj.model.apx_nx)*obj.Q1), obj.R);
             K1 = K(1:obj.model.local_nx);
             K2 = K(obj.model.local_nx+1 : end);
             % set episode initial
@@ -70,6 +69,7 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
             theta_mu = obj.policy.get_params();
             theta_sigma = obj.policy.get_policy_sigma();
             % start episode learning
+            record_idx = 1;
             for episode = 1 : obj.max_episode
                 % episode initialize
                 z_w = zeros(obj.value.apx_function.N, 1);
@@ -127,12 +127,11 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
 %                     end
                 end
                 % record history
-                idx = find(record_point==episode);
-                if ~isempty(idx)
-                    record_point = obj.sim_N*(episode-1)+k;
-                    w_snpashot(:, idx) = w;
-                    theta_mu_snpashot(:, idx) = theta_mu;
-                    theta_sigma_snpashot(:, idx) = theta_sigma;
+                if ~mode(episode, obj.snapshot)
+                    w_snapshot(:, record_idx) = w;
+                    theta_mu_snapshot(:, record_idx) = theta_mu;
+                    theta_sigma_snapshot(:, record_idx) = theta_sigma;
+                    record_idx =  record_idx + 1;
                 end
                 reward_history(episode) = reward;
                 % callback
@@ -159,25 +158,26 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
         function J = cost(obj, x_all, u_all)
            J = 0;
            for itr =  1 : obj.sim_N-1
-               J = J + x_all(itr, :)*obj.Q*x_all(itr, :)' + u_all(itr, :)*obj.R*u_all(itr, :)';
+               J = J + x_all(itr, :)*obj.Q_c*x_all(itr, :)' + u_all(itr, :)*obj.R*u_all(itr, :)';
            end
         end
         
         function R = reward(obj, x, u)
             lidx = 2; % rectifier の周波数成分のみ小さくすれば良い
-            R = -1/10*(x(lidx)*obj.Q(2,2)*x(lidx) + u*obj.R*u');
-%             R = -1/10*(x*blkdiag(obj.Q, eye(obj.model.apx_nx)*obj.Q1)*x' + u*obj.R*u');
+%             R = -1/10*(x(lidx)*obj.Q_r(2,2)*x(lidx) + u*obj.R*u');
+%             R = -1/10*(x*blkdiag(obj.Q_r, obj.Q_r, eye(obj.model.apx_nx)*obj.Q1)*x' + u*obj.R*u');
+            R = -1/10*(x(1:2)*obj.Q_r*x(1:2)' + u*obj.R*u');
         end
         
-        function [local_x_all, env_x_all, rect_x_all, y_xhat_w_v_all, rl_u_all] = sim(obj, theta_mu, ini, seed)
-            if nargin < 4
+        function [local_x_all, env_x_all, rect_x_all, y_xhat_w_v_all, rl_u_all] = sim(obj, theta_mu, ini, noise_power, seed)
+            if nargin < 5
                 seed = rng();
             end
             rng(seed);
             if nargin < 2 || isempty(theta_mu)
                 theta_mu = obj.policy.get_params();
             end
-            d_L = randn(obj.sim_N, 2);
+            d_L = noise_power*randn(obj.sim_N, 2);
             local_x_all = zeros(obj.sim_N, obj.model.local_nx);
             env_x_all = zeros(obj.sim_N, obj.model.env_nx);
             rect_x_all = zeros(obj.sim_N, obj.model.rect_nx);
@@ -187,13 +187,8 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
             % set initial
             local_x_all(1, :) = ini';
             % calculate MBC gain
-            if obj.model.apx_nx == 0
-%                 K = lqr(obj.model.A, obj.model.B, obj.Q, obj.R);
-                obj.model.set_controlled_system(obj.Q, obj.R);
-            else
-%                 K = lqr(obj.model.A, obj.model.B, blkdiag(obj.Q, eye(obj.model.apx_nx)*obj.Q1), obj.R);
-                obj.model.set_controlled_system(blkdiag(obj.Q, eye(obj.model.apx_nx)*obj.Q1), obj.R);
-            end
+%                 K = lqr(obj.model.A, obj.model.B, blkdiag(obj.Q_c, eye(obj.model.apx_nx)*obj.Q1), obj.R);
+            obj.model.set_controlled_system(blkdiag(obj.Q_c, eye(obj.model.apx_nx)*obj.Q1), obj.R);
 %             K1 = K(1:obj.model.local_nx);
 %             K2 = K(obj.model.local_nx+1 : end);
 %             % set episode initial
@@ -203,8 +198,8 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
                mpc_u_all(k, :) = 0; % LQR Controller already implemented
 %                    mpc_u_all(k, :) = ([K1,-K2]*rect_x_all(k, :)')' -(K1*ywv_all(k, 1:obj.model.ny)')';
                % RL input
-               rl_u_all(k, :) = obj.policy.determistic_policy([local_x_all(k, :), rect_x_all(k, :)], theta_mu);
-%                rl_u_all(k, :) = obj.policy.stocastic_policy([local_x_all(k, :), rect_x_all(k, :)], theta_mu);
+%                rl_u_all(k, :) = obj.policy.determistic_policy([local_x_all(k, :), rect_x_all(k, :)], theta_mu);
+               rl_u_all(k, :) = obj.policy.stocastic_policy([local_x_all(k, :), rect_x_all(k, :)], theta_mu);
                %  observe S_(k+1)
                [local_ne_x, env_ne_x, ne_ywv, rect_ne_x] = ...
                     obj.model.dynamics(local_x_all(k, :)', env_x_all(k, :)',rect_x_all(k, :)', y_xhat_w_v_all(k, :)', rl_u_all(k, :) + mpc_u_all(k, :), d_L(k, :)');
@@ -216,12 +211,12 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
            end
         end
 %         
-        function [local_x_all, env_x_all, rect_x_all, y_xhat_w_v_all] = sim_lqrcontroller(obj, ini, seed)
-            if nargin < 3
+        function [local_x_all, env_x_all, rect_x_all, y_xhat_w_v_all, reward] = sim_lqrcontroller(obj, ini, noise_power, seed)
+            if nargin < 4
                 seed = rng();
             end
             rng(seed);
-            d_L = randn(obj.sim_N, 2);
+            d_L = noise_power*randn(obj.sim_N, 2);
             local_x_all = zeros(obj.sim_N, obj.model.local_nx);
             env_x_all = zeros(obj.sim_N, obj.model.env_nx);
             rect_x_all = zeros(obj.sim_N, obj.model.rect_nx);
@@ -229,27 +224,25 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
             % set initial
             local_x_all(1, :) = ini';
             % calculate MBC gain
-            if obj.model.apx_nx == 0
-%                 K = lqr(obj.model.A, obj.model.B, obj.Q, obj.R);
-                obj.model.set_controlled_system(obj.Q, obj.R);
-            else
-%                 K = lqr(obj.model.A, obj.model.B, blkdiag(obj.Q, eye(obj.model.apx_nx)*obj.Q1), obj.R);
-                obj.model.set_controlled_system(blkdiag(obj.Q, eye(obj.model.apx_nx)*obj.Q1), obj.R);
-            end
-%             K1 = K(1:obj.model.local_nx);
-%             K2 = K(obj.model.local_nx+1 : end);
+            K = lqr(obj.model.A, obj.model.B, blkdiag(obj.Q_c, eye(obj.model.apx_nx)*obj.Q1), obj.R);
+            obj.model.set_controlled_system(blkdiag(obj.Q_c, eye(obj.model.apx_nx)*obj.Q1), obj.R);
+            K1 = K(1:obj.model.local_nx);
+            K2 = K(obj.model.local_nx+1 : end);
 %             % set episode initial
 %             local_x_all(1, :) = ini';% When network model, local system state
+            reward = 0;
             for k = 1 : obj.sim_N-1
-               %  observe S_(k+1)
-               [local_ne_x, env_ne_x, ne_ywv, rect_ne_x] = ...
+                %  observe S_(k+1)
+                [local_ne_x, env_ne_x, ne_ywv, rect_ne_x] = ...
                     obj.model.dynamics(local_x_all(k, :)', env_x_all(k, :)',rect_x_all(k, :)', y_xhat_w_v_all(k, :)', 0, d_L(k, :)');
 
                 local_x_all(k+1, :) = local_ne_x';
-               env_x_all(k+1, :) = env_ne_x';
-               y_xhat_w_v_all(k+1, :) = ne_ywv';
-               rect_x_all(k+1, :) = rect_ne_x';
-           end 
+                env_x_all(k+1, :) = env_ne_x';
+                y_xhat_w_v_all(k+1, :) = ne_ywv';
+                rect_x_all(k+1, :) = rect_ne_x';
+                r = obj.reward([local_x_all(k+1, :), rect_x_all(k+1, :)], ([K1,-K2]*rect_x_all(k, :)')' -(K1*y_xhat_w_v_all(k, 1:obj.model.ny)')');
+                reward =  reward + obj.gamma^(k-1)*r;
+            end 
         end
         
         % netwerk だと生のvwの計測データがないと初期点すら計算できない．

@@ -99,6 +99,7 @@ classdef Retrofit
                 Q1(1:size(Q), 1:size(Q)) = Q;
                 K = lqr(sys_design('y','u'), Q1, R);
                 %                 sys_K = ss(sys_design.a-sys_design('y', 'u').b*K, sys_design.b, sys_design.c, sys_design.d);
+%                 K = zeros(size(K));
                 sys = Retrofit.generate_retrofit_controller_extend(sys_local, sys_model, K);
             end
             sys_design_K = Retrofit.connect_K(sys_design, K);
