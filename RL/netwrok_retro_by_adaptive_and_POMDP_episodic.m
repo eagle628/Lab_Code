@@ -1,5 +1,5 @@
 classdef netwrok_retro_by_adaptive_and_POMDP_episodic < RL_train
-    % レトロフィット制御問題に対するRL_adaptive_LQR_RLSのclass
+    % レトロフィ�?ト制御問題に対するRL_adaptive_LQR_RLSのclass
     
     properties(Constant)        
         gamma = 1
@@ -49,11 +49,12 @@ classdef netwrok_retro_by_adaptive_and_POMDP_episodic < RL_train
             % start episode learning
             record_idx = 1;
             belief_state = zeros(2, obj.model.ny*obj.belief_N);% belief state % 1 line: current state , 2 line: previous state
-            P = eye(n_th);
+            P = eye(n_th)*10;
             K = zeros(obj.model.nu, obj.model.ny*obj.belief_N);
             sigma_pi = 1;
             for episode = 1 : obj.max_episode
                 reward = 0;
+                belief_state = zeros(size(belief_state));
                 for k = 1 : obj.sim_N-1
                     belief_state(2, :) = belief_state(1, :);
                     belief_state(1, obj.model.ny+1:end) = belief_state(1, 1:end-obj.model.ny);
@@ -76,7 +77,7 @@ classdef netwrok_retro_by_adaptive_and_POMDP_episodic < RL_train
                     if k ~= 1 && episode ~= 1
                         % TD Erorr for Recruisive least square
                         phi = H_to_theta([belief_state(2, :)';rl_u_all(k-1, :)';]*[belief_state(2, :)';rl_u_all(k-1, :)';]')...
-                                - obj.gamma*H_to_theta([belief_state(1, :)';rl_u_all(k, :)';]*[belief_state(1, :)';rl_u_all(k, :)';]');
+                                - obj.gamma*H_to_theta([belief_state(1, :)';K*belief_state(1, :)';]*[belief_state(1, :)';K*belief_state(1, :)';]');
                         epsilon = (-r) - phi' * theta;
                         denom = phi'*P*phi;
                         theta = theta + P*phi*epsilon/denom;
@@ -202,7 +203,7 @@ classdef netwrok_retro_by_adaptive_and_POMDP_episodic < RL_train
             end 
         end
         
-        % netwerk だと生のvwの計測データがないと初期点すら計算できない．
+        % netwerk �?と生�?�vwの計測�?ータがな�?と初期点すら計算できな�?�?
 %         
 %         function w = set_w(obj, K)
 %             if nargin < 3

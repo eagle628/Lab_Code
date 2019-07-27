@@ -21,7 +21,7 @@ net.Adj(tmp_idx, c_n) = tmp_adj;
 
 % train condition
 Ts = 0.01;
-Te = 4;
+Te = 1;
 
 % model = swing_network_model(net, c_n, Ts);
 [sys_local, sys_env] = net.get_sys_local(c_n);
@@ -37,7 +37,7 @@ end
 model = swing_network_model(net, c_n, Ts);
 
 train_seed = 1024;
-belief_N = 12;
+belief_N = 40;
 train = netwrok_retro_by_adaptive_and_POMDP_episodic(model, belief_N, Te);
 
 initial = [0,0.1];
