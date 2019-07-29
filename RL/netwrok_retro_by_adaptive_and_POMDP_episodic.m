@@ -1,18 +1,19 @@
 classdef netwrok_retro_by_adaptive_and_POMDP_episodic < RL_train
-    % レトロフィ�?ト制御問題に対するRL_adaptive_LQR_RLSのclass
+    % レトロフィ�?ト制御問題に対するRL_adaptive_LQR_RLSのclass
     
     properties(Constant)        
         gamma = 1
         max_episode = 2000%3.5e3
         snapshot = 100;
+        Q = diag([1,1])
+        R = diag(1)
     end
     
     properties
         sim_N
         t
         belief_N
-        Q
-        R
+        
     end
     
     methods
@@ -21,8 +22,6 @@ classdef netwrok_retro_by_adaptive_and_POMDP_episodic < RL_train
             obj.sim_N = Te/model.Ts + 1;
             obj.t = (0:model.Ts:Te)';
             obj.belief_N = belief_N;
-            obj.Q = eye(obj.belief_N*obj.model.ny);
-            obj.R = eye(obj.model.nu);
         end
         
         function [local_x_all, rl_u_all, theta_snapshot, reward_history] = train(obj, ini, seed)
@@ -72,7 +71,7 @@ classdef netwrok_retro_by_adaptive_and_POMDP_episodic < RL_train
                     rect_x_all(k+1, :) = rect_ne_x';
                     belief_state(1, 1:obj.model.ny) = rect_yw(1:obj.model.ny)';
                     % Get Reward r
-                    r = obj.reward(belief_state(1, :)', rl_u_all(k, :));
+                    r = obj.reward(rect_ne_x(1:2), rl_u_all(k, :));
                     reward =  reward + obj.gamma^(k-1)*r;
                     if k ~= 1 && episode ~= 1
                         % TD Erorr for Recruisive least square
@@ -203,7 +202,7 @@ classdef netwrok_retro_by_adaptive_and_POMDP_episodic < RL_train
             end 
         end
         
-        % netwerk �?と生�?�vwの計測�?ータがな�?と初期点すら計算できな�?�?
+        % netwerk �?と生�?�vwの計測�?ータがな�?と初期点すら計算できな�?�?
 %         
 %         function w = set_w(obj, K)
 %             if nargin < 3
