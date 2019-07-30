@@ -15,6 +15,10 @@ classdef approximate_function_class < handle
         function params = get_params(obj)
             params = obj.params;
         end
+        
+        function initialize_params(obj)
+            obj.params = zeros(size(obj.params));
+        end
     end
 end
 

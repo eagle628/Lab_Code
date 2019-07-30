@@ -23,19 +23,21 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
         value
         sim_N
         t
+        belief_N
     end
     
     methods
-        function obj = netwrok_retro_by_actor_critic_with_eligibility_traces_episodic(model, policy, value, Te)
+        function obj = netwrok_retro_by_actor_critic_with_eligibility_traces_episodic(model, policy, value, Te, belief_N)
             obj.model = model;
             obj.sim_N = Te/model.Ts + 1;
             obj.t = (0:model.Ts:Te)';
             obj.policy = policy;
             obj.value  =  value;
+            obj.belief_N = belief_N;
         end
         
-        function [local_x_all, mpc_u_all, rl_u_all, theta_mu_snapshot, theta_sigma_snapshot, w_snapshot, reward_history] = train(obj, ini, seed)
-            if nargin < 3
+        function [local_x_all, mpc_u_all, rl_u_all, theta_mu_snapshot, theta_sigma_snapshot, w_snapshot, reward_history] = train(obj, ini, seed, varargin)
+            if nargin < 3 || isempty(seed)
                 seed = rng();
             end
             rng(seed)
@@ -56,7 +58,12 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
             theta_sigma_snapshot = zeros(obj.model.nu, length(record_point));
             % calculate MBC gain
             K = lqr(obj.model.A, obj.model.B, blkdiag(obj.Q_c, eye(obj.model.apx_nx)*obj.Q1), obj.R);
-%             obj.model.set_controlled_system(blkdiag(obj.Q_c, eye(obj.model.apx_nx)*obj.Q1), obj.R);
+            tmp = strcmp(varargin, 'parallel');
+            if sum(tmp)
+                if  strcmp(varargin{find(tmp)+1},'off')
+                    K = zeros(size(K));
+                end
+            end
             K1 = K(1:obj.model.local_nx);
             K2 = K(obj.model.local_nx+1 : end);
             % set episode initial
@@ -72,6 +79,7 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
             theta_sigma = obj.policy.get_policy_sigma();
             % start episode learning
             record_idx = 1;
+            belief_state = zeros(2, obj.belief_N);% belief state % 1 line: current state , 2 line: previous state
             for episode = 1 : obj.max_episode
                 % episode initialize(eligibility)
                 z_w = zeros(obj.value.apx_function.N, 1);
@@ -85,6 +93,8 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
 %                 gain = 1;
                 % initialize fisher matrix
 %                 G = eye(obj.policy.apx_function.N);
+                % belief initialize
+                belief_state = zeros(size(belief_state));
                 for k = 1 : obj.sim_N-1
                     % MBC input
                     % LQR Controller 
@@ -92,32 +102,43 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
                     y_w_v_all(k, :) = ywv';
                     mpc_u_all(k, :) = ([K1,-K2]*rect_x_all(k, :)')' -(K1*y_w_v_all(k, 1:obj.model.ny)')';
                     % RL input
-                    rl_u_all(k, :) = obj.policy.stocastic_policy([local_x_all(k, :), rect_x_all(k, :)], theta_mu);
-                    %  observe S_(k+1)
+                    rl_u_all(k, :) = obj.policy.stocastic_policy(belief_state(1, :), theta_mu);
+                    %  observe State(k+1)
                     [~, local_ne_x, env_ne_x] = obj.model.dynamics(local_x_all(k, :)', env_x_all(k, :)', rl_u_all(k, :) + mpc_u_all(k, :), d_L(k, :)');
                     local_x_all(k+1, :) = local_ne_x';
                     env_x_all(k+1, :) = env_ne_x';
                     [rect_ne_x, rect_yw] = obj.model.rect_dynamics(local_x_all(k, :)', env_x_all(k, :)', rect_x_all(k, :)');
                     rect_x_all(k+1, :) = rect_ne_x';
+                    % belief upadate
+                    belief_state(2, :) = belief_state(1, :);
+                    belief_state(1, 1+1:end) = belief_state(1, 1:end-1);
+                    belief_state(1, 1) = rect_yw(2)'; % momory store
                     % Get Reward r
                     if abs(local_x_all(k,2) ) > 2
                         r = -100;
                     else
                         r = obj.reward([local_x_all(k+1, :), rect_x_all(k+1, :)], rl_u_all(k, :)+mpc_u_all(k, :));
-%                         r = 0;
+% %                         r = 0;
                     end
                     reward =  reward + obj.gamma^(k-1)*r;
                     % TD Erorr
-                    V_k1 = obj.value.est_value([local_x_all(k+1, :), rect_x_all(k+1, :)], w);
-                    V_k0 = obj.value.est_value([local_x_all(k, :), rect_x_all(k, :)], w);
-%                     V_k1 = 0;V_k0 = 0;
+%                     V_k1 = obj.value.est_value([local_x_all(k+1, :), rect_x_all(k+1, :)], w);
+%                     V_k0 = obj.value.est_value([local_x_all(k, :), rect_x_all(k, :)], w);
+                    V_k1 = obj.value.est_value(belief_state(1, :), w);
+                    V_k0 = obj.value.est_value(belief_state(2, :), w);
                     delta = r + obj.gamma*V_k1 - V_k0;
                     % eligibility traces update
-                    z_w = obj.gamma*obj.lambda_theta*z_w + zeta *obj.value.value_grad([local_x_all(k, :), rect_x_all(k, :)]);
-                    e_k1_mu = obj.policy.policy_grad_mu(rl_u_all(k, :), [local_x_all(k, :), rect_x_all(k, :)], theta_mu);
+%                     z_w = obj.gamma*obj.lambda_theta*z_w + zeta *obj.value.value_grad([local_x_all(k, :), rect_x_all(k, :)]);
+%                     e_k1_mu = obj.policy.policy_grad_mu(rl_u_all(k, :), [local_x_all(k, :), rect_x_all(k, :)], theta_mu);
+% %                    G = 1/(1-obj.aplha_f)*(G - obj.alpha_f*(G*e_k1_mu)*(G*e_k1_mu)'/(1-obj.alpha_f+obj.alpha_f*e_k1_mu'*G*e_K1_mu));
+%                     z_theta_mu = obj.gamma*obj.lambda_omega*z_theta_mu + zeta*e_k1_mu;
+%                     e_k1_sigma = obj.policy.policy_grad_sigma(rl_u_all(k, :), [local_x_all(k, :), rect_x_all(k, :)], theta_mu);
+%                     z_theta_sigma = obj.gamma*obj.lambda_omega*z_theta_sigma + zeta*e_k1_sigma;
+                    z_w = obj.gamma*obj.lambda_theta*z_w + zeta *obj.value.value_grad(belief_state(2, :));
+                    e_k1_mu = obj.policy.policy_grad_mu(rl_u_all(k, :), belief_state(2, :), theta_mu);
 %                    G = 1/(1-obj.aplha_f)*(G - obj.alpha_f*(G*e_k1_mu)*(G*e_k1_mu)'/(1-obj.alpha_f+obj.alpha_f*e_k1_mu'*G*e_K1_mu));
                     z_theta_mu = obj.gamma*obj.lambda_omega*z_theta_mu + zeta*e_k1_mu;
-                    e_k1_sigma = obj.policy.policy_grad_sigma(rl_u_all(k, :), [local_x_all(k, :), rect_x_all(k, :)], theta_mu);
+                    e_k1_sigma = obj.policy.policy_grad_sigma(rl_u_all(k, :), belief_state(2, :), theta_mu);
                     z_theta_sigma = obj.gamma*obj.lambda_omega*z_theta_sigma + zeta*e_k1_sigma;
                     % apx function update
                     w = w + obj.alpha*delta*z_w;
@@ -172,7 +193,7 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
             R = -1/10*(x(1:2)*obj.Q_r*x(1:2)' + u*obj.R*u');
         end
         
-        function [local_x_all, env_x_all, rect_x_all, y_xhat_w_v_all, rl_u_all] = sim(obj, theta_mu, ini, noise_power, seed)
+        function [local_x_all, env_x_all, rect_x_all, y_w_v_all, rl_u_all, reward] = sim(obj, theta_mu, ini, noise_power, seed, varargin)
             if nargin < 5
                 seed = rng();
             end
@@ -184,37 +205,46 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
             local_x_all = zeros(obj.sim_N, obj.model.local_nx);
             env_x_all = zeros(obj.sim_N, obj.model.env_nx);
             rect_x_all = zeros(obj.sim_N, obj.model.rect_nx);
-            y_xhat_w_v_all = zeros(obj.sim_N, obj.model.ny+obj.model.ny+obj.model.nw+obj.model.nv);
+            y_w_v_all = zeros(obj.sim_N, obj.model.ny+obj.model.nw+obj.model.nv);
             rl_u_all = zeros(obj.sim_N, obj.model.nu);
             mpc_u_all = zeros(obj.sim_N, obj.model.nu);
             % set initial
             local_x_all(1, :) = ini';
             % calculate MBC gain
-%                 K = lqr(obj.model.A, obj.model.B, blkdiag(obj.Q_c, eye(obj.model.apx_nx)*obj.Q1), obj.R);
-            obj.model.set_controlled_system(blkdiag(obj.Q_c, eye(obj.model.apx_nx)*obj.Q1), obj.R);
-%             K1 = K(1:obj.model.local_nx);
-%             K2 = K(obj.model.local_nx+1 : end);
-%             % set episode initial
-%             local_x_all(1, :) = ini';% When network model, local system state
+            K = lqr(obj.model.A, obj.model.B, blkdiag(obj.Q_c, eye(obj.model.apx_nx)*obj.Q1), obj.R);
+            tmp = strcmp(varargin, 'parallel');
+            if sum(tmp)
+                if  strcmp(varargin{find(tmp)+1},'off')
+                    K = zeros(size(K));
+                end
+            end
+            K1 = K(1:obj.model.local_nx);
+            K2 = K(obj.model.local_nx+1 : end);
+            % observe belief state
+            belief_state = zeros(1, obj.belief_N);% belief state % 1 line: current state , 2 line: previous state
+            % initialize reward
+            reward = 0;
             for k = 1 : obj.sim_N-1
-               % MBC input
-               mpc_u_all(k, :) = 0; % LQR Controller already implemented
-%                    mpc_u_all(k, :) = ([K1,-K2]*rect_x_all(k, :)')' -(K1*ywv_all(k, 1:obj.model.ny)')';
-               % RL input
-%                rl_u_all(k, :) = obj.policy.determistic_policy([local_x_all(k, :), rect_x_all(k, :)], theta_mu);
-               rl_u_all(k, :) = obj.policy.stocastic_policy([local_x_all(k, :), rect_x_all(k, :)], theta_mu);
-               %  observe S_(k+1)
-               [local_ne_x, env_ne_x, ne_ywv, rect_ne_x] = ...
-                    obj.model.dynamics(local_x_all(k, :)', env_x_all(k, :)',rect_x_all(k, :)', y_xhat_w_v_all(k, :)', rl_u_all(k, :) + mpc_u_all(k, :), d_L(k, :)');
-
+                % LQR Controller 
+                ywv = obj.model.dynamics(local_x_all(k, :)', env_x_all(k, :)');
+                y_w_v_all(k, :) = ywv';
+                mpc_u_all(k, :) = ([K1,-K2]*rect_x_all(k, :)')' -(K1*y_w_v_all(k, 1:obj.model.ny)')';
+                % RL input
+                rl_u_all(k, :) = obj.policy.stocastic_policy(belief_state(1, :), theta_mu);
+                %  observe S_(k+1)
+                [~, local_ne_x, env_ne_x] = obj.model.dynamics(local_x_all(k, :)', env_x_all(k, :)', rl_u_all(k, :) + mpc_u_all(k, :), d_L(k, :)');
                 local_x_all(k+1, :) = local_ne_x';
-               env_x_all(k+1, :) = env_ne_x';
-               y_xhat_w_v_all(k+1, :) = ne_ywv';
-               rect_x_all(k+1, :) = rect_ne_x';
+                env_x_all(k+1, :) = env_ne_x';
+                [rect_ne_x, rect_yw] = obj.model.rect_dynamics(local_x_all(k, :)', env_x_all(k, :)', rect_x_all(k, :)');
+                rect_x_all(k+1, :) = rect_ne_x';
+                belief_state(1, 1+1:end) = belief_state(1, 1:end-1);
+                belief_state(1, 1) = rect_yw(2)'; % momory store
+                r = obj.reward([local_x_all(k+1, :), rect_x_all(k+1, :)], rl_u_all(k, :)+mpc_u_all(k, :));
+                reward =  reward + obj.gamma^(k-1)*r;
            end
         end
 %         
-        function [local_x_all, env_x_all, rect_x_all, y_xhat_w_v_all, reward] = sim_lqrcontroller(obj, ini, noise_power, seed)
+        function [local_x_all, env_x_all, rect_x_all, y_w_v_all, reward] = sim_lqrcontroller(obj, ini, noise_power, seed)
             if nargin < 4
                 seed = rng();
             end
@@ -223,27 +253,28 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
             local_x_all = zeros(obj.sim_N, obj.model.local_nx);
             env_x_all = zeros(obj.sim_N, obj.model.env_nx);
             rect_x_all = zeros(obj.sim_N, obj.model.rect_nx);
-            y_xhat_w_v_all = zeros(obj.sim_N, obj.model.ny+obj.model.ny+obj.model.nw+obj.model.nv);
+            y_w_v_all = zeros(obj.sim_N, obj.model.ny+obj.model.nw+obj.model.nv);
+            mpc_u_all = zeros(obj.sim_N, obj.model.nu);
             % set initial
             local_x_all(1, :) = ini';
             % calculate MBC gain
             K = lqr(obj.model.A, obj.model.B, blkdiag(obj.Q_c, eye(obj.model.apx_nx)*obj.Q1), obj.R);
-            obj.model.set_controlled_system(blkdiag(obj.Q_c, eye(obj.model.apx_nx)*obj.Q1), obj.R);
             K1 = K(1:obj.model.local_nx);
             K2 = K(obj.model.local_nx+1 : end);
-%             % set episode initial
-%             local_x_all(1, :) = ini';% When network model, local system state
+            % initialize reward
             reward = 0;
             for k = 1 : obj.sim_N-1
+                 % LQR Controller 
+                ywv = obj.model.dynamics(local_x_all(k, :)', env_x_all(k, :)');
+                y_w_v_all(k, :) = ywv';
+                mpc_u_all(k, :) = ([K1,-K2]*rect_x_all(k, :)')' -(K1*y_w_v_all(k, 1:obj.model.ny)')';
                 %  observe S_(k+1)
-                [local_ne_x, env_ne_x, ne_ywv, rect_ne_x] = ...
-                    obj.model.dynamics(local_x_all(k, :)', env_x_all(k, :)',rect_x_all(k, :)', y_xhat_w_v_all(k, :)', 0, d_L(k, :)');
-
+                [~, local_ne_x, env_ne_x] = obj.model.dynamics(local_x_all(k, :)', env_x_all(k, :)', mpc_u_all(k, :), d_L(k, :)');
                 local_x_all(k+1, :) = local_ne_x';
                 env_x_all(k+1, :) = env_ne_x';
-                y_xhat_w_v_all(k+1, :) = ne_ywv';
+                [rect_ne_x, rect_yw] = obj.model.rect_dynamics(local_x_all(k, :)', env_x_all(k, :)', rect_x_all(k, :)');
                 rect_x_all(k+1, :) = rect_ne_x';
-                r = obj.reward([local_x_all(k+1, :), rect_x_all(k+1, :)], ([K1,-K2]*rect_x_all(k, :)')' -(K1*y_xhat_w_v_all(k, 1:obj.model.ny)')');
+                r = obj.reward([local_x_all(k+1, :), rect_x_all(k+1, :)], mpc_u_all(k, :));
                 reward =  reward + obj.gamma^(k-1)*r;
             end 
         end
