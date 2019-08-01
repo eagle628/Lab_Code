@@ -5,15 +5,31 @@ close all
 rng(0)
 
 model = CRLMBC_test_model(0.5,0.15,9.8,0.05,0.01);
-% Ts が0.1とはとても思えない．応答図ヲ見る限りも確実に0.1ではない．もしくは，オイラー法ではない別の近似を用いている．
 % % % % % model.set_observer_gain(0.5);
 
 
 %% state feedback  and CRLMBC
-seed = 1024;
-train = general_actor_critic_with_eligibility_traces_episodic(model, 2, 5^2, seed);
+Te = 2;
+% generate apx function
+nnn = sqrt(basis_N);
+range = [-2,2];
+width = (range(2)-range(1))/(nnn-1);
+m = (range(1):width:range(2))';
+range = [-2,2];
+width = (range(2)-range(1))/(nnn-1);
+mm = (range(1):width:range(2))';
+mu = [kron(m,ones(nnn,1)),repmat(mm,nnn,1)]; 
+sigma = 0.25*ones(basis_N, 1);
+RBF1 = Radial_Basis_Function(basis_N, mu, sigma);
+sigma_pi = sqrt(1);
+policy = policy_RBF(RBF1, sigma_pi);
+value  =  value_RBF(RBF1);
+% set train
+train = general_actor_critic_with_eligibility_traces_episodic(model, policy, value, Te);
 
-[x, u_mpc, u_rl, theta, w] = train.train([0.4, 0]);
+mode_parallel = 'off';
+train_seed = 28;
+[x, u_mpc, u_rl, theta, w] = train.train([0.4, 0], tarin_seed, 'parallel', mode_parallel);
 
 figure
 plot(u_mpc);
@@ -30,7 +46,7 @@ hold on
 x = train.sim_lqrcontroller([0.4;0]);
 plot(train.t,x(:,1),'b')
 
-legend('RL+LQR','LQR')
+legend('RL','LQR')
 
 
 K = dlqr(model.A,model.B,train.Q,train.R);

@@ -22,30 +22,19 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
     end
     
     methods
-        function obj = general_actor_critic_with_eligibility_traces_episodic(model, Te, basis_N, seed)
-            if nargin < 4
-                seed = rng();
-            end
-            rng(seed)
+        function obj = general_actor_critic_with_eligibility_traces_episodic(model, Te, policy, value)
             obj.model = model;
             obj.sim_N = Te/model.Ts + 1;
             obj.t = (0:model.Ts:Te)';
-            nnn = sqrt(basis_N);
-            range = [-2,2];
-            width = (range(2)-range(1))/(nnn-1);
-            m = (range(1):width:range(2))';
-            range = [-2,2];
-            width = (range(2)-range(1))/(nnn-1);
-            mm = (range(1):width:range(2))';
-            mu = [kron(m,ones(nnn,1)),repmat(mm,nnn,1)]; 
-            sigma = 0.25*ones(basis_N, 1);
-            RBF1 = Radial_Basis_Function(basis_N, mu, sigma);
-            sigma_pi = sqrt(1);
-            obj.policy = policy_RBF(RBF1, sigma_pi);
-            obj.value  =  value_RBF(RBF1);
+            obj.policy = policy;
+            obj.value  =  value;
         end
         
-        function [x_all, mpc_u_all, rl_u_all, theta_mu, w] = train(obj, ini)
+        function [x_all, mpc_u_all, rl_u_all, theta_mu, w] = train(obj, ini, seed, varargin)
+            if nargin < 3 || isempty(seed)
+                seed = rng();
+            end
+            rng(seed)
             rng('shuffle')
             cost_history = zeros(obj.max_episode, 1);
             reward_history = zeros(obj.max_episode, 1);
@@ -55,6 +44,12 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
             mpc_u_all = zeros(obj.sim_N, obj.model.nu);
             % calculate MBC gain
             K = dlqr(obj.model.A, obj.model.B, obj.Q, obj.R);
+            tmp = strcmp(varargin, 'parallel');
+            if sum(tmp)
+                if  strcmp(varargin{find(tmp)+1},'off')
+                    K = zeros(size(K));
+                end
+            end
             % set episode initial
             x_all(1, :) = ini';% When network model, local system state
             % params initialize
@@ -142,10 +137,16 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
 %             R = -1/100*(x(1)*10*x(1)' + u*obj.R*u');
         end
         
-        function x_all = sim(obj, ini, w)
+        function x_all = sim(obj, ini, w, varargin)
             x_all = zeros(obj.sim_N, obj.model.true_nx);
             x_all(1, :) = ini';
             K = dlqr(obj.model.A, obj.model.B, obj.Q, obj.R);
+            tmp = strcmp(varargin, 'parallel');
+            if sum(tmp)
+                if  strcmp(varargin{find(tmp)+1},'off')
+                    K = zeros(size(K));
+                end
+            end
             for itr = 1 : obj.sim_N-1
 %                 u_rl = obj.policy.determistic_policy(x_all(itr, :), w);
                 u_rl = obj.policy.stocastic_policy(x_all(itr, :), w);
