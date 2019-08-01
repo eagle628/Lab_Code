@@ -33,7 +33,7 @@ classdef general_actor_critic_with_eligibility_traces_episodic_on_POMDP < RL_tra
             obj.belief_N = belief_N;
         end
         
-        function [x_all, rl_u_all, theta_mu_snapshot, theta_sigma_snapshot, w_snapshot, reward_history] = train(obj, ini, seed)
+        function [x_all, rl_u_all, theta_mu_snapshot, theta_sigma_snapshot, w_snapshot, reward_history] = train(obj, ini, seed, varargin)
             if nargin < 3 || isempty(seed)
                 seed = rng();
             end
@@ -74,7 +74,12 @@ classdef general_actor_critic_with_eligibility_traces_episodic_on_POMDP < RL_tra
                 belief_state = zeros(size(belief_state));
                 for k = 1 : obj.sim_N-1
                     % RL input
-                    rl_u_all(k, :) = obj.policy.stocastic_policy(belief_state(1, :), theta_mu);
+                    tmp = strcmp(varargin, 'Input-Clipping');
+                    if sum(tmp)
+                        rl_u_all(k, :) = obj.policy.stocastic_policy(x_all(k, :), theta_mu, 'Input-Clipping', varargin{find(tmp)+1});
+                    else
+                        rl_u_all(k, :) = obj.policy.stocastic_policy(x_all(k, :), theta_mu);
+                    end
                     %  observe S_(k+1)
                    [ne_x, y] = obj.model.dynamics(x_all(k, :)', rl_u_all(k, :));
                     x_all(k+1, :) = ne_x';
@@ -94,6 +99,10 @@ classdef general_actor_critic_with_eligibility_traces_episodic_on_POMDP < RL_tra
                     V_k1 = obj.value.est_value(belief_state(1, :), w);
                     V_k0 = obj.value.est_value(belief_state(2, :), w);
                     delta = r + obj.gamma*V_k1 - V_k0;
+                    tmp = strcmp(varargin, 'TD-Error-Clipping');
+                    if sum(tmp)
+                        delta = -delta/delta*varargin{find(tmp)+1};
+                    end
                     % eligibility traces update
                     z_w = obj.gamma*obj.lambda_theta*z_w + zeta*obj.value.value_grad(belief_state(2, :));
                     e_k1_mu = obj.policy.policy_grad_mu(rl_u_all(k, :), belief_state(2, :), theta_mu);

@@ -29,8 +29,11 @@ value  =  value_RBF(RBF1);
 train = general_actor_critic_with_eligibility_traces_episodic(model, policy, value, Te);
 
 mode_parallel = 'off';
+Input_Clipping = 10;
+TD_Error_Clipping = 10;
 train_seed = 28;
-[x, u_mpc, u_rl, theta_mu_snapshot, theta_sigma_snapshot, w_snapshot, reward_history, F1, F2] = train.train([0.4, 0], train_seed, 'parallel', mode_parallel);
+[x, u_mpc, u_rl, theta_mu_snapshot, theta_sigma_snapshot, w_snapshot, reward_history, F1, F2] = ...
+    train.train([0.4, 0], train_seed, 'parallel', mode_parallel, 'Input-Clipping',Input_Clipping, 'TD-Error-Clipping',10);
 
 figure
 plot(u_mpc);

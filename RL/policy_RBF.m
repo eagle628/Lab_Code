@@ -18,12 +18,10 @@ classdef policy_RBF < approximate_function_class
             input = obj.apx_function.basis_func(state)'*theta;
 %             input = arrayfun(@obj.apx_function.basis_func, gpuArray(single(state)), gpuArray(single(theta)));
 %             input = gather(input);
-            tmp = strcmp(varargin, 'clipping');
+            tmp = strcmp(varargin, 'Input-Clipping');
             if sum(tmp)
-                if  strcmp(varargin{find(tmp)+1},'on')
-                    input(input>=10) = 10;
-                    input(input<=-10) = -10;
-                end
+                input(input>=10) = varargin{find(tmp)+1};
+                input(input<=-10) = -varargin{find(tmp)+1};
             end
             input = input + obj.sigma^2*randn(size(input));
         end

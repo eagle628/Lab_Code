@@ -85,7 +85,12 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
                     mpc_u_all(k, :) = -K*x_all(k, :)';
 %                    mpc_u_all(k, :) = 0;
                     % RL input
-                    rl_u_all(k, :) = obj.policy.stocastic_policy(x_all(k, :), theta_mu);
+                    tmp = strcmp(varargin, 'Input-Clipping');
+                    if sum(tmp)
+                        rl_u_all(k, :) = obj.policy.stocastic_policy(x_all(k, :), theta_mu, 'Input-Clipping', varargin{find(tmp)+1});
+                    else
+                        rl_u_all(k, :) = obj.policy.stocastic_policy(x_all(k, :), theta_mu);
+                    end
                     %  observe S_(k+1)
                    [ne_x, y] = obj.model.dynamics(x_all(k, :)', rl_u_all(k, :) + mpc_u_all(k, :));
                     x_all(k+1, :) = ne_x';
@@ -101,6 +106,10 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
                     V_k1 = obj.value.est_value(x_all(k+1, :), w);
                     V_k0 = obj.value.est_value(x_all(k, :), w);
                     delta = r + obj.gamma*V_k1 - V_k0;
+                    tmp = strcmp(varargin, 'TD-Error-Clipping');
+                    if sum(tmp)
+                        delta = -delta/delta*varargin{find(tmp)+1};
+                    end
                     % eligibility traces update
                     z_w = obj.gamma*obj.lambda_theta*z_w + zeta*obj.value.value_grad(x_all(k, :));
                     e_k1_mu = obj.policy.policy_grad_mu(rl_u_all(k, :), x_all(k, :), theta_mu);
