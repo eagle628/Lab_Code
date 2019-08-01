@@ -30,7 +30,7 @@ train = general_actor_critic_with_eligibility_traces_episodic(model, policy, val
 
 mode_parallel = 'off';
 train_seed = 28;
-[x, u_mpc, u_rl, theta_mu_snapshot, theta_sigma_snapshot, w_snapshot, reward_history, F] = train.train([0.4, 0], train_seed, 'parallel', mode_parallel);
+[x, u_mpc, u_rl, theta_mu_snapshot, theta_sigma_snapshot, w_snapshot, reward_history, F1, F2] = train.train([0.4, 0], train_seed, 'parallel', mode_parallel);
 
 figure
 plot(u_mpc);

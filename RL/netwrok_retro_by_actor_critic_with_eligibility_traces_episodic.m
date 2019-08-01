@@ -104,7 +104,7 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
                     y_w_v_all(k, :) = ywv';
                     mpc_u_all(k, :) = ([K1,-K2]*rect_x_all(k, :)')' -(K1*y_w_v_all(k, 1:obj.model.ny)')';
                     % RL input
-                    rl_u_all(k, :) = obj.policy.stocastic_policy(belief_state(1, :), theta_mu);
+                    rl_u_all(k, :) = obj.policy.stocastic_policy(belief_state(1, :), theta_mu, 'clipping','on');
                     %  observe State(k+1)
                     [~, local_ne_x, env_ne_x] = obj.model.dynamics(local_x_all(k, :)', env_x_all(k, :)', rl_u_all(k, :) + mpc_u_all(k, :), d_L(k, :)');
                     local_x_all(k+1, :) = local_ne_x';

@@ -13,11 +13,18 @@ classdef policy_RBF < approximate_function_class
             obj.params = zeros(RBF.N, 1);
         end
         
-        function input = stocastic_policy(obj, state, theta)
+        function input = stocastic_policy(obj, state, theta, varargin)
             obj.set_params(theta);
             input = obj.apx_function.basis_func(state)'*theta;
 %             input = arrayfun(@obj.apx_function.basis_func, gpuArray(single(state)), gpuArray(single(theta)));
 %             input = gather(input);
+            tmp = strcmp(varargin, 'clipping');
+            if sum(tmp)
+                if  strcmp(varargin{find(tmp)+1},'on')
+                    input(input>=10) = 10;
+                    input(input<=-10) = -10;
+                end
+            end
             input = input + obj.sigma^2*randn(size(input));
         end
         

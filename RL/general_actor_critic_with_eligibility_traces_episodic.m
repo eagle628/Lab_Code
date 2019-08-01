@@ -11,7 +11,7 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
         beta_sigma = 0.01
         gamma = 0.99
         gamma2 = 0.9
-        max_episode = 2e4
+        max_episode = 1e4
         snapshot = 100
     end
     
@@ -144,6 +144,10 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
                 XY = mat2cell(XY, ones(1,mesh_size), 2*ones(1,mesh_size));
                 Z = cellfun(@(x)obj.value.est_value(x), XY);
                 mesh(X,Y,Z)
+                xlabel('x_1')
+                ylabel('x_2')
+                zlabel('Value')
+                title(strcat('episode-',num2str(episode)));
                 if nargout > 7
                    varargout{2}(episode) = getframe(gcf);
                 end
@@ -176,8 +180,8 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
                 end
             end
             for itr = 1 : obj.sim_N-1
-                u_rl = obj.policy.determistic_policy(x_all(itr, :), theta);
-%                 u_rl = obj.policy.stocastic_policy(x_all(itr, :), theta);
+%                 u_rl = obj.policy.determistic_policy(x_all(itr, :), theta);
+                u_rl = obj.policy.stocastic_policy(x_all(itr, :), theta);
                 u_mbc = -K*x_all(itr, :)';
                 ne_x = (obj.model.dynamics(x_all(itr,:)', u_mbc+u_rl))';
                 x_all(itr+1, :) = ne_x;
