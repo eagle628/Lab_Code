@@ -11,7 +11,8 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
         beta_sigma = 0.01
         gamma = 0.99
         gamma2 = 0.9
-        max_episode = 3.5e3
+        max_episode = 4e4
+        snapshot = 100
     end
     
     properties
@@ -22,7 +23,7 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
     end
     
     methods
-        function obj = general_actor_critic_with_eligibility_traces_episodic(model, Te, policy, value)
+        function obj = general_actor_critic_with_eligibility_traces_episodic(model, policy, value, Te)
             obj.model = model;
             obj.sim_N = Te/model.Ts + 1;
             obj.t = (0:model.Ts:Te)';
@@ -30,7 +31,7 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
             obj.value  =  value;
         end
         
-        function [x_all, mpc_u_all, rl_u_all, theta_mu, w] = train(obj, ini, seed, varargin)
+        function [x_all, mpc_u_all, rl_u_all, theta_mu_snapshot, theta_sigma_snapshot, w_snapshot, reward_history] = train(obj, ini, seed, varargin)
             if nargin < 3 || isempty(seed)
                 seed = rng();
             end
@@ -42,6 +43,11 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
             y_all = zeros(obj.sim_N, obj.model.ny);
             rl_u_all = zeros(obj.sim_N, obj.model.nu);
             mpc_u_all = zeros(obj.sim_N, obj.model.nu);
+            % record point
+            record_point = obj.snapshot:obj.snapshot:obj.max_episode;
+            w_snapshot = zeros(obj.value.apx_function.N, length(record_point));
+            theta_mu_snapshot = zeros(obj.policy.apx_function.N, length(record_point));
+            theta_sigma_snapshot = zeros(obj.model.nu, length(record_point));
             % calculate MBC gain
             K = dlqr(obj.model.A, obj.model.B, obj.Q, obj.R);
             tmp = strcmp(varargin, 'parallel');
@@ -99,14 +105,19 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
                     theta_sigma = theta_sigma + obj.beta_sigma*delta*z_theta_sigma;
                     obj.policy.set_policy_sigma(theta_sigma);
                     zeta = obj.gamma2*zeta;
-%                     if abs(x_all(k,1) ) > 0.5 || abs(x_all(k,2)) > 4
-%                          break;
-%                     end
 %                     figure(3)
 %                     stem(w)
 %                     drawnow
                 end
 %                close 3
+                % record history
+                if ~mod(episode, obj.snapshot)
+                    
+                    w_snapshot(:, record_idx) = w; 
+                    theta_mu_snapshot(:, record_idx) = theta_mu;
+                    theta_sigma_snapshot(:, record_idx) = theta_sigma;
+                    record_idx =  record_idx + 1;
+                end
                reward_history(episode) = reward;
                cost_history(episode) = obj.cost(x_all, rl_u_all+mpc_u_all);
                figure(1)

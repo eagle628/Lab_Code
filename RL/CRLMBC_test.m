@@ -11,11 +11,12 @@ model = CRLMBC_test_model(0.5,0.15,9.8,0.05,0.01);
 %% state feedback  and CRLMBC
 Te = 2;
 % generate apx function
+basis_N = 11^2;
 nnn = sqrt(basis_N);
 range = [-2,2];
 width = (range(2)-range(1))/(nnn-1);
 m = (range(1):width:range(2))';
-range = [-2,2];
+range = [-4,4];
 width = (range(2)-range(1))/(nnn-1);
 mm = (range(1):width:range(2))';
 mu = [kron(m,ones(nnn,1)),repmat(mm,nnn,1)]; 
@@ -27,9 +28,9 @@ value  =  value_RBF(RBF1);
 % set train
 train = general_actor_critic_with_eligibility_traces_episodic(model, policy, value, Te);
 
-mode_parallel = 'off';
+mode_parallel = 'on';
 train_seed = 28;
-[x, u_mpc, u_rl, theta, w] = train.train([0.4, 0], tarin_seed, 'parallel', mode_parallel);
+[x, u_mpc, u_rl, theta_mu_snapshot, theta_sigma_snapshot, w_snapshot, reward_history] = train.train([0.4, 0], train_seed, 'parallel', mode_parallel);
 
 figure
 plot(u_mpc);
