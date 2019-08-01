@@ -26,7 +26,7 @@ classdef CRLMBC_test_model < environment_model
             obj.true_nx = 2;
             obj.apx_nx = 2;
             obj.nu = 1;
-            obj.ny = 2;
+            obj.ny = 1;
             obj.l = l;
             obj.M = M;
             obj.g = g;
@@ -59,7 +59,7 @@ classdef CRLMBC_test_model < environment_model
                 x(1) + obj.Ts*x(2);
                 x(2) + obj.Ts*(obj.g/obj.l*sin(x(1)) - obj.eta/(obj.M*obj.l^2)*x(2) + 1/(obj.M*obj.l^2)*u);
                 ];
-            y = x(1); 
+            y = x(2); 
         end
 
         function [ne_x, y] = approximate_dynamics(obj, x, u)
