@@ -114,11 +114,12 @@ gpuDevice(1);
 % % % % % end
 % % % % % mail_message('RL train End All');
 
-
+%% workspace clera
 clear
 close all
+
 seed1 = 6;
-Node_number = 30;
+Node_number = 3;
 net = network_swing_simple(Node_number, [1,2], [2,10]*1e-2, 1, [1,2], 0.1, seed1);
 net.Adj_ref = net.Adj_ref*0;
 % local system
@@ -154,8 +155,13 @@ value  =  value_RBF(RBF1);
 model = swing_network_model(net, c_n, Ts);
 train_seed = 1024;
 train = netwrok_retro_by_actor_critic_with_eligibility_traces_episodic(model, policy, value, Te, belief_N);
-initial = [0,0];
-[local_x_all, mpc_u_all, rl_u_all, theta_mu_snpashot, theta_sigma_snpashot, w_snpashot, reward_history] = train.train(initial, train_seed, 'parallel', 'off');
+initial = [0,1];
+mode_parallel = 'off';
+% load 'test_belief_RL_belief_4_basis_7_episode_F1T1000' theta_mu_snpashot theta_sigma_snpashot w_snpashot
+% train.policy.set_params(theta_mu_snpashot(:, end));
+% train.policy.set_policy_sigma(theta_sigma_snpashot(:, end));
+% train.value.set_params(w_snpashot(:,end));
+[local_x_all, mpc_u_all, rl_u_all, theta_mu_snpashot, theta_sigma_snpashot, w_snpashot, reward_history] = train.train(initial, train_seed, 'parallel', mode_parallel);
 
 
 %%
@@ -163,57 +169,68 @@ noise_seed = 10;
 
 sim_initial = [0;0;];
 noise_power1 = 1;
-[local_x_all1, env_x_all1, rect_x_all1, y_xhat_w_v_all1, rl_u_all1] = train.sim([], sim_initial, noise_power1, noise_seed);
-[local_x_all2, env_x_all2, rect_x_all2, y_xhat_w_v_all2] = train.sim_lqrcontroller(sim_initial, noise_power1, noise_seed);
+[local_x_all1, env_x_all1, rect_x_all1, y_w_v_all1, rl_u_all1] = train.sim([], sim_initial, noise_power1, noise_seed, 'parallel', mode_parallel);
+[local_x_all2, env_x_all2, rect_x_all2, y_w_v_all2] = train.sim_lqrcontroller(sim_initial, noise_power1, noise_seed);
+[local_x_all3, env_x_all3, y_w_v_all3, ~] = train.sim_original(sim_initial, noise_power1, noise_seed);
     
 figure
 subplot(2,1,1)
 plot(train.t, local_x_all1(:,1),'r-')
 hold on,grid on
-plot(train.t, local_x_all2(:,1),'r:')
-ylabel('\thetta[rad]')
+plot(train.t, local_x_all2(:,1),'b-')
+plot(train.t, local_x_all3(:,1),'g-')
+ylabel('\theta[rad]')
 subplot(2,1,2)
-plot(train.t, local_x_all1(:,2),'b-')
+plot(train.t, local_x_all1(:,2),'r-')
 hold on,grid on
-plot(train.t, local_x_all2(:,2),'b:')
+plot(train.t, local_x_all2(:,2),'b-')
+plot(train.t, local_x_all3(:,2),'g-')
 ylabel('\omega[frq]')
-legend('RL+LQR','LQR')
+legend('RL','LQR','original')
 
-disp('around equilium phase')
+disp('phase')
 norm(local_x_all1(:,1))
 norm(local_x_all2(:,1))
-disp('around equilium omega')
+norm(local_x_all3(:,1))
+disp('omega')
 norm(local_x_all1(:,2))
 norm(local_x_all2(:,2))
+norm(local_x_all3(:,2))
 
 %%
 noise_seed = 10;
 
 sim_initial = [0;1];
 noise_power1 = 0;
-[local_x_all1, env_x_all1, rect_x_all1, y_xhat_w_v_all1, rl_u_all1] = train.sim([], sim_initial, noise_power1, noise_seed);
-[local_x_all2, env_x_all2, rect_x_all2, y_xhat_w_v_all2, reward] = train.sim_lqrcontroller(sim_initial, noise_power1, noise_seed);
-    
+[local_x_all1, env_x_all1, rect_x_all1, y_w_v_all1, rl_u_all1] = train.sim([], sim_initial, noise_power1, noise_seed, 'parallel', mode_parallel);
+[local_x_all2, env_x_all2, rect_x_all2, y_w_v_all2, reward] = train.sim_lqrcontroller(sim_initial, noise_power1, noise_seed);
+[local_x_all3, env_x_all3, y_w_v_all3, ~] = train.sim_original(sim_initial, noise_power1, noise_seed);
+
 figure
 subplot(2,1,1)
 plot(train.t, local_x_all1(:,1),'r-')
 hold on,grid on
-plot(train.t, local_x_all2(:,1),'r:')
+plot(train.t, local_x_all2(:,1),'b-')
+plot(train.t, local_x_all3(:,1),'g-')
 ylabel('\theta[rad]')
 subplot(2,1,2)
-plot(train.t, local_x_all1(:,2),'b-')
+plot(train.t, local_x_all1(:,2),'r-')
 hold on,grid on
-plot(train.t, local_x_all2(:,2),'b:')
+plot(train.t, local_x_all2(:,2),'b-')
+plot(train.t, local_x_all3(:,2),'g-')
 ylabel('\omega[frq]')
-legend('RL+LQR','LQR')
+legend('RL','LQR','original')
 
-disp('train condition phase')
+disp('phase')
 norm(local_x_all1(:,1))
 norm(local_x_all2(:,1))
-disp('train condition omega')
+norm(local_x_all3(:,1))
+disp('omega')
 norm(local_x_all1(:,2))
 norm(local_x_all2(:,2))
+norm(local_x_all3(:,2))
 
+%%
 figure
 plot(reward_history)
 

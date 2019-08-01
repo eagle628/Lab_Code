@@ -4,7 +4,7 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
     properties(Constant)
         Q1 = 1
         Q_c = diag([1,1])
-        Q_r = diag([1,1000])
+        Q_r = diag([1,1])
         R = 1
         lambda_theta = 0.99
         lambda_omega = 0.99
@@ -14,7 +14,7 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
         alpha_f = 0.001 % fisher weghit %% invalid
         gamma = 0.99
         gamma2 = 0.9
-        max_episode = 2000%3.5e3
+        max_episode = 1e5%3.5e3
         snapshot = 100;
     end
     
@@ -95,6 +95,8 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
 %                 G = eye(obj.policy.apx_function.N);
                 % belief initialize
                 belief_state = zeros(size(belief_state));
+%                 set initial
+%                 local_x_all(1, :) = [0,2*rand(1)-1];
                 for k = 1 : obj.sim_N-1
                     % MBC input
                     % LQR Controller 
@@ -151,8 +153,9 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
 %                     end
                 end
                 % record history
-                if ~mode(episode, obj.snapshot)
-                    w_snapshot(:, record_idx) = w;
+                if ~mod(episode, obj.snapshot)
+                    
+                    w_snapshot(:, record_idx) = w; 
                     theta_mu_snapshot(:, record_idx) = theta_mu;
                     theta_sigma_snapshot(:, record_idx) = theta_sigma;
                     record_idx =  record_idx + 1;
@@ -275,6 +278,31 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
                 [rect_ne_x, rect_yw] = obj.model.rect_dynamics(local_x_all(k, :)', env_x_all(k, :)', rect_x_all(k, :)');
                 rect_x_all(k+1, :) = rect_ne_x';
                 r = obj.reward([local_x_all(k+1, :), rect_x_all(k+1, :)], mpc_u_all(k, :));
+                reward =  reward + obj.gamma^(k-1)*r;
+            end 
+        end
+        
+        function [local_x_all, env_x_all, y_w_v_all, reward] = sim_original(obj, ini, noise_power, seed)
+            if nargin < 4
+                seed = rng();
+            end
+            rng(seed);
+            d_L = noise_power*randn(obj.sim_N, 2);
+            local_x_all = zeros(obj.sim_N, obj.model.local_nx);
+            env_x_all = zeros(obj.sim_N, obj.model.env_nx);
+            y_w_v_all = zeros(obj.sim_N, obj.model.ny+obj.model.nw+obj.model.nv);
+            % set initial
+            local_x_all(1, :) = ini';
+            % initialize reward
+            reward = 0;
+            for k = 1 : obj.sim_N-1
+                ywv = obj.model.dynamics(local_x_all(k, :)', env_x_all(k, :)');
+                y_w_v_all(k, :) = ywv';
+                %  observe S_(k+1)
+                [~, local_ne_x, env_ne_x] = obj.model.dynamics(local_x_all(k, :)', env_x_all(k, :)', 0, d_L(k, :)');
+                local_x_all(k+1, :) = local_ne_x';
+                env_x_all(k+1, :) = env_ne_x';
+                r = obj.reward(local_x_all(k+1, :), 0);
                 reward =  reward + obj.gamma^(k-1)*r;
             end 
         end
