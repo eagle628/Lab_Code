@@ -28,7 +28,7 @@ value  =  value_RBF(RBF1);
 % set train
 train = general_actor_critic_with_eligibility_traces_episodic(model, policy, value, Te);
 
-mode_parallel = 'on';
+mode_parallel = 'off';
 train_seed = 28;
 [x, u_mpc, u_rl, theta_mu_snapshot, theta_sigma_snapshot, w_snapshot, reward_history] = train.train([0.4, 0], train_seed, 'parallel', mode_parallel);
 
@@ -38,7 +38,7 @@ hold on
 plot(u_rl)
 
 %%
-x_all = train.sim([0.4;0], theta);
+x_all = train.sim([0.4;0], [], 'parallel', mode_parallel);
 
 figure
 plot(train.t, x_all(:,1), 'r')

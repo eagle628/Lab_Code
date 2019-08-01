@@ -11,7 +11,7 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
         beta_sigma = 0.01
         gamma = 0.99
         gamma2 = 0.9
-        max_episode = 4e4
+        max_episode = 2e4
         snapshot = 100
     end
     
@@ -65,6 +65,7 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
             theta_mu = obj.policy.get_params();
             theta_sigma = obj.policy.get_policy_sigma();
             % start episode learning
+            record_idx = 1;
             for episode = 1 : obj.max_episode
                 % episode initialize
                 z_w = zeros(obj.value.apx_function.N, 1);
@@ -72,6 +73,7 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
                 z_theta_sigma = zeros(obj.model.nu, 1);
                 zeta = 1;
                 reward = 0;
+                x_all(1, :) = [rand(1) - 0.5, 0];
                 for k = 1 : obj.sim_N-1
                     % MBC input
                     mpc_u_all(k, :) = -K*x_all(k, :)';
@@ -83,11 +85,11 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
                     x_all(k+1, :) = ne_x';
                     y_all(k, :) = y';
                     % Get Reward r
-                    if abs(x_all(k,1)) > 0.5 || abs(x_all(k,2)) > 4
-                        r = -10;
-                    else
+%                     if abs(x_all(k,1)) > 0.5 || abs(x_all(k,2)) > 4
+%                         r = -3;
+%                     else
                         r = obj.reward(x_all(k+1, :), rl_u_all(k, :)+mpc_u_all(k, :));
-                    end
+%                     end
                     reward =  reward + obj.gamma^(k-1)*r;
                     % TD Erorr
                     V_k1 = obj.value.est_value(x_all(k+1, :), w);
@@ -108,6 +110,9 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
 %                     figure(3)
 %                     stem(w)
 %                     drawnow
+                    if abs(x_all(k,1)) > 0.5 || abs(x_all(k,2)) > 4
+                        break;
+                    end
                 end
 %                close 3
                 % record history
@@ -148,7 +153,10 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
 %             R = -1/100*(x(1)*10*x(1)' + u*obj.R*u');
         end
         
-        function x_all = sim(obj, ini, w, varargin)
+        function x_all = sim(obj, ini, theta, varargin)
+            if nargin < 3 || isempty(theta)
+                theta = obj.policy.get_params();
+            end
             x_all = zeros(obj.sim_N, obj.model.true_nx);
             x_all(1, :) = ini';
             K = dlqr(obj.model.A, obj.model.B, obj.Q, obj.R);
@@ -160,7 +168,7 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
             end
             for itr = 1 : obj.sim_N-1
 %                 u_rl = obj.policy.determistic_policy(x_all(itr, :), w);
-                u_rl = obj.policy.stocastic_policy(x_all(itr, :), w);
+                u_rl = obj.policy.stocastic_policy(x_all(itr, :), theta);
                 u_mbc = -K*x_all(itr, :)';
                 ne_x = (obj.model.dynamics(x_all(itr,:)', u_mbc+u_rl))';
                 x_all(itr+1, :) = ne_x;
