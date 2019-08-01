@@ -54,8 +54,7 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
             rl_u_all = zeros(obj.sim_N, obj.model.nu);
             mpc_u_all = zeros(obj.sim_N, obj.model.nu);
             % calculate MBC gain
-            K = lqr(obj.model.A, obj.model.B, obj.Q, obj.R);
-            obj.model.set_controlled_sys(K);
+            K = dlqr(obj.model.A, obj.model.B, obj.Q, obj.R);
             % set episode initial
             x_all(1, :) = ini';% When network model, local system state
             % params initialize
@@ -72,10 +71,6 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
                 z_theta_sigma = zeros(obj.model.nu, 1);
                 zeta = 1;
                 reward = 0;
-                % explration gain
-%                 gain = 2^(-floor(episode/1000));
-                gain = 1;
-%                 gain = 1;
                 for k = 1 : obj.sim_N-1
                     % MBC input
                     mpc_u_all(k, :) = -K*x_all(k, :)';
@@ -83,16 +78,14 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
                     % RL input
                     rl_u_all(k, :) = obj.policy.stocastic_policy(x_all(k, :), theta_mu);
                     %  observe S_(k+1)
-%                    [ne_x, ne_y] = obj.model.dynamics(x_all(k, :)', rl_u_all(k, :) + mpc_u_all(k, :));
-                    [ne_x, ne_y] = obj.model.control_dynamics(x_all(k, :)', rl_u_all(k, :));
+                   [ne_x, y] = obj.model.dynamics(x_all(k, :)', rl_u_all(k, :) + mpc_u_all(k, :));
                     x_all(k+1, :) = ne_x';
-                    y_all(k+1, :) = ne_y';
+                    y_all(k, :) = y';
                     % Get Reward r
                     if abs(x_all(k,1)) > 0.5 || abs(x_all(k,2)) > 4
                         r = -10;
                     else
-%                         r = obj.reward(x_all(k+1, :), rl_u_all(k, :)+mpc_u_all(k, :));
-                        r = obj.reward(x_all(k+1, :), rl_u_all(k, :));
+                        r = obj.reward(x_all(k+1, :), rl_u_all(k, :)+mpc_u_all(k, :));
                     end
                     reward =  reward + obj.gamma^(k-1)*r;
                     % TD Erorr
@@ -152,22 +145,23 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
         function x_all = sim(obj, ini, w)
             x_all = zeros(obj.sim_N, obj.model.true_nx);
             x_all(1, :) = ini';
-            K = lqr(obj.model.A, obj.model.B, obj.Q, obj.R);
+            K = dlqr(obj.model.A, obj.model.B, obj.Q, obj.R);
             for itr = 1 : obj.sim_N-1
-                u_rl = obj.policy.determistic_policy(x_all(itr, :), w);
-%                 u_rl = obj.policy.stocastic_policy(x_all(itr, :), w);
-                u_mbc = 0;%-K*x_all(itr, :)';
-                ne_x = (obj.model.control_dynamics(x_all(itr,:)', u_mbc+u_rl))';
+%                 u_rl = obj.policy.determistic_policy(x_all(itr, :), w);
+                u_rl = obj.policy.stocastic_policy(x_all(itr, :), w);
+                u_mbc = -K*x_all(itr, :)';
+                ne_x = (obj.model.dynamics(x_all(itr,:)', u_mbc+u_rl))';
                 x_all(itr+1, :) = ne_x;
             end
         end
         
-        function [y_all] = sim_lqrcontroller(obj, ini)
-            y_all = zeros(obj.sim_N, 2);
-            y_all(1, :) = ini';
-%             K = lqr(obj.model.A, obj.model.B, obj.Q, obj.R);
+        function [x_all] = sim_lqrcontroller(obj, ini)
+            x_all = zeros(obj.sim_N, 2);
+            x_all(1, :) = ini';
+            K = dlqr(obj.model.A, obj.model.B, obj.Q, obj.R);
             for itr = 1 : obj.sim_N-1
-                y_all(itr+1, :) = (obj.model.control_dynamics(y_all(itr,:)', 0))';
+                u_mbc = -K*x_all(itr, :)';
+                x_all(itr+1, :) = (obj.model.dynamics(x_all(itr,:)', u_mbc))';
             end 
         end
         
