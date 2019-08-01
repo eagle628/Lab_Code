@@ -13,7 +13,11 @@ classdef value_RBF < approximate_function_class
         end
         
         function value = est_value(obj, state, w)
-            obj.set_params(w);
+            if nargin < 3 || isempty(w)
+                w = obj.get_params();
+            else
+                obj.set_params(w);
+            end
             value = obj.apx_function.basis_func(state)'*w;
 %             value = arrayfun(@obj.apx_function.basis_func, gpuArray(single(state)), gpuArray(single(w)));
 %             value = gather(value);
