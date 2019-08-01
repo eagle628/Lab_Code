@@ -31,18 +31,18 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
             obj.value  =  value;
         end
         
-        function [x_all, mpc_u_all, rl_u_all, theta_mu_snapshot, theta_sigma_snapshot, w_snapshot, reward_history] = train(obj, ini, seed, varargin)
+        function [x_all, mpc_u_all, rl_u_all, theta_mu_snapshot, theta_sigma_snapshot, w_snapshot, reward_history, varargout] = train(obj, ini, seed, varargin)
             if nargin < 3 || isempty(seed)
                 seed = rng();
             end
             rng(seed)
             rng('shuffle')
+            if nargout > 7
+                varargout{1} = struct('cdata',[],'colormap',[]);
+                varargout{2} = struct('cdata',[],'colormap',[]);
+            end
             cost_history = zeros(obj.max_episode, 1);
             reward_history = zeros(obj.max_episode, 1);
-            x_all = zeros(obj.sim_N, obj.model.true_nx);
-            y_all = zeros(obj.sim_N, obj.model.ny);
-            rl_u_all = zeros(obj.sim_N, obj.model.nu);
-            mpc_u_all = zeros(obj.sim_N, obj.model.nu);
             % record point
             record_point = obj.snapshot:obj.snapshot:obj.max_episode;
             w_snapshot = zeros(obj.value.apx_function.N, length(record_point));
@@ -56,8 +56,6 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
                     K = zeros(size(K));
                 end
             end
-            % set episode initial
-            x_all(1, :) = ini';% When network model, local system state
             % params initialize
             % as much as possible (only information that we have)
 %             w = set_w(obj, K);
@@ -66,7 +64,6 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
             theta_sigma = obj.policy.get_policy_sigma();
             % start episode learning
             record_idx = 1;
-            belief_state = zeors(2, obj.belief_N);% belief state % 1 line: current state , 2 line: previous state
             for episode = 1 : obj.max_episode
                 % episode initialize
                 z_w = zeros(obj.value.apx_function.N, 1);
@@ -74,10 +71,15 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
                 z_theta_sigma = zeros(obj.model.nu, 1);
                 zeta = 1;
                 reward = 0;
+                % memory reset
+                x_all = nan(obj.sim_N, obj.model.true_nx);
+                y_all = nan(obj.sim_N, obj.model.ny);
+                rl_u_all = nan(obj.sim_N, obj.model.nu);
+                mpc_u_all = nan(obj.sim_N, obj.model.nu);
                 % set initial
                 x_all(1, :) = [rand(1) - 0.5, 0];
+%                 x_all(1, :) = ini';
                 % belief initialize
-                belief_state = zeros(size(belief_state));
                 for k = 1 : obj.sim_N-1
                     % MBC input
                     mpc_u_all(k, :) = -K*x_all(k, :)';
@@ -114,33 +116,37 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
 %                     figure(3)
 %                     stem(w)
 %                     drawnow
-                    if abs(x_all(k,1)) > 0.5 || abs(x_all(k,2)) > 4
+                    if abs(x_all(k,1)) > 0.5
                         break;
                     end
                 end
 %                close 3
                 % record history
-                if ~mod(episode, obj.snapshot)
-                    
+                if ~mod(episode, obj.snapshot) 
                     w_snapshot(:, record_idx) = w; 
                     theta_mu_snapshot(:, record_idx) = theta_mu;
                     theta_sigma_snapshot(:, record_idx) = theta_sigma;
                     record_idx =  record_idx + 1;
                 end
-               reward_history(episode) = reward;
-               cost_history(episode) = obj.cost(x_all, rl_u_all+mpc_u_all);
-               figure(1)
-               callback_RL(episode, obj.t, x_all, cost_history, reward_history)
-               figure(2)
-               [X,Y] = meshgrid(-0.5:.1:0.5, -2:.4:2);
-               mesh_size = size(X, 1);
-               mesh_size = size(X, 1);
-               XY = zeros(mesh_size, mesh_size*2);
-               XY(1:2:end) = X;
-               XY(2:2:end) = Y;
-               XY = mat2cell(XY, ones(1,mesh_size), 2*ones(1,mesh_size));
-               Z = cellfun(@(x)obj.value.est_value(x), XY);
-               mesh(X,Y,Z)
+                reward_history(episode) = reward;
+                cost_history(episode) = obj.cost(x_all, rl_u_all+mpc_u_all);
+                figure(1)
+                callback_RL(episode, obj.t, x_all, cost_history, reward_history)
+                if nargout > 7
+                   varargout{1}(episode) = getframe(gcf);
+                end
+                figure(2)
+                [X,Y] = meshgrid(-0.5:.1:0.5, -2:.4:2);
+                mesh_size = size(X, 1);
+                XY = zeros(mesh_size, mesh_size*2);
+                XY(1:2:end,:) = X;
+                XY(2:2:end,:) = Y;
+                XY = mat2cell(XY, ones(1,mesh_size), 2*ones(1,mesh_size));
+                Z = cellfun(@(x)obj.value.est_value(x), XY);
+                mesh(X,Y,Z)
+                if nargout > 7
+                   varargout{2}(episode) = getframe(gcf);
+                end
             end
         end
         

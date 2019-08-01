@@ -130,8 +130,8 @@ classdef general_actor_critic_with_eligibility_traces_episodic_on_POMDP < RL_tra
 %                [X,Y] = meshgrid(-0.5:.1:0.5, -0.5:.1:0.5);
 %                mesh_size = size(X, 1);
 %                XY = zeros(mesh_size, mesh_size*2);
-%                XY(1:2:end) = X;
-%                XY(2:2:end) = Y;
+%                XY(1:2:end,:) = X;
+%                XY(2:2:end,:) = Y;
 %                XY = mat2cell(XY, ones(1,mesh_size), 2*ones(1,mesh_size));
 %                Z = cellfun(@(x)obj.value.est_value(x), XY);
 %                mesh(X,Y,Z)
