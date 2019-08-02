@@ -34,7 +34,7 @@ train = general_actor_critic_with_eligibility_traces_episodic_on_POMDP(model, po
 Input_Clipping = 1;
 TD_Error_Clipping = 5;
 train_seed = 28;
-[x, u_rl, theta_mu_snapshot, theta_sigma_snapshot, w_snapshot, reward_history] = ...
+[x, u_rl, theta_mu_snapshot, theta_sigma_snapshot, w_snapshot, reward_history, F1] = ...
     train.train([0.4, 0], train_seed, 'Input-Clipping',Input_Clipping, 'TD-Error-Clipping', TD_Error_Clipping);
 
 % figure
