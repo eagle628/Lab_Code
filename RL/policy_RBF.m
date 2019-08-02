@@ -20,8 +20,8 @@ classdef policy_RBF < approximate_function_class
 %             input = gather(input);
             tmp = strcmp(varargin, 'Input-Clipping');
             if sum(tmp)
-                input(input>=10) = varargin{find(tmp)+1};
-                input(input<=-10) = -varargin{find(tmp)+1};
+                input(input>=varargin{find(tmp)+1}) = varargin{find(tmp)+1};
+                input(input<=-varargin{find(tmp)+1}) = -varargin{find(tmp)+1};
             end
             input = input + obj.sigma^2*randn(size(input));
         end

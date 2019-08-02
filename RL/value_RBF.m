@@ -23,8 +23,13 @@ classdef value_RBF < approximate_function_class
 %             value = gather(value);
         end
         
-        function grad = value_grad(obj, state)
-           grad =  obj.apx_function.basis_func(state);
+        function grad = value_grad(obj, state, varargin)
+            grad =  obj.apx_function.basis_func(state);
+            tmp = strcmp(varargin, 'Grad-Clipping');
+            if sum(tmp)
+                grad(grad>=varargin{find(tmp)+1}) = varargin{find(tmp)+1};
+                grad(grad<=-varargin{find(tmp)+1}) = -varargin{find(tmp)+1};
+            end
         end
     end
 end

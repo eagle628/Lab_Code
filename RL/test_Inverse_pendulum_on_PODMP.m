@@ -12,8 +12,8 @@ model = CRLMBC_test_model(0.5,0.15,9.8,0.05,0.01);
 Te = 2;
 % generate apx function
 % parmeter
-belief_N = 4;
-basis_N = 5;
+belief_N = 2;
+basis_N = 11;
 % generate line
 range = [-2,2];
 width = (range(2)-range(1))/(basis_N-1);
@@ -31,9 +31,11 @@ value  =  value_RBF(RBF1);
 % set train
 train = general_actor_critic_with_eligibility_traces_episodic_on_POMDP(model, policy, value, Te, belief_N);
 
-mode_parallel = 'off';
+Input_Clipping = 1;
+TD_Error_Clipping = 5;
 train_seed = 28;
-[x, u_rl, theta_mu_snapshot, theta_sigma_snapshot, w_snapshot, reward_history] = train.train([0.4, 0], train_seed);
+[x, u_rl, theta_mu_snapshot, theta_sigma_snapshot, w_snapshot, reward_history] = ...
+    train.train([0.4, 0], train_seed, 'Input-Clipping',Input_Clipping, 'TD-Error-Clipping', TD_Error_Clipping);
 
 % figure
 % plot(u_mpc);

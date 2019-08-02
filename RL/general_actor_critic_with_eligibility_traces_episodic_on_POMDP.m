@@ -2,8 +2,6 @@ classdef general_actor_critic_with_eligibility_traces_episodic_on_POMDP < RL_tra
     % 一般的な制御問題に対するRL_actor_criticのclass
     
     properties(Constant)
-        Q = diag([10,1])
-        R = 1
         lambda_theta = 0.99
         lambda_omega = 0.99
         alpha = 0.00005
@@ -11,7 +9,7 @@ classdef general_actor_critic_with_eligibility_traces_episodic_on_POMDP < RL_tra
         beta_sigma = 0.01
         gamma = 0.99
         gamma2 = 0.9
-        max_episode = 1e4
+        max_episode = 2e5
         snapshot = 100
     end
     
@@ -21,6 +19,8 @@ classdef general_actor_critic_with_eligibility_traces_episodic_on_POMDP < RL_tra
         sim_N
         t
         belief_N
+        Q
+        R
     end
     
     methods
@@ -31,14 +31,20 @@ classdef general_actor_critic_with_eligibility_traces_episodic_on_POMDP < RL_tra
             obj.policy = policy;
             obj.value  =  value;
             obj.belief_N = belief_N;
+            obj.Q = eye(belief_N*model.ny);
+            obj.R = 1;
         end
         
-        function [x_all, rl_u_all, theta_mu_snapshot, theta_sigma_snapshot, w_snapshot, reward_history] = train(obj, ini, seed, varargin)
+        function [x_all, rl_u_all, theta_mu_snapshot, theta_sigma_snapshot, w_snapshot, reward_history, varargout] = train(obj, ini, seed, varargin)
             if nargin < 3 || isempty(seed)
                 seed = rng();
             end
             rng(seed)
             rng('shuffle')
+            if nargout > 7
+                varargout{1} = struct('cdata',[],'colormap',[]);
+%                 varargout{2} = struct('cdata',[],'colormap',[]);
+            end
             cost_history = zeros(obj.max_episode, 1);
             reward_history = zeros(obj.max_episode, 1);
             % record point
@@ -66,19 +72,18 @@ classdef general_actor_critic_with_eligibility_traces_episodic_on_POMDP < RL_tra
                 z_theta_sigma = zeros(obj.model.nu, 1);
                 zeta = 1;
                 reward = 0;
-                % set random initial
-%                 x_all(1, :) = [rand(1) - 0.5, 0];
                 % set episode initial
                 x_all(1, :) = ini';
+%                 x_all(1, :) = [rand(1) - 0.5, 0];
                 % belief initialize
                 belief_state = zeros(size(belief_state));
                 for k = 1 : obj.sim_N-1
                     % RL input
                     tmp = strcmp(varargin, 'Input-Clipping');
                     if sum(tmp)
-                        rl_u_all(k, :) = obj.policy.stocastic_policy(x_all(k, :), theta_mu, 'Input-Clipping', varargin{find(tmp)+1});
+                        rl_u_all(k, :) = obj.policy.stocastic_policy(belief_state(1, :), theta_mu, 'Input-Clipping', varargin{find(tmp)+1});
                     else
-                        rl_u_all(k, :) = obj.policy.stocastic_policy(x_all(k, :), theta_mu);
+                        rl_u_all(k, :) = obj.policy.stocastic_policy(belief_state(1, :), theta_mu);
                     end
                     %  observe S_(k+1)
                    [ne_x, y] = obj.model.dynamics(x_all(k, :)', rl_u_all(k, :));
@@ -92,7 +97,7 @@ classdef general_actor_critic_with_eligibility_traces_episodic_on_POMDP < RL_tra
 %                     if abs(x_all(k,1)) > 0.5 || abs(x_all(k,2)) > 4
 %                         r = -3;
 %                     else
-                        r = obj.reward(x_all(k+1, :), rl_u_all(k, :));
+                        r = obj.reward(belief_state(1, :), rl_u_all(k, :));
 %                     end
                     reward =  reward + obj.gamma^(k-1)*r;
                     % TD Erorr
@@ -101,7 +106,9 @@ classdef general_actor_critic_with_eligibility_traces_episodic_on_POMDP < RL_tra
                     delta = r + obj.gamma*V_k1 - V_k0;
                     tmp = strcmp(varargin, 'TD-Error-Clipping');
                     if sum(tmp)
-                        delta = -delta/delta*varargin{find(tmp)+1};
+                        if abs(delta) > varargin{find(tmp)+1}
+                            delta = delta/abs(delta)*varargin{find(tmp)+1};
+                        end
                     end
                     % eligibility traces update
                     z_w = obj.gamma*obj.lambda_theta*z_w + zeta*obj.value.value_grad(belief_state(2, :));
@@ -119,6 +126,7 @@ classdef general_actor_critic_with_eligibility_traces_episodic_on_POMDP < RL_tra
 %                     stem(w)
 %                     drawnow
                     if abs(x_all(k,1)) > 0.5% || abs(x_all(k,2)) > 4
+                        reward = -30;
                         break;
                     end
                 end
@@ -132,9 +140,12 @@ classdef general_actor_critic_with_eligibility_traces_episodic_on_POMDP < RL_tra
                     record_idx =  record_idx + 1;
                 end
                reward_history(episode) = reward;
-               cost_history(episode) = obj.cost(x_all, rl_u_all);
+%                cost_history(episode) = obj.cost(x_all, rl_u_all);% not calculation
                figure(1)
                callback_RL(episode, obj.t, x_all, cost_history, reward_history)
+               if nargout > 7
+                   varargout{1}(episode) = getframe(gcf);
+               end
 %                figure(2)
 %                [X,Y] = meshgrid(-0.5:.1:0.5, -0.5:.1:0.5);
 %                mesh_size = size(X, 1);
