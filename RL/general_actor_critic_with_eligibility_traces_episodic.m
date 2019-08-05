@@ -11,7 +11,7 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
         beta_sigma = 0.01
         gamma = 0.99
         gamma2 = 0.9
-        max_episode = 1e4
+        max_episode = 5000
         snapshot = 100
     end
     
@@ -126,6 +126,7 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
 %                     stem(w)
 %                     drawnow
                     if abs(x_all(k,1)) > 0.5
+                        reward = -30;
                         break;
                     end
                 end

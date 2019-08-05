@@ -14,7 +14,11 @@ classdef policy_RBF < approximate_function_class
         end
         
         function input = stocastic_policy(obj, state, theta, varargin)
-            obj.set_params(theta);
+            if nargin < 3
+                theta = obj.get_params();
+            else
+                obj.set_params(theta);
+            end
             input = obj.apx_function.basis_func(state)'*theta;
 %             input = arrayfun(@obj.apx_function.basis_func, gpuArray(single(state)), gpuArray(single(theta)));
 %             input = gather(input);

@@ -7,7 +7,7 @@ function callback_RL(episode, t, apx_x_all, cost_history, reward_history)
         lim = 1;
     end
     ylim([-lim, lim]);
-    title(['Episode-',num2str(episode)])
+    title(['\fontsize{16}','Episode-',num2str(episode)])
     grid on
 %     subplot(3,1,2)
 %     plot(nonzeros(cost_history),'-r')

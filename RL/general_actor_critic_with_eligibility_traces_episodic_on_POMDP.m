@@ -9,7 +9,7 @@ classdef general_actor_critic_with_eligibility_traces_episodic_on_POMDP < RL_tra
         beta_sigma = 0.01
         gamma = 0.99
         gamma2 = 0.9
-        max_episode = 2e5
+        max_episode = 5e3
         snapshot = 100
     end
     
@@ -41,7 +41,7 @@ classdef general_actor_critic_with_eligibility_traces_episodic_on_POMDP < RL_tra
             end
             rng(seed)
             rng('shuffle')
-            if nargout > 7
+            if nargout > 6
                 varargout{1} = struct('cdata',[],'colormap',[]);
 %                 varargout{2} = struct('cdata',[],'colormap',[]);
             end
@@ -73,8 +73,8 @@ classdef general_actor_critic_with_eligibility_traces_episodic_on_POMDP < RL_tra
                 zeta = 1;
                 reward = 0;
                 % set episode initial
-                x_all(1, :) = ini';
-%                 x_all(1, :) = [rand(1) - 0.5, 0];
+%                 x_all(1, :) = ini';
+                x_all(1, :) = [rand(1) - 0.5, 0];
                 % belief initialize
                 belief_state = zeros(size(belief_state));
                 for k = 1 : obj.sim_N-1
@@ -126,7 +126,7 @@ classdef general_actor_critic_with_eligibility_traces_episodic_on_POMDP < RL_tra
 %                     stem(w)
 %                     drawnow
                     if abs(x_all(k,1)) > 0.5% || abs(x_all(k,2)) > 4
-                        reward = -30;
+                        reward = -10;
                         break;
                     end
                 end
@@ -143,7 +143,7 @@ classdef general_actor_critic_with_eligibility_traces_episodic_on_POMDP < RL_tra
 %                cost_history(episode) = obj.cost(x_all, rl_u_all);% not calculation
                figure(1)
                callback_RL(episode, obj.t, x_all, cost_history, reward_history)
-               if nargout > 7
+               if nargout > 6
                    varargout{1}(episode) = getframe(gcf);
                end
 %                figure(2)

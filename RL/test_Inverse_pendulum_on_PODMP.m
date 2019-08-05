@@ -12,8 +12,8 @@ model = CRLMBC_test_model(0.5,0.15,9.8,0.05,0.01);
 Te = 2;
 % generate apx function
 % parmeter
-belief_N = 2;
-basis_N = 11;
+belief_N = 4;
+basis_N = 5;
 % generate line
 range = [-2,2];
 width = (range(2)-range(1))/(basis_N-1);
@@ -43,7 +43,7 @@ train_seed = 28;
 % plot(u_rl)
 
 %%
-x_all = train.sim([0.4;0], []);
+x_all = train.sim([0.001;0], []);
 
 figure
 plot(train.t, x_all(:,1), 'r')

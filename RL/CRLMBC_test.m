@@ -33,7 +33,7 @@ Input_Clipping = 10;
 TD_Error_Clipping = 10;
 train_seed = 28;
 [x, u_mpc, u_rl, theta_mu_snapshot, theta_sigma_snapshot, w_snapshot, reward_history, F1, F2] = ...
-    train.train([0.4, 0], train_seed, 'parallel', mode_parallel, 'Input-Clipping',Input_Clipping, 'TD-Error-Clipping',TD_Error_Clipping);
+    train.train([0.4, 0], train_seed, 'parallel', mode_parallel, 'Input-Clipping',Input_Clipping);
 
 figure
 plot(u_mpc);
