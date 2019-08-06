@@ -11,7 +11,7 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
         beta_sigma = 0.01
         gamma = 0.99
         gamma2 = 0.9
-        max_episode = 5000
+        max_episode = 1000
         snapshot = 100
     end
     
@@ -87,9 +87,9 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
                     % RL input
                     tmp = strcmp(varargin, 'Input-Clipping');
                     if sum(tmp)
-                        rl_u_all(k, :) = obj.policy.stocastic_policy(x_all(k, :), theta_mu, 'Input-Clipping', varargin{find(tmp)+1});
+                        rl_u_all(k, :) = obj.policy.stocastic_policy(x_all(k, :), [], 'Input-Clipping', varargin{find(tmp)+1});
                     else
-                        rl_u_all(k, :) = obj.policy.stocastic_policy(x_all(k, :), theta_mu);
+                        rl_u_all(k, :) = obj.policy.stocastic_policy(x_all(k, :), []);
                     end
                     %  observe S_(k+1)
                    [ne_x, y] = obj.model.dynamics(x_all(k, :)', rl_u_all(k, :) + mpc_u_all(k, :));
@@ -103,8 +103,8 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
 %                     end
                     reward =  reward + obj.gamma^(k-1)*r;
                     % TD Erorr
-                    V_k1 = obj.value.est_value(x_all(k+1, :), w);
-                    V_k0 = obj.value.est_value(x_all(k, :), w);
+                    V_k1 = obj.value.est_value(x_all(k+1, :));
+                    V_k0 = obj.value.est_value(x_all(k, :));
                     delta = r + obj.gamma*V_k1 - V_k0;
                     tmp = strcmp(varargin, 'TD-Error-Clipping');
                     if sum(tmp)
@@ -112,16 +112,18 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
                     end
                     % eligibility traces update
                     z_w = obj.gamma*obj.lambda_theta*z_w + zeta*obj.value.value_grad(x_all(k, :));
-                    e_k1_mu = obj.policy.policy_grad_mu(rl_u_all(k, :), x_all(k, :), theta_mu);
+                    e_k1_mu = obj.policy.policy_grad_mu(rl_u_all(k, :), x_all(k, :));
                     z_theta_mu = obj.gamma*obj.lambda_omega*z_theta_mu + zeta*e_k1_mu;
-                    e_k1_sigma = obj.policy.policy_grad_sigma(rl_u_all(k, :), x_all(k, :), theta_mu);
+                    e_k1_sigma = obj.policy.policy_grad_sigma(rl_u_all(k, :), x_all(k, :));
                     z_theta_sigma = obj.gamma*obj.lambda_omega*z_theta_sigma + zeta*e_k1_sigma;
                     % apx function update
                     w = w + obj.alpha*delta*z_w;
                     theta_mu = theta_mu + obj.beta_mu*delta*z_theta_mu;
                     theta_sigma = theta_sigma + obj.beta_sigma*delta*z_theta_sigma;
                     obj.policy.set_policy_sigma(theta_sigma);
-                    zeta = obj.gamma2*zeta;
+                    obj.value.set_params(w);
+                    obj.policy.set_params(theta_mu);
+                    obj.policy.set_policy_sigma(theta_sigma);
 %                     figure(3)
 %                     stem(w)
 %                     drawnow

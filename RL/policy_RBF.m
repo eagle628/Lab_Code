@@ -14,10 +14,10 @@ classdef policy_RBF < approximate_function_class
         end
         
         function input = stocastic_policy(obj, state, theta, varargin)
-            if nargin < 3
+            if nargin < 3 || isempty(theta)
                 theta = obj.get_params();
             else
-                obj.set_params(theta);
+%                 obj.set_params(theta);
             end
             input = obj.apx_function.basis_func(state)'*theta;
 %             input = arrayfun(@obj.apx_function.basis_func, gpuArray(single(state)), gpuArray(single(theta)));
@@ -31,11 +31,19 @@ classdef policy_RBF < approximate_function_class
         end
         
         function input = determistic_policy(obj, state, theta)
+            if nargin < 3
+                theta = obj.get_params();
+            end
             input = obj.apx_function.basis_func(state)'*theta;
         end
         
         function grad = policy_grad_mu(obj, pre_input, state, theta1, theta2)
-            narginchk(4, inf)
+            if nargin < 5
+                theta2 = obj.get_policy_sigma();
+            end
+            if nargin < 4 || isempty(theta1)
+                theta1 = obj.get_params();
+            end
             grad = ((pre_input - obj.apx_function.basis_func(state)'*theta1)./(obj.sigma^2))*obj.apx_function.basis_func(state);
 %             tmp1 = arrayfun(@obj.determistic_policy, gpuArray(single(state)), gpuArray(single(theta)));
 %             tmp2 = arrayfun(@obj.apx_function.basis_func, gpuArray(single(state)), gpuArray(single(theta)));
@@ -43,7 +51,12 @@ classdef policy_RBF < approximate_function_class
         end
         
         function grad = policy_grad_sigma(obj, pre_input, state, theta1, theta2)
-            narginchk(4, inf)
+            if nargin < 5
+                theta2 = obj.get_policy_sigma();
+            end
+            if nargin < 4 || isempty(theta1)
+                theta1 = obj.get_params();
+            end
             grad =  ((pre_input - obj.apx_function.basis_func(state)'*theta1)^2 - (obj.sigma).^2)./(obj.sigma) * (1-obj.sigma);
         end
         
