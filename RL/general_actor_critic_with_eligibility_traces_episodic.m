@@ -120,7 +120,7 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
                     w = w + obj.alpha*delta*z_w;
                     theta_mu = theta_mu + obj.beta_mu*delta*z_theta_mu;
                     theta_sigma = theta_sigma + obj.beta_sigma*delta*z_theta_sigma;
-                    obj.policy.set_policy_sigma(theta_sigma);
+                    zeta = obj.gamma2*zeta;
                     obj.value.set_params(w);
                     obj.policy.set_params(theta_mu);
                     obj.policy.set_policy_sigma(theta_sigma);
