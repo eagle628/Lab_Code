@@ -108,7 +108,7 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
                     delta = r + obj.gamma*V_k1 - V_k0;
                     tmp = strcmp(varargin, 'TD-Error-Clipping');
                     if sum(tmp)
-                        delta = -delta/delta*varargin{find(tmp)+1};
+                        delta = delta/abs(delta)*varargin{find(tmp)+1};
                     end
                     % eligibility traces update
                     z_w = obj.gamma*obj.lambda_theta*z_w + zeta*obj.value.value_grad(x_all(k, :));

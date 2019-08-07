@@ -4,12 +4,12 @@ classdef general_actor_critic_with_eligibility_traces_episodic_on_POMDP < RL_tra
     properties(Constant)
         lambda_theta = 0.99
         lambda_omega = 0.99
-        alpha = 0.00005
-        beta_mu = 0.00001
+        alpha = 0.0005
+        beta_mu = 0.0001
         beta_sigma = 0.01
         gamma = 0.99
         gamma2 = 0.9
-        max_episode = 5e3
+        max_episode = 4e4
         snapshot = 100
     end
     
@@ -31,8 +31,8 @@ classdef general_actor_critic_with_eligibility_traces_episodic_on_POMDP < RL_tra
             obj.policy = policy;
             obj.value  =  value;
             obj.belief_N = belief_N;
-            obj.Q = eye(belief_N*model.ny);
-            obj.R = 1;
+            obj.Q = blkdiag(1,zeros(belief_N*model.ny-1));
+            obj.R = 0;
         end
         
         function [x_all, rl_u_all, theta_mu_snapshot, theta_sigma_snapshot, w_snapshot, reward_history, varargout] = train(obj, ini, seed, varargin)
@@ -57,12 +57,13 @@ classdef general_actor_critic_with_eligibility_traces_episodic_on_POMDP < RL_tra
             w = obj.value.get_params();
             theta_mu = obj.policy.get_params();
             theta_sigma = obj.policy.get_policy_sigma();
+            Fix_Target_Network_params = w;
             % start episode learning
             record_idx = 1;
             % observe belief state
-            belief_state = zeros(1, obj.belief_N*obj.model.ny);% belief state % 1 line: current state , 2 line: previous state
+            belief_state = zeros(2, obj.belief_N*obj.model.ny);% belief state % 1 line: current state , 2 line: previous state
             for episode = 1 : obj.max_episode
-                % get memory
+                % memory reset
                 x_all = nan(obj.sim_N, obj.model.true_nx);
                 y_all = nan(obj.sim_N, obj.model.ny);
                 rl_u_all = nan(obj.sim_N, obj.model.nu);
@@ -81,9 +82,9 @@ classdef general_actor_critic_with_eligibility_traces_episodic_on_POMDP < RL_tra
                     % RL input
                     tmp = strcmp(varargin, 'Input-Clipping');
                     if sum(tmp)
-                        rl_u_all(k, :) = obj.policy.stocastic_policy(belief_state(1, :), theta_mu, 'Input-Clipping', varargin{find(tmp)+1});
+                        rl_u_all(k, :) = obj.policy.stocastic_policy(belief_state(1, :), [], 'Input-Clipping', varargin{find(tmp)+1});
                     else
-                        rl_u_all(k, :) = obj.policy.stocastic_policy(belief_state(1, :), theta_mu);
+                        rl_u_all(k, :) = obj.policy.stocastic_policy(belief_state(1, :), []);
                     end
                     %  observe S_(k+1)
                    [ne_x, y] = obj.model.dynamics(x_all(k, :)', rl_u_all(k, :));
@@ -101,8 +102,13 @@ classdef general_actor_critic_with_eligibility_traces_episodic_on_POMDP < RL_tra
 %                     end
                     reward =  reward + obj.gamma^(k-1)*r;
                     % TD Erorr
-                    V_k1 = obj.value.est_value(belief_state(1, :), w);
-                    V_k0 = obj.value.est_value(belief_state(2, :), w);
+                    tmp = strcmp(varargin, 'Fix-Target-Network');
+                    if sum(tmp)
+                        V_k1 = obj.value.est_value(belief_state(1, :), Fix_Target_Network_params);
+                    else
+                        V_k1 = obj.value.est_value(belief_state(1, :)); 
+                    end
+                    V_k0 = obj.value.est_value(belief_state(2, :));
                     delta = r + obj.gamma*V_k1 - V_k0;
                     tmp = strcmp(varargin, 'TD-Error-Clipping');
                     if sum(tmp)
@@ -112,16 +118,23 @@ classdef general_actor_critic_with_eligibility_traces_episodic_on_POMDP < RL_tra
                     end
                     % eligibility traces update
                     z_w = obj.gamma*obj.lambda_theta*z_w + zeta*obj.value.value_grad(belief_state(2, :));
-                    e_k1_mu = obj.policy.policy_grad_mu(rl_u_all(k, :), belief_state(2, :), theta_mu);
+                    e_k1_mu = obj.policy.policy_grad_mu(rl_u_all(k, :), belief_state(2, :));
                     z_theta_mu = obj.gamma*obj.lambda_omega*z_theta_mu + zeta*e_k1_mu;
-                    e_k1_sigma = obj.policy.policy_grad_sigma(rl_u_all(k, :), belief_state(2, :), theta_mu);
+                    e_k1_sigma = obj.policy.policy_grad_sigma(rl_u_all(k, :), belief_state(2, :));
                     z_theta_sigma = obj.gamma*obj.lambda_omega*z_theta_sigma + zeta*e_k1_sigma;
                     % apx function update
                     w = w + obj.alpha*delta*z_w;
                     theta_mu = theta_mu + obj.beta_mu*delta*z_theta_mu;
                     theta_sigma = theta_sigma + obj.beta_sigma*delta*z_theta_sigma;
-                    obj.policy.set_policy_sigma(theta_sigma);
                     zeta = obj.gamma2*zeta;
+                    obj.value.set_params(w);
+                    obj.policy.set_params(theta_mu);
+                    obj.policy.set_policy_sigma(theta_sigma);
+                    % update Fix_Target_Network_params
+                    tmp = strcmp(varargin, 'Fix-Target-Network');
+                    if sum(tmp) && ~mod(episode, varargin{find(tmp)+1})
+                        Fix_Target_Network_params = obj.value.get_params();
+                    end
 %                     figure(3)
 %                     stem(w)
 %                     drawnow
@@ -179,8 +192,8 @@ classdef general_actor_critic_with_eligibility_traces_episodic_on_POMDP < RL_tra
             % observe belief state
             belief_state = zeros(1, obj.belief_N);
             for itr = 1 : obj.sim_N-1
-%                 u_rl = obj.policy.determistic_policy(belief_state, w);
-                u_rl = obj.policy.stocastic_policy(belief_state, theta);
+                u_rl = obj.policy.determistic_policy(belief_state, theta);
+%                 u_rl = obj.policy.stocastic_policy(belief_state, theta);
                 [ne_x, y] = obj.model.dynamics(x_all(itr,:)', u_rl);
                 x_all(itr+1, :) = ne_x';
                 belief_state(1, 1+1:end) = belief_state(1, 1:end-1);
