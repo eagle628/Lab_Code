@@ -1,4 +1,4 @@
-classdef CRLMBC_test_model < environment_model
+classdef inverted_pendulum_model < environment_model
     % 摩擦有倒立振子のモデル
     
     properties
@@ -15,7 +15,7 @@ classdef CRLMBC_test_model < environment_model
     end
     
     methods
-        function obj = CRLMBC_test_model(l, M, g, eta, Ts)
+        function obj = inverted_pendulum_model(l, M, g, eta, Ts)
             obj.A = eye(2) + Ts*[0, 1;g/l, -eta/(M*l^2)];
 %             obj.A = [0, 1;g/l, -eta/(M*l^2)]; % continuous
             obj.B = Ts*[0; 1/(M*l^2)];
