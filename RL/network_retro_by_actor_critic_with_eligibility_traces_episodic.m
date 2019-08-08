@@ -1,4 +1,4 @@
-classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_train
+classdef network_retro_by_actor_critic_with_eligibility_traces_episodic < RL_train
     % レトロフィット制御問題に対するRL_actor_criticのclass
     
     properties(Constant)
@@ -27,7 +27,7 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
     end
     
     methods
-        function obj = netwrok_retro_by_actor_critic_with_eligibility_traces_episodic(model, policy, value, Te, belief_N)
+        function obj = network_retro_by_actor_critic_with_eligibility_traces_episodic(model, policy, value, Te, belief_N)
             obj.model = model;
             obj.sim_N = Te/model.Ts + 1;
             obj.t = (0:model.Ts:Te)';
