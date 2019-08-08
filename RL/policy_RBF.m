@@ -61,7 +61,7 @@ classdef policy_RBF < approximate_function_class
         end
         
         function set_policy_sigma(obj, theta2)
-            obj.sigma = 1/(1+exp(-theta2)); % ここをコメントアウトすると確率的政策の分散が初期値に固定される．
+%             obj.sigma = 1/(1+exp(-theta2)); % ここをコメントアウトすると確率的政策の分散が初期値に固定される．
         end
         
         function sigma = get_policy_sigma(obj)

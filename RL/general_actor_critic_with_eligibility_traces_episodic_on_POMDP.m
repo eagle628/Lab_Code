@@ -40,7 +40,6 @@ classdef general_actor_critic_with_eligibility_traces_episodic_on_POMDP < RL_tra
                 seed = rng();
             end
             rng(seed)
-            rng('shuffle')
             if nargout > 6
                 varargout{1} = struct('cdata',[],'colormap',[]);
 %                 varargout{2} = struct('cdata',[],'colormap',[]);

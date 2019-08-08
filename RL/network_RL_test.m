@@ -114,10 +114,10 @@ gpuDevice(1);
 % % % % % end
 % % % % % mail_message('RL train End All');
 
-%% workspace clera
+%% workspace clear
 clear
 close all
-
+%% network generat
 seed1 = 6;
 Node_number = 3;
 net = network_swing_simple(Node_number, [1,2], [2,10]*1e-2, 1, [1,2], 0.1, seed1);
@@ -130,15 +130,53 @@ tmp_adj = 2 + 3*rand(1, length(tmp_idx));
 net.Adj(c_n ,tmp_idx) = tmp_adj;
 net.Adj(tmp_idx, c_n) = tmp_adj;
 % net.plot()
-% train condition
+% set model
 Ts = 0.01;
+model = swing_network_model(net, c_n, Ts);
+%% For POMDP
+% % train condition
+% Ts = 0.01;
+% Te = 4;
+% belief_N = 8;
+% basis_N = 3;
+% range = [-2,2];
+% width = (range(2)-range(1))/(basis_N-1);
+% m = range(1):width:range(2);
+% nnn = belief_N;
+% mu = m;
+% for itr = 1 : nnn-1
+% mu = combvec(mu, m); % col vector combinater function
+% end
+% mu = mu';
+% sigma = 1*ones(size(mu, 1), 1);
+% RBF1 = Radial_Basis_Function(size(mu, 1), mu, sigma);
+% % RBF1 = Normalized_Radial_Basis_Function(size(mu, 1), mu, sigma);
+% % policy
+% sigma_pi = 1;
+% policy = policy_RBF(RBF1, sigma_pi);
+% % value
+% value  =  value_RBF(RBF1);
+% train_seed = 1024;
+% train = network_retro_by_actor_critic_with_eligibility_traces_episodic(model, policy, value, Te, belief_N);
+% initial = [0,1];
+% mode_parallel = 'off';
+% Input_Clipping = 10;
+% TD_Error_Clipping = 10;
+% % load 'test_belief_RL_belief_4_basis_7_episode_F1T1000' theta_mu_snpashot theta_sigma_snpashot w_snpashot
+% % train.policy.set_params(theta_mu_snpashot(:, end));
+% % train.policy.set_policy_sigma(theta_sigma_snpashot(:, end));
+% % train.value.set_params(w_snpashot(:,end));
+% [local_x_all, mpc_u_all, rl_u_all, theta_mu_snpashot, theta_sigma_snpashot, w_snpashot, reward_history] = ...
+%     train.train(initial, train_seed, 'parallel', mode_parallel);
+
+%% MDP
+% train condition
 Te = 4;
-belief_N = 8;
 basis_N = 3;
 range = [-2,2];
 width = (range(2)-range(1))/(basis_N-1);
 m = range(1):width:range(2);
-nnn = belief_N;
+nnn = model.local_nx+model.env_nx+model.rect_nx;
 mu = m;
 for itr = 1 : nnn-1
 mu = combvec(mu, m); % col vector combinater function
@@ -148,20 +186,22 @@ sigma = 1*ones(size(mu, 1), 1);
 RBF1 = Radial_Basis_Function(size(mu, 1), mu, sigma);
 % RBF1 = Normalized_Radial_Basis_Function(size(mu, 1), mu, sigma);
 % policy
-sigma_pi = 0.5;
+sigma_pi = 1;
 policy = policy_RBF(RBF1, sigma_pi);
 % value
 value  =  value_RBF(RBF1);
-model = swing_network_model(net, c_n, Ts);
 train_seed = 1024;
-train = netwrok_retro_by_actor_critic_with_eligibility_traces_episodic(model, policy, value, Te, belief_N);
+train = network_retro_episodic_on_MDP(model, policy, value, Te);
 initial = [0,1];
 mode_parallel = 'off';
+Input_Clipping = 10;
+TD_Error_Clipping = 10;
 % load 'test_belief_RL_belief_4_basis_7_episode_F1T1000' theta_mu_snpashot theta_sigma_snpashot w_snpashot
 % train.policy.set_params(theta_mu_snpashot(:, end));
 % train.policy.set_policy_sigma(theta_sigma_snpashot(:, end));
 % train.value.set_params(w_snpashot(:,end));
-[local_x_all, mpc_u_all, rl_u_all, theta_mu_snpashot, theta_sigma_snpashot, w_snpashot, reward_history] = train.train(initial, train_seed, 'parallel', mode_parallel);
+[local_x_all, mpc_u_all, rl_u_all, theta_mu_snpashot, theta_sigma_snpashot, w_snpashot, reward_history] = ...
+    train.train(initial, train_seed, 'parallel', mode_parallel);
 
 
 %%
