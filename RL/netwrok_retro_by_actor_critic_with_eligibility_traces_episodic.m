@@ -14,7 +14,7 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
         alpha_f = 0.001 % fisher weghit %% invalid
         gamma = 0.99
         gamma2 = 0.9
-        max_episode = 1e5%3.5e3
+        max_episode = 1e4%3.5e3
         snapshot = 100;
     end
     
@@ -36,21 +36,19 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
             obj.belief_N = belief_N;
         end
         
-        function [local_x_all, mpc_u_all, rl_u_all, theta_mu_snapshot, theta_sigma_snapshot, w_snapshot, reward_history] = train(obj, ini, seed, varargin)
+        function [local_x_all, mpc_u_all, rl_u_all, theta_mu_snapshot, theta_sigma_snapshot, w_snapshot, reward_history, varargout] = train(obj, ini, seed, varargin)
             if nargin < 3 || isempty(seed)
                 seed = rng();
             end
             rng(seed)
+            if nargout > 7
+                varargout{1} = struct('cdata',[],'colormap',[]);
+%                 varargout{2} = struct('cdata',[],'colormap',[]);
+            end
             reward_history = zeros(obj.max_episode, 1);
 %             w_history = zeros(obj.value.apx_function.N, obj.max_episode*obj.sim_N);
 %             theta_mu_history = zeros(obj.policy.apx_function.N, obj.max_episode*obj.sim_N);
 %             theta_sigma_history = zeros(obj.model.nu, obj.max_episode*obj.sim_N);
-            local_x_all = zeros(obj.sim_N, obj.model.local_nx);
-            env_x_all = zeros(obj.sim_N, obj.model.env_nx);
-            rect_x_all = zeros(obj.sim_N, obj.model.rect_nx);
-            y_w_v_all = zeros(obj.sim_N, obj.model.ny+obj.model.nw+obj.model.nv);
-            rl_u_all = zeros(obj.sim_N, obj.model.nu);
-            mpc_u_all = zeros(obj.sim_N, obj.model.nu);
             % record point
             record_point = obj.snapshot:obj.snapshot:obj.max_episode;
             w_snapshot = zeros(obj.value.apx_function.N, length(record_point));
@@ -66,8 +64,6 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
             end
             K1 = K(1:obj.model.local_nx);
             K2 = K(obj.model.local_nx+1 : end);
-            % set episode initial
-            local_x_all(1, :) = ini';% When network model, local system state
             % local noise
             d_L = zeros(obj.sim_N, 2);
 %             d_L = randn(obj.sim_N, 2);
@@ -81,22 +77,27 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
             record_idx = 1;
             belief_state = zeros(2, obj.belief_N);% belief state % 1 line: current state , 2 line: previous state
             for episode = 1 : obj.max_episode
+                % memory reset
+                local_x_all = nan(obj.sim_N, obj.model.local_nx);
+                env_x_all = nan(obj.sim_N, obj.model.env_nx);
+                rect_x_all = nan(obj.sim_N, obj.model.rect_nx);
+                y_w_v_all = nan(obj.sim_N, obj.model.ny+obj.model.nw+obj.model.nv);
+                rl_u_all = nan(obj.sim_N, obj.model.nu);
+                mpc_u_all = nan(obj.sim_N, obj.model.nu);
                 % episode initialize(eligibility)
                 z_w = zeros(obj.value.apx_function.N, 1);
                 z_theta_mu = zeros(obj.policy.apx_function.N, 1);
                 z_theta_sigma = zeros(obj.model.nu, 1);
+                Fix_Target_Network_params = w;
                 zeta = 1;
                 reward = 0;
-                % explration gain
-%                 gain = 2^(-floor(episode/1000));
-                gain = 1;
-%                 gain = 1;
-                % initialize fisher matrix
-%                 G = eye(obj.policy.apx_function.N);
                 % belief initialize
                 belief_state = zeros(size(belief_state));
-%                 set initial
+%                 set episode initial
+                local_x_all(1, :) = ini';% When network model, local system state
 %                 local_x_all(1, :) = [0,2*rand(1)-1];
+                env_x_all(1, :) = zeros(1, obj.model.env_nx);
+                rect_x_all(1, :) = zeros(1, obj.model.rect_nx);
                 for k = 1 : obj.sim_N-1
                     % MBC input
                     % LQR Controller 
@@ -104,7 +105,12 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
                     y_w_v_all(k, :) = ywv';
                     mpc_u_all(k, :) = ([K1,-K2]*rect_x_all(k, :)')' -(K1*y_w_v_all(k, 1:obj.model.ny)')';
                     % RL input
-                    rl_u_all(k, :) = obj.policy.stocastic_policy(belief_state(1, :), theta_mu, 'clipping','on');
+                    tmp = strcmp(varargin, 'Input-Clipping');
+                    if sum(tmp)
+                        rl_u_all(k, :) = obj.policy.stocastic_policy(belief_state(1, :), [], 'Input-Clipping', varargin{find(tmp)+1});
+                    else
+                        rl_u_all(k, :) = obj.policy.stocastic_policy(belief_state(1, :), []);
+                    end
                     %  observe State(k+1)
                     [~, local_ne_x, env_ne_x] = obj.model.dynamics(local_x_all(k, :)', env_x_all(k, :)', rl_u_all(k, :) + mpc_u_all(k, :), d_L(k, :)');
                     local_x_all(k+1, :) = local_ne_x';
@@ -116,45 +122,54 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
                     belief_state(1, 1+1:end) = belief_state(1, 1:end-1);
                     belief_state(1, 1) = rect_yw(2)'; % momory store
                     % Get Reward r
-                    if abs(local_x_all(k,2) ) > 2
-                        r = -100;
-                    else
+%                     if abs(local_x_all(k,2) ) > 2
+%                         r = -100;
+%                     else
                         r = obj.reward([local_x_all(k+1, :), rect_x_all(k+1, :)], rl_u_all(k, :)+mpc_u_all(k, :));
 % %                         r = 0;
-                    end
+%                     end
                     reward =  reward + obj.gamma^(k-1)*r;
                     % TD Erorr
-%                     V_k1 = obj.value.est_value([local_x_all(k+1, :), rect_x_all(k+1, :)], w);
-%                     V_k0 = obj.value.est_value([local_x_all(k, :), rect_x_all(k, :)], w);
-                    V_k1 = obj.value.est_value(belief_state(1, :), w);
-                    V_k0 = obj.value.est_value(belief_state(2, :), w);
+                    tmp = strcmp(varargin, 'Fix-Target-Network');
+                    if sum(tmp)
+                        V_k1 = obj.value.est_value(belief_state(1, :), Fix_Target_Network_params);
+                    else
+                        V_k1 = obj.value.est_value(belief_state(1, :)); 
+                    end
+                    V_k0 = obj.value.est_value(belief_state(2, :));
                     delta = r + obj.gamma*V_k1 - V_k0;
+                    tmp = strcmp(varargin, 'TD-Error-Clipping');
+                    if sum(tmp)
+                        if abs(delta) > varargin{find(tmp)+1}
+                            delta = delta/abs(delta)*varargin{find(tmp)+1};
+                        end
+                    end
                     % eligibility traces update
-%                     z_w = obj.gamma*obj.lambda_theta*z_w + zeta *obj.value.value_grad([local_x_all(k, :), rect_x_all(k, :)]);
-%                     e_k1_mu = obj.policy.policy_grad_mu(rl_u_all(k, :), [local_x_all(k, :), rect_x_all(k, :)], theta_mu);
-% %                    G = 1/(1-obj.aplha_f)*(G - obj.alpha_f*(G*e_k1_mu)*(G*e_k1_mu)'/(1-obj.alpha_f+obj.alpha_f*e_k1_mu'*G*e_K1_mu));
-%                     z_theta_mu = obj.gamma*obj.lambda_omega*z_theta_mu + zeta*e_k1_mu;
-%                     e_k1_sigma = obj.policy.policy_grad_sigma(rl_u_all(k, :), [local_x_all(k, :), rect_x_all(k, :)], theta_mu);
-%                     z_theta_sigma = obj.gamma*obj.lambda_omega*z_theta_sigma + zeta*e_k1_sigma;
-                    z_w = obj.gamma*obj.lambda_theta*z_w + zeta *obj.value.value_grad(belief_state(2, :));
-                    e_k1_mu = obj.policy.policy_grad_mu(rl_u_all(k, :), belief_state(2, :), theta_mu);
-%                    G = 1/(1-obj.aplha_f)*(G - obj.alpha_f*(G*e_k1_mu)*(G*e_k1_mu)'/(1-obj.alpha_f+obj.alpha_f*e_k1_mu'*G*e_K1_mu));
+                    z_w = obj.gamma*obj.lambda_theta*z_w + zeta*obj.value.value_grad(belief_state(2, :));
+                    e_k1_mu = obj.policy.policy_grad_mu(rl_u_all(k, :), belief_state(2, :));
                     z_theta_mu = obj.gamma*obj.lambda_omega*z_theta_mu + zeta*e_k1_mu;
-                    e_k1_sigma = obj.policy.policy_grad_sigma(rl_u_all(k, :), belief_state(2, :), theta_mu);
+                    e_k1_sigma = obj.policy.policy_grad_sigma(rl_u_all(k, :), belief_state(2, :));
                     z_theta_sigma = obj.gamma*obj.lambda_omega*z_theta_sigma + zeta*e_k1_sigma;
                     % apx function update
                     w = w + obj.alpha*delta*z_w;
                     theta_mu = theta_mu + obj.beta_mu*delta*z_theta_mu;
                     theta_sigma = theta_sigma + obj.beta_sigma*delta*z_theta_sigma;
-                    obj.policy.set_policy_sigma(theta_sigma);
                     zeta = obj.gamma2*zeta;
-%                     if abs(apx_x_all(k,1) ) > 1
-%                         break;
-%                     end
+                    obj.value.set_params(w);
+                    obj.policy.set_params(theta_mu);
+                    obj.policy.set_policy_sigma(theta_sigma);
+                    % update Fix_Target_Network_params
+                    tmp = strcmp(varargin, 'Fix-Target-Network');
+                    if sum(tmp) && ~mod(episode, varargin{find(tmp)+1})
+                        Fix_Target_Network_params = obj.value.get_params();
+                    end
+                    if abs(local_x_all(k,2)) > 2% || abs(x_all(k,2)) > 4
+                        reward = -10;
+                        break;
+                    end
                 end
                 % record history
                 if ~mod(episode, obj.snapshot)
-                    
                     w_snapshot(:, record_idx) = w; 
                     theta_mu_snapshot(:, record_idx) = theta_mu;
                     theta_sigma_snapshot(:, record_idx) = theta_sigma;
@@ -164,21 +179,32 @@ classdef netwrok_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
                 % callback
                 subplot(3,1,1)
                 plot(obj.t, local_x_all)
-                title(['Episode-',num2str(episode)])
+                title(['\fontsize{16}','Episode-',num2str(episode)])
                 ylabel('z')
                 grid on
+                xlim([0, obj.t(end)])
+                lim = max(max(abs(local_x_all),[],'omitnan'));
+                if isempty(lim) || lim == 0
+                    lim = 1;
+                end
+                ylim([-lim, lim]);
                 subplot(3,1,2)
                 plot(obj.t, rect_x_all)
                 grid on
                 ylabel('\hat{z}')
+                xlim([0, obj.t(end)])
+                lim = max(max(abs(rect_x_all),[],'omitnan'));
+                if isempty(lim) || lim == 0 || isnan(lim)
+                    lim = 1;
+                end
+                ylim([-lim, lim]);
                 subplot(3,1,3)
                 plot(nonzeros(reward_history),'-b')
                 ylabel('Culumative Reward')
-%                 ylim([-5,0])
                 drawnow
-%                 cost_history(episode) = obj.cost([local_x_all(k, :), rect_x_all(k, :)], rl_u_all+mpc_u_all);
-%                 figure(1)
-%                 callback_RL(episode, obj.t, [local_x_all(k, :), rect_x_all(k, :)], cost_history, reward_history)
+                if nargout > 7
+                   varargout{1}(episode) = getframe(gcf);
+               end
             end
         end
         
