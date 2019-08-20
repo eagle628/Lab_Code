@@ -193,7 +193,7 @@ value  =  value_RBF(RBF1);
 train_seed = 1024;
 train = network_retro_episodic_on_MDP(model, policy, value, Te);
 initial = [0,1];
-mode_parallel = 'off';
+mode_parallel = 'on';
 Input_Clipping = 10;
 TD_Error_Clipping = 10;
 % load 'test_belief_RL_belief_4_basis_7_episode_F1T1000' theta_mu_snpashot theta_sigma_snpashot w_snpashot
