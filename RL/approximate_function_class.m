@@ -19,6 +19,10 @@ classdef approximate_function_class < handle
         function obj = initialize_params(obj)
             obj.params = zeros(size(obj.params));
         end
+        
+        function obj = iitialize_memory(obj)
+           % pass fucntion for override
+        end
     end
 end
 
