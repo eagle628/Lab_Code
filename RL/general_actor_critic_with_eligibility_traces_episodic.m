@@ -11,7 +11,7 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
         beta_sigma = 0.01
         gamma = 0.99
         gamma2 = 0.9
-        max_episode = 1000
+        max_episode = 10000
         snapshot = 100
     end
     
@@ -76,6 +76,7 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
                 y_all = nan(obj.sim_N, obj.model.ny);
                 rl_u_all = nan(obj.sim_N, obj.model.nu);
                 mpc_u_all = nan(obj.sim_N, obj.model.nu);
+                obj.policy.initialize_memory();
                 % set initial
                 x_all(1, :) = [rand(1) - 0.5, 0];
 %                 x_all(1, :) = ini';
@@ -191,9 +192,10 @@ classdef general_actor_critic_with_eligibility_traces_episodic < RL_train
                     K = zeros(size(K));
                 end
             end
+            obj.policy.initialize_memory();
             for itr = 1 : obj.sim_N-1
-%                 u_rl = obj.policy.determistic_policy(x_all(itr, :), theta);
-                u_rl = obj.policy.stocastic_policy(x_all(itr, :), theta);
+                u_rl = obj.policy.determistic_policy(x_all(itr, :), theta);
+%                 u_rl = obj.policy.stocastic_policy(x_all(itr, :), theta);
                 u_mbc = -K*x_all(itr, :)';
                 ne_x = (obj.model.dynamics(x_all(itr,:)', u_mbc+u_rl))';
                 x_all(itr+1, :) = ne_x;
