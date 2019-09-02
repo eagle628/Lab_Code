@@ -15,6 +15,7 @@ classdef gen_ss_canonical_zero < gen_ss
         n
         m
         l
+        N
     end
     
     methods

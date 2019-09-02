@@ -13,6 +13,7 @@ classdef gen_ss_all < gen_ss
         n
         m
         l
+        N
     end
     
     methods
