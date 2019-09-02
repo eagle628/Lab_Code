@@ -66,6 +66,7 @@ classdef general_actor_critic_with_eligibility_traces_episodic_on_POMDP < RL_tra
                 x_all = nan(obj.sim_N, obj.model.true_nx);
                 y_all = nan(obj.sim_N, obj.model.ny);
                 rl_u_all = nan(obj.sim_N, obj.model.nu);
+                obj.policy.initialize_memory();
                 % episode initialize
                 z_w = zeros(obj.value.apx_function.N, 1);
                 z_theta_mu = zeros(obj.policy.apx_function.N, 1);

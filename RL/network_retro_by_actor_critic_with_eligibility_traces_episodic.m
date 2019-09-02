@@ -84,6 +84,7 @@ classdef network_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
                 y_w_v_all = nan(obj.sim_N, obj.model.ny+obj.model.nw+obj.model.nv);
                 rl_u_all = nan(obj.sim_N, obj.model.nu);
                 mpc_u_all = nan(obj.sim_N, obj.model.nu);
+                obj.policy.initialize_memory();
                 % episode initialize(eligibility)
                 z_w = zeros(obj.value.apx_function.N, 1);
                 z_theta_mu = zeros(obj.policy.apx_function.N, 1);

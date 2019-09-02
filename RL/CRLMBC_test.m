@@ -4,7 +4,9 @@ close all
 
 rng(0)
 
-model = CRLMBC_test_model(0.5,0.15,9.8,0.05,0.01);
+% model = CRLMBC_test_model(0.5,0.15,9.8,0.05,0.01);
+model = pendulum_model(0.5,0.15,9.8,0.05,0.01);
+% model = inverted_pendulum_model(0.5,0.15,9.8,0.05,0.01);
 % % % % % model.set_observer_gain(0.5);
 
 
@@ -22,23 +24,28 @@ mm = (range(1):width:range(2))';
 mu = [kron(m,ones(nnn,1)),repmat(mm,nnn,1)]; 
 sigma = 0.25*ones(basis_N, 1);
 RBF1 = Radial_Basis_Function(basis_N, mu, sigma);
-sigma_pi = sqrt(1);
+sigma_pi = sqrt(0.4);
 policy = policy_RBF(RBF1, sigma_pi);
 value  =  value_RBF(RBF1);
+%%
 % set train
-train = general_actor_critic_with_eligibility_traces_episodic(model, policy, value, Te);
+% train = general_actor_critic_with_eligibility_traces_episodic(model, policy, value, Te);
+train = general_A2C(model, policy, value, Te);
 
 mode_parallel = 'off';
 Input_Clipping = 10;
 TD_Error_Clipping = 10;
 train_seed = 28;
-[x, u_mpc, u_rl, theta_mu_snapshot, theta_sigma_snapshot, w_snapshot, reward_history, F1, F2] = ...
-    train.train([0.4, 0], train_seed, 'parallel', mode_parallel, 'Input-Clipping',Input_Clipping);
+% [x, u_mpc, u_rl, theta_mu_snapshot, theta_sigma_snapshot, w_snapshot, reward_history] = ...
+%     train.train([0.4, 0], train_seed, 'parallel', mode_parallel, 'Input-Clipping',Input_Clipping);
 
-figure
-plot(u_mpc);
-hold on
-plot(u_rl)
+[x, u_rl, theta_mu_snapshot, w_snapshot, reward_history] = ...
+    train.train([0.4, 0], train_seed);
+% 
+% figure
+% plot(u_mpc);
+% hold on
+% plot(u_rl)
 
 %%
 x_all = train.sim([0.4;0], [], 'parallel', mode_parallel);
