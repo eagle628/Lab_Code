@@ -39,6 +39,7 @@ classdef gen_ss_all < gen_ss
             obj.theta = zeros(numel(obj.params), 1);
             obj.theta(1:n+1:n^2) = -0.5*(1:n);
             obj.theta(n^2+1:end) = 0.1;
+            obj.N = length(obj.params);
         end
         
         function set_params(obj, theta)

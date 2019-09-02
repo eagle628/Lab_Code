@@ -4,6 +4,7 @@ classdef gen_ss < handle
     
     properties(Abstract)
         params
+        N
     end
     
     methods(Abstract)

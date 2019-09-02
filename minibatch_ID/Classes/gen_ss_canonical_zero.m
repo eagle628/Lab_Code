@@ -42,6 +42,7 @@ classdef gen_ss_canonical_zero < gen_ss
                 % named by colum direction, Not raw direction. (for "reshape")
             end
             obj.theta = zeros(numel(obj.params), 1);
+            obj.N = length(obj.params);
         end
         
         function set_params(obj, theta)
