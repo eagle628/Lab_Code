@@ -75,7 +75,7 @@ classdef network_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
             theta_sigma = obj.policy.get_policy_sigma();
             % start episode learning
             record_idx = 1;
-            belief_state = zeros(2, obj.belief_N);% belief state % 1 line: current state , 2 line: previous state
+            belief_state = zeros(2, obj.belief_N*obj.model.ny);% belief state % 1 line: current state , 2 line: previous state
             for episode = 1 : obj.max_episode
                 % memory reset
                 local_x_all = nan(obj.sim_N, obj.model.local_nx);
@@ -95,8 +95,8 @@ classdef network_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
                 % belief initialize
                 belief_state = zeros(size(belief_state));
 %                 set episode initial
-                local_x_all(1, :) = ini';% When network model, local system state
-%                 local_x_all(1, :) = [0,2*rand(1)-1];
+%                 local_x_all(1, :) = ini';% When network model, local system state
+                local_x_all(1, :) = [0,rand(1)-0.5];
                 env_x_all(1, :) = zeros(1, obj.model.env_nx);
                 rect_x_all(1, :) = zeros(1, obj.model.rect_nx);
                 for k = 1 : obj.sim_N-1
@@ -120,8 +120,8 @@ classdef network_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
                     rect_x_all(k+1, :) = rect_ne_x';
                     % belief upadate
                     belief_state(2, :) = belief_state(1, :);
-                    belief_state(1, 1+1:end) = belief_state(1, 1:end-1);
-                    belief_state(1, 1) = rect_yw(2)'; % momory store
+                    belief_state(1, obj.model.ny+1:end) = belief_state(1, 1:end-obj.model.ny);
+                    belief_state(1, 1:obj.model.ny) = rect_yw'; % momory store
                     % Get Reward r
 %                     if abs(local_x_all(k,2) ) > 2
 %                         r = -100;
@@ -223,13 +223,19 @@ classdef network_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
             R = -1/10*(x(1:2)*obj.Q_r*x(1:2)' + u*obj.R*u');
         end
         
-        function [local_x_all, env_x_all, rect_x_all, y_w_v_all, rl_u_all, reward] = sim(obj, theta_mu, ini, noise_power, seed, varargin)
-            if nargin < 5
+        function [local_x_all, env_x_all, rect_x_all, y_w_v_all, rl_u_all, reward] = sim(obj, ini, theta_mu, noise_power, seed, varargin)
+            if nargin < 6
                 seed = rng();
             end
             rng(seed);
-            if nargin < 2 || isempty(theta_mu)
+            if nargin < 3 || isempty(theta_mu)
                 theta_mu = obj.policy.get_params();
+            end
+            if nargin < 2 || isempty(ini)
+                ini = zeros(obj.model.local_nx, 1);
+            end
+            if nargin < 5 || isempty(noise_power)
+                noise_power = 1;
             end
             d_L = noise_power*randn(obj.sim_N, 2);
             local_x_all = zeros(obj.sim_N, obj.model.local_nx);
@@ -251,7 +257,7 @@ classdef network_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
             K1 = K(1:obj.model.local_nx);
             K2 = K(obj.model.local_nx+1 : end);
             % observe belief state
-            belief_state = zeros(1, obj.belief_N);% belief state % 1 line: current state , 2 line: previous state
+            belief_state = zeros(1, obj.belief_N+obj.model.ny);% belief state % 1 line: current state , 2 line: previous state
             % initialize reward
             reward = 0;
             for k = 1 : obj.sim_N-1
@@ -267,8 +273,8 @@ classdef network_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
                 env_x_all(k+1, :) = env_ne_x';
                 [rect_ne_x, rect_yw] = obj.model.rect_dynamics(local_x_all(k, :)', env_x_all(k, :)', rect_x_all(k, :)');
                 rect_x_all(k+1, :) = rect_ne_x';
-                belief_state(1, 1+1:end) = belief_state(1, 1:end-1);
-                belief_state(1, 1) = rect_yw(2)'; % momory store
+                belief_state(1, obj.model.ny+1:end) = belief_state(1, 1:end-obj.model.ny);
+                belief_state(1, 1:obj.model.ny) = rect_yw'; % momory store
                 r = obj.reward([local_x_all(k+1, :), rect_x_all(k+1, :)], rl_u_all(k, :)+mpc_u_all(k, :));
                 reward =  reward + obj.gamma^(k-1)*r;
            end
@@ -277,6 +283,9 @@ classdef network_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
         function [local_x_all, env_x_all, rect_x_all, y_w_v_all, reward] = sim_lqrcontroller(obj, ini, noise_power, seed)
             if nargin < 4
                 seed = rng();
+            end
+            if nargin < 3 ||isempty(noise_power)
+                noise_power = 1;
             end
             rng(seed);
             d_L = noise_power*randn(obj.sim_N, 2);
@@ -312,6 +321,9 @@ classdef network_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
         function [local_x_all, env_x_all, y_w_v_all, reward] = sim_original(obj, ini, noise_power, seed)
             if nargin < 4
                 seed = rng();
+            end
+            if nargin < 3 || isempty(noise_power)
+                noise_power = 1;
             end
             rng(seed);
             d_L = noise_power*randn(obj.sim_N, 2);
