@@ -94,9 +94,9 @@ classdef network_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
                 reward = 0;
                 % belief initialize
                 belief_state = zeros(size(belief_state));
-%                 set episode initial
-%                 local_x_all(1, :) = ini';% When network model, local system state
-                local_x_all(1, :) = [0,rand(1)-0.5];
+                % set episode initial
+                local_x_all(1, :) = ini';% When network model, local system state
+%                 local_x_all(1, :) = rand(1,2)-0.5;
                 env_x_all(1, :) = zeros(1, obj.model.env_nx);
                 rect_x_all(1, :) = zeros(1, obj.model.rect_nx);
                 for k = 1 : obj.sim_N-1
@@ -257,7 +257,7 @@ classdef network_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
             K1 = K(1:obj.model.local_nx);
             K2 = K(obj.model.local_nx+1 : end);
             % observe belief state
-            belief_state = zeros(1, obj.belief_N+obj.model.ny);% belief state % 1 line: current state , 2 line: previous state
+            belief_state = zeros(1, obj.belief_N*obj.model.ny);% belief state % 1 line: current state , 2 line: previous state
             % initialize reward
             reward = 0;
             for k = 1 : obj.sim_N-1

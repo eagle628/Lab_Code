@@ -25,7 +25,8 @@ model = swing_network_model(net, c_n, Ts);
 %% belief_N
 belief_N = 2;
 %% define init controller
-rng('shuffle')
+seed_define = 16;
+rng(seed_define)
 % sys = ss(model.A, model.B, eye(2), [], model.Ts);
 controller_n = 2;% state
 controller_l = 1;% output
@@ -49,6 +50,7 @@ while true
     disp(iter)
     iter = iter+1;
 end
+
 % while true
 %     controller = drss(2,1,2);
 %     controller.Ts = model.Ts;
@@ -76,10 +78,11 @@ RBF1 = Radial_Basis_Function(size(mu, 1), mu, sigma);
 value  =  value_RBF(RBF1);
 
 %% generate apx function for policy
+pi_sigma = 0.5;
 apx_function = gen_ss_tridiag(controller_n,controller_m,controller_l);
 apx_function.set_sys(controller);
-pi_sigma = 0.5;
 policy = policy_dynamic(apx_function, pi_sigma);
+% policy = policy_RBF(RBF1, pi_sigma);
 
 %% trainer
 Te = 10;
@@ -92,7 +95,7 @@ train_seed = 28;
 
 %% plot
 %%
-test_ini = [0.4;0];
+test_ini = [0;0.4];
 noise_seed = 10;
 % x_all = train.sim(test_ini, [], 'parallel', mode_parallel);
 x_rl = train.sim(test_ini,[],noise_seed);

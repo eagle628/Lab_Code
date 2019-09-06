@@ -4,9 +4,10 @@ classdef general_A2C < RL_train
     properties(Constant)
         Q = diag([10,1])
         R = 1
-        alpha = 1e-6
-        beta = 1e-6
+        alpha = 1e-5
+        beta = 1e-5
         gamma = 0.99
+        lambda = 0.3 
         max_episode = 1e4
         snapshot = 100
     end
@@ -16,15 +17,20 @@ classdef general_A2C < RL_train
         value
         sim_N
         t
+        advantage_N
     end
     
     methods
-        function obj = general_A2C(model, policy, value, Te)
+        function obj = general_A2C(model, policy, value, Te, advantage_N)
             obj.model = model;
             obj.sim_N = Te/model.Ts + 1;
             obj.t = (0:model.Ts:Te)';
             obj.policy = policy;
             obj.value  =  value;
+            if nargin < 5
+                advantage_N = 5;
+            end
+            obj.advantage_N = advantage_N;
         end
         
         function [x_all, rl_u_all, theta_mu_snapshot, w_snapshot, reward_history, varargout] = train(obj, ini, seed, varargin)
@@ -54,13 +60,8 @@ classdef general_A2C < RL_train
                 x_all = nan(obj.sim_N, obj.model.true_nx);
                 y_all = nan(obj.sim_N, obj.model.ny);
                 rl_u_all = nan(obj.sim_N, obj.model.nu);
-                % reset accumulate gradients
-                d_theta_mu = zeros(size(theta_mu));
-                d_w        = zeros(size(w));
                 % set initial
                 x_all(1, :) = [rand(1) - 0.5, 0];
-                % terminal step 
-                terminal_step = obj.sim_N-1;
 %                 x_all(1, :) = ini';
                 % 
                 for k = 1 : obj.sim_N-1
@@ -75,26 +76,38 @@ classdef general_A2C < RL_train
                    [ne_x, y] = obj.model.dynamics(x_all(k, :)', rl_u_all(k, :));
                     x_all(k+1, :) = ne_x';
                     y_all(k, :) = y';
+                    reward =  reward + obj.gamma^(k-1)*obj.reward(x_all(k+1, :), rl_u_all(k, :));
+                    if ~mod(k, obj.advantage_N)
+                        % reset accumulate gradients
+                        d_theta_mu = zeros(size(theta_mu));
+                        d_w        = zeros(size(w));
+                        backward_reward = obj.value.est_value(x_all(k, :), w);
+                        for iter1 = k : -1 : k - obj.advantage_N+1
+                            % Get Reward r
+                            r = obj.reward(x_all(iter1+1, :), rl_u_all(iter1, :));
+                            backward_reward = r + obj.gamma*backward_reward;
+                            advantage = backward_reward - obj.value.est_value(x_all(iter1, :), w);
+                            reward =  reward + obj.gamma^(iter1-1)*r;
+                            % accumulates gradients
+                            d_theta_mu = d_theta_mu + obj.policy.policy_grad_mu(rl_u_all(iter1, :), x_all(iter1, :), theta_mu)*advantage;
+                            d_w        = d_w        - 2*obj.value.value_grad(x_all(iter1, :), w)*advantage;
+% %                             % Get Reward r
+% %                             r = obj.reward(x_all(iter1+1, :), rl_u_all(iter1, :));
+% %                             backward_reward = r + obj.gamma*backward_reward;
+% %                             backward_reward_lambda = r + obj.gamma*(obj.lambda*backward_reward+(1-obj.lambda)*obj.value.est_value(x_all(iter1, :), w));
+% %                             reward =  reward + obj.gamma^(iter1-1)*r;
+% %                             % accumulates gradients
+% %                             d_theta_mu = d_theta_mu + obj.policy.policy_grad_mu(rl_u_all(iter1, :), x_all(iter1, :), theta_mu)*(backward_reward - obj.value.est_value(x_all(iter1, :), w));
+% %                             d_w        = d_w        - 2*obj.value.value_grad(x_all(iter1, :), w)*(backward_reward_lambda - obj.value.est_value(x_all(iter1, :), w));
+                        end
+                        % update params
+                        obj.value.set_params(w+obj.alpha*d_w);
+                        obj.policy.set_params(theta_mu+obj.beta*d_theta_mu);
+                    end
                     if abs(x_all(k,1)) > 0.5
-                        terminal_step = k+1;
                         break;
                     end
                 end
-                backward_reward = obj.value.est_value(x_all(terminal_step, :), w);
-                % time line backward
-                for k = terminal_step-1 : -1 : 1
-                    % Get Reward r
-                    r = obj.reward(x_all(k+1, :), rl_u_all(k, :));
-                    backward_reward = r + obj.gamma*backward_reward;
-                    advantage = backward_reward - obj.value.est_value(x_all(k, :), w);
-                    reward =  reward + obj.gamma^(k-1)*r;
-                    % accumulates gradients
-                    d_theta_mu = d_theta_mu + obj.policy.policy_grad_mu(rl_u_all(k, :), x_all(k, :), theta_mu)*advantage;
-                    d_w        = d_w        - 2*obj.value.value_grad(x_all(k, :), w)*advantage;
-                end
-                % update params
-                obj.value.set_params(w+obj.alpha*d_w);
-                obj.policy.set_params(theta_mu+obj.beta*d_theta_mu);
 %                close 3
                 % record history
                 if ~mod(episode, obj.snapshot) 
