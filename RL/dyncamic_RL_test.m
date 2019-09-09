@@ -25,7 +25,7 @@ model = swing_network_model(net, c_n, Ts);
 %% belief_N
 belief_N = 2;
 %% define init controller
-seed_define = 16;
+seed_define = 196;
 rng(seed_define)
 % sys = ss(model.A, model.B, eye(2), [], model.Ts);
 controller_n = 2;% state

@@ -1,4 +1,4 @@
-classdef policy_RBF < approximate_function_class
+classdef policy_RBF < policy_class
     %UNTITLED11 このクラスの概要をここに記述
     %   詳細説明をここに記述
     
