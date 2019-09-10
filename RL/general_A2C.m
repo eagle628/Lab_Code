@@ -4,11 +4,11 @@ classdef general_A2C < RL_train
     properties(Constant)
         Q = diag([10,1])
         R = 1
-        alpha = 1e-5
-        beta = 1e-5
+        alpha = 1e-6
+        beta = 1e-6
         gamma = 0.99
         lambda = 0.3 
-        max_episode = 1e4
+        max_episode = 4e4
         snapshot = 100
     end
     
@@ -81,28 +81,33 @@ classdef general_A2C < RL_train
                         % reset accumulate gradients
                         d_theta_mu = zeros(size(theta_mu));
                         d_w        = zeros(size(w));
-                        backward_reward = obj.value.est_value(x_all(k, :), w);
+                        backward_reward = obj.value.est_value(x_all(k+1, :), w);
                         for iter1 = k : -1 : k - obj.advantage_N+1
                             % Get Reward r
                             r = obj.reward(x_all(iter1+1, :), rl_u_all(iter1, :));
                             backward_reward = r + obj.gamma*backward_reward;
-                            advantage = backward_reward - obj.value.est_value(x_all(iter1, :), w);
-                            reward =  reward + obj.gamma^(iter1-1)*r;
+                            advantage = backward_reward - obj.value.est_value(x_all(iter1, :)); 
                             % accumulates gradients
-                            d_theta_mu = d_theta_mu + obj.policy.policy_grad_mu(rl_u_all(iter1, :), x_all(iter1, :), theta_mu)*advantage;
-                            d_w        = d_w        - 2*obj.value.value_grad(x_all(iter1, :), w)*advantage;
-% %                             % Get Reward r
-% %                             r = obj.reward(x_all(iter1+1, :), rl_u_all(iter1, :));
-% %                             backward_reward = r + obj.gamma*backward_reward;
-% %                             backward_reward_lambda = r + obj.gamma*(obj.lambda*backward_reward+(1-obj.lambda)*obj.value.est_value(x_all(iter1, :), w));
-% %                             reward =  reward + obj.gamma^(iter1-1)*r;
-% %                             % accumulates gradients
-% %                             d_theta_mu = d_theta_mu + obj.policy.policy_grad_mu(rl_u_all(iter1, :), x_all(iter1, :), theta_mu)*(backward_reward - obj.value.est_value(x_all(iter1, :), w));
-% %                             d_w        = d_w        - 2*obj.value.value_grad(x_all(iter1, :), w)*(backward_reward_lambda - obj.value.est_value(x_all(iter1, :), w));
+                            d_theta_mu = d_theta_mu + obj.policy.policy_grad_mu(rl_u_all(iter1, :), x_all(iter1, :))*advantage;
+                            d_w        = d_w        + obj.value.value_grad(x_all(iter1, :))*advantage;
+% % %                             % Get Reward r
+% % %                             r = obj.reward(x_all(iter1+1, :), rl_u_all(iter1, :));
+% % %                             backward_reward = r + obj.gamma*backward_reward;
+% % %                             backward_reward_lambda = r + obj.gamma*(obj.lambda*backward_reward+(1-obj.lambda)*obj.value.est_value(x_all(iter1, :)));
+% % %                             % accumulates gradients
+% % %                             d_theta_mu = d_theta_mu + obj.policy.policy_grad_mu(rl_u_all(iter1, :), x_all(iter1, :))*(backward_reward - obj.value.est_value(x_all(iter1, :)));
+% % %                             d_w        = d_w        - 2*obj.value.value_grad(x_all(iter1, :))*(backward_reward_lambda - obj.value.est_value(x_all(iter1, :)));
+% % %                             % update params
+% % %                             obj.value.set_params(w+obj.alpha*d_w);
+% % %                             obj.policy.set_params(theta_mu+obj.beta*d_theta_mu);
+% % %                             w = obj.value.get_params();
+% % %                             theta_mu = obj.policy.get_params();
                         end
                         % update params
                         obj.value.set_params(w+obj.alpha*d_w);
                         obj.policy.set_params(theta_mu+obj.beta*d_theta_mu);
+                        w = obj.value.get_params();
+                        theta_mu = obj.policy.get_params();
                     end
                     if abs(x_all(k,1)) > 0.5
                         break;
