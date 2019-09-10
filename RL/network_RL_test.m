@@ -202,7 +202,7 @@ TD_Error_Clipping = 10;
 % train.value.set_params(w_snpashot(:,end));
 [local_x_all, mpc_u_all, rl_u_all, theta_mu_snpashot, theta_sigma_snpashot, w_snpashot, reward_history] = ...
     train.train(initial, train_seed, 'parallel', mode_parallel);
-
+% train.train(initial, train_seed, 'parallel', mode_parallel)
 
 %%
 noise_seed = 10;

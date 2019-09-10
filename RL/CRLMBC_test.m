@@ -15,22 +15,22 @@ Te = 2;
 % generate apx function
 basis_N = 11^2;
 nnn = sqrt(basis_N);
-range = [-2,2];
+range = [-4,4];
 width = (range(2)-range(1))/(nnn-1);
 m = (range(1):width:range(2))';
-range = [-4,4];
+range = [-2,2];
 width = (range(2)-range(1))/(nnn-1);
 mm = (range(1):width:range(2))';
 mu = [kron(m,ones(nnn,1)),repmat(mm,nnn,1)]; 
 sigma = 0.25*ones(basis_N, 1);
 RBF1 = Radial_Basis_Function(basis_N, mu, sigma);
-sigma_pi = sqrt(0.4);
+sigma_pi = 0.5;
 policy = policy_RBF(RBF1, sigma_pi);
 value  =  value_RBF(RBF1);
 %%
 % set train
-% train = general_actor_critic_with_eligibility_traces_episodic(model, policy, value, Te);
-advantage_N  = 1;
+% train = general_actor_critic_with_eligibility_tracess_episodic(model, policy, value, Te);
+advantage_N  = 100;
 train = general_A2C(model, policy, value, Te, advantage_N);
 
 mode_parallel = 'off';
@@ -40,8 +40,11 @@ train_seed = 28;
 % [x, u_mpc, u_rl, theta_mu_snapshot, theta_sigma_snapshot, w_snapshot, reward_history] = ...
 %     train.train([0.4, 0], train_seed, 'parallel', mode_parallel, 'Input-Clipping',Input_Clipping);
 
-[x, u_rl, theta_mu_snapshot, w_snapshot, reward_history] = ...
-    train.train([0.4, 0], train_seed);
+% [x, u_rl, theta_mu_snapshot, w_snapshot, reward_history] = ...
+%     train.train([0.4, 0], train_seed);
+
+train.train([0.4, 0], train_seed, 'parallel', mode_parallel);
+
 % 
 % figure
 % plot(u_mpc);

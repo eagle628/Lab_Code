@@ -4,9 +4,9 @@ close all
 %% define model
 % model = pendulum_model(0.5,0.15,9.8,0.05,0.01);
 % % % network version
-seed1 = 5;
+seed1 = 8;
 Node_number = 3;
-net = network_swing_simple(Node_number, [1,2], [2,10]*1e-2, 1, [1,2], 0.1, seed1);
+net = network_swing_simple(Node_number, [1,2], [2,10]*1e-2, 1, [1,2], 0.8, seed1);
 net.Adj_ref = net.Adj_ref*0;
 % local system
 c_n = 1;
@@ -14,18 +14,18 @@ c_n = 1;
 seed2 = 10;
 rng(seed2)
 tmp_idx = find(net.Adj(c_n, :)~=0);
-tmp_adj = 2 + 3*rand(1, length(tmp_idx));
+tmp_adj = 5 + 1*rand(1, length(tmp_idx));
 net.Adj(c_n ,tmp_idx) = tmp_adj;
 net.Adj(tmp_idx, c_n) = tmp_adj;
-% net.plot()
+net.plot()
 % set model
-Ts = 0.01;
+Ts = 0.001;
 model = swing_network_model(net, c_n, Ts);
 
 %% belief_N
 belief_N = 2;
 %% define init controller
-seed_define = 196;
+seed_define = 2;
 rng(seed_define)
 % sys = ss(model.A, model.B, eye(2), [], model.Ts);
 controller_n = 2;% state
@@ -78,20 +78,24 @@ RBF1 = Radial_Basis_Function(size(mu, 1), mu, sigma);
 value  =  value_RBF(RBF1);
 
 %% generate apx function for policy
-pi_sigma = 0.5;
+pi_sigma = 1;
 apx_function = gen_ss_tridiag(controller_n,controller_m,controller_l);
 apx_function.set_sys(controller);
 policy = policy_dynamic(apx_function, pi_sigma);
 % policy = policy_RBF(RBF1, pi_sigma);
 
 %% trainer
-Te = 10;
+Te = 2;
 % train = general_actor_critic_with_eligibility_traces_episodic(model, policy, value, Te);
 % train = general_actor_critic_with_eligibility_traces_episodic_on_POMDP(model, policy, value, Te, belief_N);
-train = network_retro_by_actor_critic_with_eligibility_traces_episodic(model, policy, value, Te, belief_N);
+advantage_N = 5;
+train = network_A2C(model, policy, value, Te, advantage_N, belief_N);
+% train = network_retro_by_actor_critic_with_eligibility_traces_episodic(model, policy, value, Te, belief_N);
 train_seed = 28;
-[x, u_mpc, u_rl, theta_mu_snapshot, theta_sigma_snapshot, w_snapshot, reward_history] = ...
-    train.train([0.4, 0], train_seed);
+% [x, u_mpc, u_rl, theta_mu_snapshot, theta_sigma_snapshot, w_snapshot, reward_history] = ...
+%     train.train([0.4, 0], train_seed);
+
+train.train([0.4, 0], train_seed, 'Invalid-Constraint', true);
 
 %% plot
 %%
@@ -111,6 +115,13 @@ x_ori = train.sim_original(test_ini,[],noise_seed);
 plot(train.t,x_ori(:,2),'c')
 
 legend('RL','LQR','ori')
+
+disp('RL')
+disp(norm(x_rl(:,2)))
+disp('LQR')
+disp(norm(x_lqr(:,2)))
+disp('Original')
+disp(norm(x_ori(:,2)))
 
 % K = dlqr(model.A,model.B,train.Q,train.R);
 % u = (-K*x')';

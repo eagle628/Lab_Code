@@ -84,6 +84,7 @@ classdef network_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
                 y_w_v_all = nan(obj.sim_N, obj.model.ny+obj.model.nw+obj.model.nv);
                 rl_u_all = nan(obj.sim_N, obj.model.nu);
                 mpc_u_all = nan(obj.sim_N, obj.model.nu);
+                constraint_update = 0;
                 obj.policy.initialize_memory();
                 % episode initialize(eligibility)
                 z_w = zeros(obj.value.apx_function.N, 1);
@@ -152,22 +153,25 @@ classdef network_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
                     e_k1_sigma = obj.policy.policy_grad_sigma(rl_u_all(k, :), belief_state(2, :));
                     z_theta_sigma = obj.gamma*obj.lambda_omega*z_theta_sigma + zeta*e_k1_sigma;
                     % apx function update
-                    w = w + obj.alpha*delta*z_w;
-                    theta_mu = theta_mu + obj.beta_mu*delta*z_theta_mu;
-                    theta_sigma = theta_sigma + obj.beta_sigma*delta*z_theta_sigma;
-                    zeta = obj.gamma2*zeta;
-                    obj.value.set_params(w);
-                    obj.policy.set_params(theta_mu);
-                    obj.policy.set_policy_sigma(theta_sigma);
+                    if obj.policy.policy_constraint(theta_mu + obj.beta_mu*delta*z_theta_mu, obj.model, obj.belief_N)
+                        w = w + obj.alpha*delta*z_w;
+                        theta_mu = theta_mu + obj.beta_mu*delta*z_theta_mu;
+                        theta_sigma = theta_sigma + obj.beta_sigma*delta*z_theta_sigma;
+                        zeta = obj.gamma2*zeta;
+                        obj.value.set_params(w);
+                        obj.policy.set_params(theta_mu);
+                        obj.policy.set_policy_sigma(theta_sigma);
+                        constraint_update = constraint_update + 1;
+                    end
                     % update Fix_Target_Network_params
                     tmp = strcmp(varargin, 'Fix-Target-Network');
                     if sum(tmp) && ~mod(episode, varargin{find(tmp)+1})
                         Fix_Target_Network_params = obj.value.get_params();
                     end
-                    if abs(local_x_all(k,2)) > 2% || abs(x_all(k,2)) > 4
-                        reward = -10;
-                        break;
-                    end
+%                     if abs(local_x_all(k,2)) > 2% || abs(x_all(k,2)) > 4
+%                         reward = -10;
+%                         break;
+%                     end
                 end
                 % record history
                 if ~mod(episode, obj.snapshot)
@@ -203,6 +207,7 @@ classdef network_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
                 plot(nonzeros(reward_history),'-b')
                 ylabel('Culumative Reward')
                 drawnow
+                disp(strcat('Episode-',num2str(episode),' : update times : ', num2str(constraint_update) ,'/',num2str(obj.sim_N-1)))
                 if nargout > 7
                    varargout{1}(episode) = getframe(gcf);
                end
