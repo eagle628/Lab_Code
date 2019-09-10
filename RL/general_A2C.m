@@ -61,16 +61,17 @@ classdef general_A2C < RL_train
                 y_all = nan(obj.sim_N, obj.model.ny);
                 rl_u_all = nan(obj.sim_N, obj.model.nu);
                 % set initial
-                x_all(1, :) = [rand(1) - 0.5, 0];
+%                 x_all(1, :) = [rand(1) - 0.5, 0];
+                x_all(1, :) = rand(1,2) - 0.5;
 %                 x_all(1, :) = ini';
                 % 
                 for k = 1 : obj.sim_N-1
                     % RL input
                     tmp = strcmp(varargin, 'Input-Clipping');
                     if sum(tmp)
-                        rl_u_all(k, :) = obj.policy.stocastic_policy(x_all(k, :), theta_mu, 'Input-Clipping', varargin{find(tmp)+1});
+                        rl_u_all(k, :) = obj.policy.stocastic_policy(x_all(k, :), [], 'Input-Clipping', varargin{find(tmp)+1});
                     else
-                        rl_u_all(k, :) = obj.policy.stocastic_policy(x_all(k, :), theta_mu);
+                        rl_u_all(k, :) = obj.policy.stocastic_policy(x_all(k, :), []);
                     end
                     %  observe S_(k+1)
                    [ne_x, y] = obj.model.dynamics(x_all(k, :)', rl_u_all(k, :));
@@ -81,7 +82,7 @@ classdef general_A2C < RL_train
                         % reset accumulate gradients
                         d_theta_mu = zeros(size(theta_mu));
                         d_w        = zeros(size(w));
-                        backward_reward = obj.value.est_value(x_all(k+1, :), w);
+                        backward_reward = obj.value.est_value(x_all(k+1, :));
                         for iter1 = k : -1 : k - obj.advantage_N+1
                             % Get Reward r
                             r = obj.reward(x_all(iter1+1, :), rl_u_all(iter1, :));
@@ -89,7 +90,7 @@ classdef general_A2C < RL_train
                             advantage = backward_reward - obj.value.est_value(x_all(iter1, :)); 
                             % accumulates gradients
                             d_theta_mu = d_theta_mu + obj.policy.policy_grad_mu(rl_u_all(iter1, :), x_all(iter1, :))*advantage;
-                            d_w        = d_w        + obj.value.value_grad(x_all(iter1, :))*advantage;
+                            d_w        = d_w        + 2*obj.value.value_grad(x_all(iter1, :))*advantage;
 % % %                             % Get Reward r
 % % %                             r = obj.reward(x_all(iter1+1, :), rl_u_all(iter1, :));
 % % %                             backward_reward = r + obj.gamma*backward_reward;
