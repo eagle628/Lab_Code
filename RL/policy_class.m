@@ -6,7 +6,7 @@ classdef policy_class < approximate_function_class
     end
     
     methods
-        function update = policy_constraint(obj, model)
+        function update = policy_constraint(obj, varargin)
             update = true;
             % pass function
         end
