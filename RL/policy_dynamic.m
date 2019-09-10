@@ -104,6 +104,32 @@ classdef policy_dynamic < policy_class
             Cbig = Cbig(l+1:end ,:);
             Dbig = Dbig(l+1:end ,:);
         end
+        
+        function update = policy_constraint(obj, new_params, model, belief_N, varargin)
+            tmp = strcmp(varargin, 'Invalid-Constraint');
+            invalid_constraint_flag = varargin{find(tmp)+1};
+            if invalid_constraint_flag
+                update = true;
+                return
+            end
+            A = diag(ones(1, belief_N-1), -1);
+            A = kron(A, repmat([1,0], model.ny, 1));
+            B  = zeros(size(A, 1), model.ny);
+            B(1:model.ny,1:model.ny) = eye(model.ny);
+            C = A;
+            D = B;
+            recorder = ss(A,B,C,D,model.Ts);
+            target = model.sys_local({'y'},{'u'});
+            target = c2d(target, model.Ts);
+            [a,b,c,d] = obj.apx_function.get_ss(new_params);
+            controller = ss(a,b,c,d,model.Ts);
+            true_controller = controller*recorder;
+            [Ap,Bp,Cp,~]  = ssdata(target);
+            [Ak,Bk,Ck,Dk] = ssdata(true_controller);
+            A_all = [Ak,Bk*Cp; Bp*Ck, Ap+Bp*Dk*Cp];
+            pole = eig(A_all);
+            update = ~(sum(abs(pole)>1));
+        end
     end
 end
 
