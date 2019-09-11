@@ -133,7 +133,48 @@ classdef gen_ss_canonical < gen_ss
             end
                 
         end
-        
+
+        % siso only
+        function [dA, dB, dC, dD] = get_dss(obj, theta)
+            [A, B, C, D] = obj.get_ss(theta);
+            dA = cell(obj.N, 1);
+            dB = cell(obj.N, 1);
+            dC = cell(obj.N, 1);
+            dD = cell(obj.N, 1);
+            idx = 1;
+            % params A
+            for k = 1 : obj.n
+                C = zeros(size(C));
+                C(1, k) = -1;
+                abcd = [A, B; C, zeors(size(D))]*[A, B; C, zeros(size(D))];
+                dA{idx} = abcd(1:obj.n, 1:obj.n);
+                dB{idx} = abcd(1:obj.n, obj.n+1:end);
+                dC{idx} = abcd(obj.n+1:end, 1:obj.n);
+                dD{idx} = abcd(obj.n+1:end, obj.n+1:end);
+                idx = idx + 1;
+            end
+            % params C
+            for k = 1 : obj.n
+                C = zeros(size(C));
+                C(1, k) = 1;
+                abcd = [A, zeros(size(B)); C, zeros(size(D))];
+                dA{idx} = abcd(1:obj.n, 1:obj.n);
+                dB{idx} = abcd(1:obj.n, obj.n+1:end);
+                dC{idx} = abcd(obj.n+1:end, 1:obj.n);
+                dD{idx} = abcd(obj.n+1:end, obj.n+1:end);
+                idx = idx + 1;
+            end
+            % params D
+            for k = 1
+                abcd = zeors(size(abcd));
+                abcd(end,end) = 1;
+                dA{idx} = abcd(1:obj.n, 1:obj.n);
+                dB{idx} = abcd(1:obj.n, obj.n+1:end);
+                dC{idx} = abcd(obj.n+1:end, 1:obj.n);
+                dD{idx} = abcd(obj.n+1:end, obj.n+1:end);
+                idx = idx + 1;
+            end
+        end
     end
     
 end
