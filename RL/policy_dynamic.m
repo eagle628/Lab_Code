@@ -11,8 +11,8 @@ classdef policy_dynamic < policy_class
     end
     
     methods
-        function obj = policy_dynamic(gen_ss_tridiag, sigma)
-            obj.apx_function = gen_ss_tridiag;
+        function obj = policy_dynamic(gen_ss_canonical, sigma)
+            obj.apx_function = gen_ss_canonical;
             obj.sigma = sigma;
             obj.params = obj.apx_function.get_params();
             obj.internal_state  = zeros(obj.apx_function.n, 1);
@@ -43,6 +43,7 @@ classdef policy_dynamic < policy_class
         
         function grad = policy_grad_mu(obj, pre_input, state)
             [~,~,c,d] = obj.apx_function.get_ss(obj.params);
+            % old version
             [Abig, Bbig, Cbig, Dbig] = obj.get_sys_big();
             ABCD = [Abig, Bbig; Cbig, Dbig];
             xy = ABCD*[obj.internal_state_; obj.grad_internal_state; state'];
@@ -86,18 +87,33 @@ classdef policy_dynamic < policy_class
             [A, B, C, D, dA, dB, dC, dD] = obj.apx_function.get_ss(theta);
             n = size(A, 1);
             l = size(C, 1);
-            Abig = kron(eye(np+1), A);
+%             % old version
+%             Abig = kron(eye(np+1), A);
+%             Bbig = kron(ones(np+1, 1), B*0);
+%             Bbig(1:n,:) = B;
+%             Cbig = kron(eye(np+1), C);
+%             Dbig = kron(ones(np+1,1), D*0);
+%             Dbig(1:l, :) = D;
+%             for itr  = 1:numel(obj.params)
+%                 Abig(itr*n+(1:n), 1:n) = dA{itr};
+%                 Bbig(itr*n+(1:n), :) = dB{itr};
+%                 Cbig(itr*l+(1:l), 1:n) = dC{itr};
+%                 Dbig(itr*l+(1:l), :) = dD{itr};
+%             end
+            % new version
+            Abig = kron(repmat([1,zeros(1,np)],np+1,1),-A) + kron(eye(np+1), A);
             Bbig = kron(ones(np+1, 1), B*0);
-            Bbig(1:n,:) = B;
-            Cbig = kron(eye(np+1), C);
+            Cbig = kron(repmat([1,zeros(1,np)],np+1,1),-C) + kron(eye(np+1), C);
             Dbig = kron(ones(np+1,1), D*0);
-            Dbig(1:l, :) = D;
-            for itr  = 1:numel(obj.params)
-                Abig(itr*n+(1:n), 1:n) = dA{itr};
-                Bbig(itr*n+(1:n), :) = dB{itr};
-                Cbig(itr*l+(1:l), 1:n) = dC{itr};
-                Dbig(itr*l+(1:l), :) = dD{itr};
-            end
+            alpha = 1e-2;
+            dA = cellfun(@(x)x*alpha,dA,'UniformOutput',false);
+            dB = cellfun(@(x)x*alpha,dB,'UniformOutput',false);
+            dC = cellfun(@(x)x*alpha,dC,'UniformOutput',false);
+            dD = cellfun(@(x)x*alpha,dD,'UniformOutput',false);
+            Abig = Abig + blkdiag(zeros(size(A)),dA{:});
+            Bbig = Bbig + cat(1, zeros(size(B)),dB{:});
+            Cbig = Cbig + blkdiag(zeros(size(C)),dC{:});
+            Dbig = Dbig + cat(1, zeros(size(D)),dD{:});
             % grad only
             Abig = Abig(n+1:end ,:);
             Bbig = Bbig(n+1:end ,:);
@@ -107,9 +123,8 @@ classdef policy_dynamic < policy_class
         
         function update = policy_constraint(obj, new_params, model, belief_N, varargin)
             tmp = strcmp(varargin, 'Invalid-Constraint');
-            invalid_constraint_flag = varargin{find(tmp)+1};
-            if invalid_constraint_flag
-                update = true;
+            if sum(tmp)
+                update = varargin{find(tmp)+1};
                 return
             end
             A = diag(ones(1, belief_N-1), -1);
