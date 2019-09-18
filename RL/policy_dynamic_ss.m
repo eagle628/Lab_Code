@@ -1,6 +1,5 @@
-classdef policy_dynamic < policy_class
-    %UNTITLED11 このクラスの概要をここに記述
-    %   詳細説明をここに記述
+classdef policy_dynamic_ss < policy_class
+    % state space ver
     
     properties
         sigma
@@ -11,7 +10,7 @@ classdef policy_dynamic < policy_class
     end
     
     methods
-        function obj = policy_dynamic(gen_ss_canonical, sigma)
+        function obj = policy_dynamic_ss(gen_ss_canonical, sigma)
             obj.apx_function = gen_ss_canonical;
             obj.sigma = sigma;
             obj.params = obj.apx_function.get_params();

@@ -91,9 +91,9 @@ Te = 2;
 % advantage_N = 5;
 % train = network_A2C(model, policy, value, Te, advantage_N, belief_N);
 train = network_retro_by_actor_critic_with_eligibility_traces_episodic(model, policy, value, Te, belief_N);
-% train_seed = 28;
-% [x, u_mpc, u_rl, theta_mu_snapshot, theta_sigma_snapshot, w_snapshot, reward_history] = ...
-%     train.train([0.4, 0], train_seed);
+train_seed = 28;
+[x, u_mpc, u_rl, theta_mu_snapshot, theta_sigma_snapshot, w_snapshot, reward_history] = ...
+    train.train([0.4, 0], train_seed);
 
 % train.train([0.4, 0], train_seed, 'Invalid-Constraint', true);
 
