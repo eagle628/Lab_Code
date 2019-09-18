@@ -79,9 +79,10 @@ value  =  value_RBF(RBF1);
 
 %% generate apx function for policy
 pi_sigma = 1;
-apx_function = gen_ss_tridiag(controller_n,controller_m,controller_l);
+% apx_function = gen_ss_tridiag(controller_n,controller_m,controller_l);
+apx_function = gen_tf(controller_n,controller_m,controller_l);
 apx_function.set_sys(controller);
-policy = policy_dynamic(apx_function, pi_sigma);
+policy = policy_dynamic_tf(apx_function, pi_sigma);
 % policy = policy_RBF(RBF1, pi_sigma);
 
 %% trainer
