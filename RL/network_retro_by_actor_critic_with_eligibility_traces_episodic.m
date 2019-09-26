@@ -14,7 +14,7 @@ classdef network_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
         alpha_f = 0.001 % fisher weghit %% invalid
         gamma = 0.99
         gamma2 = 0.9
-        max_episode = 3e4%3.5e3
+        max_episode = 3.5e3
         snapshot = 100;
     end
     
@@ -249,6 +249,7 @@ classdef network_retro_by_actor_critic_with_eligibility_traces_episodic < RL_tra
             y_w_v_all = zeros(obj.sim_N, obj.model.ny+obj.model.nw+obj.model.nv);
             rl_u_all = zeros(obj.sim_N, obj.model.nu);
             mpc_u_all = zeros(obj.sim_N, obj.model.nu);
+            obj.policy.initialize_memory();
             % set initial
             local_x_all(1, :) = ini';
             % calculate MBC gain

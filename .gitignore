@@ -1,5 +1,8 @@
 mail_message.m
 LabPy36
-code_test_folder\
+code_test_folder
 *.asv
 *.mat
+IV/CLRIVC_opt.m
+IV/iv_spem.m
+IV/test_iv_spem.m
