@@ -105,8 +105,7 @@ classdef policy_dynamic_tf < policy_class
                 update = varargin{find(tmp)+1};
                 return
             end
-            A = diag(ones(1, belief_N-1), -1);
-            A = kron(A, repmat([1,0], model.ny, 1));
+            A = diag(ones(1,(belief_N-1)*model.ny),-model.ny);
             B  = zeros(size(A, 1), model.ny);
             B(1:model.ny,1:model.ny) = eye(model.ny);
             C = A;
