@@ -122,6 +122,30 @@ classdef policy_dynamic_tf < policy_class
             pole = eig(A_all);
             update = ~(sum(abs(pole)>1));
         end
+        
+        function update = constraint(obj, new_params, varargin)
+            model = varargin{3};
+            AB = varargin{4};
+            A = AB(:, 1:size(AB, 1));
+            B = AB(:, size(AB, 1)+1:end);
+            C = A;
+            D = B;
+            recorder = ss(A,B,C,D,model.Ts);
+            target = model.sys_local({'y'},{'u'});
+            target = c2d(target, model.Ts);
+            [a,b,c,d] = obj.apx_function.get_sys(new_params);
+            controller = ss(a,b,c,d,model.Ts);
+            true_controller = controller*recorder;
+            [Ap,Bp,Cp,~]  = ssdata(target);
+            [Ak,Bk,Ck,Dk] = ssdata(true_controller);
+            A_all = [Ak,Bk*Cp; Bp*Ck, Ap+Bp*Dk*Cp];
+            pole = eig(A_all);
+            update = ~(sum(abs(pole)>1));
+        end
+        
+        function grad = grad(obj, state, varargin)
+            grad = obj.policy_grad_mu(varargin{1}, state);
+        end
     end
 end
 

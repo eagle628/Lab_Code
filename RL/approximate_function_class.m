@@ -23,6 +23,12 @@ classdef approximate_function_class < handle
         function initialize_memory(obj)
            % pass fucntion for override
         end
+        
+        function update = constraint(obj, varargin)
+            update = true;
+            % pass function
+        end
+        
     end
 end
 

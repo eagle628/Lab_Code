@@ -31,6 +31,17 @@ classdef value_RBF < value_class
                 grad(grad<=-varargin{find(tmp)+1}) = -varargin{find(tmp)+1};
             end
         end
+        
+        function grad = grad(obj, state, varargin)
+           grad = obj.value_grad(state, varargin{:}); 
+        end
+        
+        function value = predict(obj, state, w)
+            if nargin < 3
+                w = obj.get_params();
+            end
+            value = obj.est_value(state, w); 
+        end
     end
 end
 

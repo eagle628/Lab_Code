@@ -7,7 +7,9 @@ classdef Update_Rule < handle
     end
     
     methods
-        
+        function initialize(obj)
+           
+        end 
     end
 end
 

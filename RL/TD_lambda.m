@@ -18,11 +18,12 @@ classdef TD_lambda < Update_Rule
             end
             obj.alpha = alpha;
             obj.lambda = lambda;
-            obj.z = 0;
+            obj.z = 0;% 本来は，パラメータの長さ分だけあるが，初回のみブロードキャストされる形式でクリア可能
             obj.zeta = 1;
         end
         
-        function new_params = updator(obj, params, grad, delta, gamma)
+        function new_params = updator(obj, params, grad, delta, varargin)
+            gamma = varargin{2};
             obj.z = gamma*obj.lambda*obj.z + obj.zeta*grad;
             new_params = params + obj.alpha*delta*obj.z;
             obj.zeta = obj.zeta*gamma;
