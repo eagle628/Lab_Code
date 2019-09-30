@@ -1,5 +1,5 @@
 clear
-% close all
+close all
 
 %% define model
 % % % network version
@@ -16,7 +16,7 @@ tmp_idx = find(net.Adj(c_n, :)~=0);
 tmp_adj = 5 + 1*rand(1, length(tmp_idx));
 net.Adj(c_n ,tmp_idx) = tmp_adj;
 net.Adj(tmp_idx, c_n) = tmp_adj;
-net.plot()
+% net.plot()
 % set model
 Ts = 0.01;
 model = swing_network_model(net, c_n, Ts);
@@ -83,7 +83,7 @@ train = network_retro_by_AC_episodic(model, opt_policy, opt_value, recorder_sys)
 train_seed = 28;
 
 Te = 5;
-mode_parallel = 'off';
+mode_parallel = true;
 [x, u_mpc, u_rl, policy_snapshot, value_snapshot, reward_history] = ...
     train.train([0.4, 0], Te, train_seed,'mode-parrallerl', mode_parallel);
 
@@ -92,7 +92,7 @@ mode_parallel = 'off';
 %% plot
 %%
 test_ini = [0;0.4];
-test_Te  = 5;
+test_Te  = 10;
 t = (0:model.Ts:test_Te)';
 noise_seed = 100;
  

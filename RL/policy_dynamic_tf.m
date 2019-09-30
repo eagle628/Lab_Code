@@ -140,7 +140,7 @@ classdef policy_dynamic_tf < policy_class
             [Ak,Bk,Ck,Dk] = ssdata(true_controller);
             A_all = [Ak,Bk*Cp; Bp*Ck, Ap+Bp*Dk*Cp];
             pole = eig(A_all);
-            update = ~(sum(abs(pole)>1));
+            update = abs(max(pole))< 1;
         end
         
         function grad = grad(obj, state, varargin)

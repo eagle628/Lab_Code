@@ -42,17 +42,23 @@ classdef network_retro_by_AC_episodic < RL_train
             value_snapshot = zeros(obj.opt_value.approximate_function_class.apx_function.N, length(record_point));
             policy_snapshot = zeros(obj.opt_policy.approximate_function_class.apx_function.N, length(record_point));
             % calculate MBC gain
-            K = lqr(obj.model.A, obj.model.B, blkdiag(obj.Q_c, eye(obj.model.apx_nx)*obj.Q1), obj.R);
+            K = zeros(size(obj.model.B'));
             tmp = strcmp(varargin, 'parallel');
             if sum(tmp)
-                if  strcmp(varargin{find(tmp)+1},'off')
-                    K = zeros(size(K));
+                if  varargin{find(tmp)+1}
+                    K = lqr(obj.model.A, obj.model.B, blkdiag(obj.Q_c, eye(obj.model.apx_nx)*obj.Q1), obj.R);
                 end
             end
             K1 = K(1:obj.model.local_nx);
             K2 = K(obj.model.local_nx+1 : end);
+            clearvars tmp
             % local noise
             d_L = zeros(sim_N, 2);
+            % generate initial
+            local_ini = repmat(ini, obj.max_episode, 1);
+%             local_ini = rand(obj.max_episode, obj.model.local_nx) - 0.5;
+            env_ini   = zeros(obj.max_episode, obj.model.env_nx);
+            rect_ini  = zeros(obj.max_episode, obj.model.rect_nx);
             % start episode learning
             record_idx = 1;
             belief_state = zeros(2, size(obj.belief_sys, 1));% belief state % 1 line: current state , 2 line: previous state
@@ -71,10 +77,9 @@ classdef network_retro_by_AC_episodic < RL_train
                 % belief initialize
                 belief_state = zeros(size(belief_state));
                 % set episode initial
-                local_x_all(1, :) = ini';% When network model, local system state
-%                 local_x_all(1, :) = rand(1,2)-0.5;
-                env_x_all(1, :) = zeros(1, obj.model.env_nx);
-                rect_x_all(1, :) = zeros(1, obj.model.rect_nx);
+                local_x_all(1, :) = local_ini(episode, :);
+                env_x_all(1, :) = env_ini(episode, :);
+                rect_x_all(1, :) = rect_ini(episode, :);
                 % simlate
                 for k = 1 : sim_N-1
                     % MBC input
