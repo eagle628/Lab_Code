@@ -131,7 +131,7 @@ classdef policy_dynamic_tf < policy_class
             C = A;
             D = B;
             recorder = ss(A,B,C,D,model.Ts);
-            target = model.sys_local({'y'},{'u'});
+            target = model.sys_local({'y','w'},{'u'});
             target = c2d(target, model.Ts);
             [a,b,c,d] = obj.apx_function.get_sys(new_params);
             controller = ss(a,b,c,d,model.Ts);

@@ -218,8 +218,7 @@ classdef network_retro_by_AC_episodic < RL_train
                 [rect_ne_x, rect_yw] = obj.model.rect_dynamics(local_x_all(k, :)', env_x_all(k, :)', rect_x_all(k, :)');
                 rect_x_all(k+1, :) = rect_ne_x';
                 % belief_update
-                belief_state(1, obj.model.ny+1:end) = belief_state(1, 1:end-obj.model.ny);
-                belief_state(1, 1:obj.model.ny) = rect_yw'; % momory store
+                belief_state = (obj.belief_sys*[belief_state'; rect_yw])'; % momory store
                 r = obj.reward([local_x_all(k+1, :), rect_x_all(k+1, :)], rl_u_all(k, :)+mpc_u_all(k, :));
                 reward =  reward + obj.gamma^(k-1)*r;
            end

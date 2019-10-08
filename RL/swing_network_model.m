@@ -68,7 +68,8 @@ classdef swing_network_model < environment_model
             % rect_sys
             rect_sys = Retrofit.generate_rectifier(obj.sys_local, apx_environment);
             rect_sys = c2d(rect_sys, obj.Ts, 'foh');
-            rect_sys = rect_sys({'x'},:);
+%             rect_sys = rect_sys({'x'},:);
+            rect_sys = rect_sys({'yhat','what'},:);
             obj.system_rect = [rect_sys.A, rect_sys.B; rect_sys.C, rect_sys.D];
             % all_sys
             sys_all = obj.sys_all({obj.port_y,obj.port_w,obj.port_v}, {obj.port_control,obj.port_d_L}); 
