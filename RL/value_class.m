@@ -5,7 +5,9 @@ classdef value_class < approximate_function_class
     properties
     end
     
-    methods
+    methods(Abstract)
+        est_value(obj)
+        grad(obj)
     end
 end
 

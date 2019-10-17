@@ -39,8 +39,8 @@ classdef network_retro_by_AC_episodic < RL_train
             reward_history = zeros(obj.max_episode, 1);
             % record point
             record_point = obj.snapshot:obj.snapshot:obj.max_episode;
-            value_snapshot = cell(obj.opt_value.approximate_function_class.apx_function.N, length(record_point));
-            policy_snapshot = cell(obj.opt_policy.approximate_function_class.apx_function.N, length(record_point));
+            value_snapshot = cell(1, length(record_point));
+            policy_snapshot = cell(1, length(record_point));
             % calculate MBC gain
             K = zeros(size(obj.model.B'));
             tmp = strcmp(varargin, 'parallel');
