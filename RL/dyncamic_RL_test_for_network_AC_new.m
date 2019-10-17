@@ -1,6 +1,7 @@
 clear
 close all
 
+tic
 %% define model
 % % % network version
 seed1 = 8;
@@ -28,7 +29,7 @@ belief_N = 2;
 seed_define = 2;
 rng(seed_define)
 % sys = ss(model.A, model.B, eye(2), [], model.Ts);
-controller_n = 2;% state
+controller_n = 4;% state
 controller_l = 1;% output
 nnn = model.ny+model.nw;
 controller_m = belief_N*nnn;% input
@@ -85,19 +86,22 @@ opt_policy = optimizer(policy_update_rule, policy);
 
 %% trainer
 train = network_retro_by_AC_episodic(model, opt_policy, opt_value, recorder_sys);
-train.max_episode = 6e3;
+train.max_episode = 2e3;
 train_seed = 28;
 
 Te = 5;
 mode_parallel = false;
 [x, u_mpc, u_rl, policy_snapshot, value_snapshot, reward_history] = ...
     train.train([0.4, 0], Te, train_seed,'mode-parrallerl', mode_parallel);
+
+% load test_rl_net30_1010.mat obj
+% train.opt_policy.approximate_function_class.set_params(obj.opt_policy.approximate_function_class.get_params())
+% train.opt_policy.approximate_function_class.set_params(obj.opt_value.approximate_function_class.get_params())
 %% plot
 test_ini = [0;0.4];
 test_Te  = 10;
 t = (0:model.Ts:test_Te)';
-noise_seed = 1;
- 
+noise_seed = 16;
 x_rl = train.sim(test_ini, test_Te, [], [], noise_seed,'mode-parrallerl', mode_parallel);
 
 figure
@@ -110,7 +114,19 @@ plot(t,x_lqr(:,2),'b')
 x_ori = train.sim_original(test_ini,test_Te,[],noise_seed);
 plot(t,x_ori(:,2),'c')
 
-legend('RL','LQR','ori')
+net.add_controller(model.c_n, balred(model.sys_env, controller_n-2), train.Q_c, train.R)
+con_sys = net.get_sys_controlled(model.sys_all);
+rng(noise_seed)
+ddd = randn(length(t), 2);
+con_sys = con_sys({strcat('y_node',num2str(model.c_n))},{strcat('d_node',num2str(model.c_n))});
+x0 = zeros(order(con_sys), 1);
+x0(1:2) = test_ini;
+x_compared = lsim(con_sys, ddd, t, x0);
+net.controllers = {};
+plot(t,x_compared(:,2),'k:')
+rng('shuffle')
+
+legend('RL','LQR','ori','compared')
 
 disp('RL')
 disp(norm(x_rl(:,2)))
@@ -118,7 +134,58 @@ disp('LQR')
 disp(norm(x_lqr(:,2)))
 disp('Original')
 disp(norm(x_ori(:,2)))
+disp('compared')
+disp(norm(x_compared(:,2)))
 
-
+%% parfor test
+% % % test_ini = [0;0.4];
+% % % test_Te  = 10;
+% % % t = (0:model.Ts:test_Te)';
+% % % parfor_N = 1e3;
+% % % 
+% % % % extend retro
+% % % net.add_controller(model.c_n, balred(model.sys_env, controller_n-2), train.Q_c, train.R)
+% % % con_sys = net.get_sys_controlled(model.sys_all);
+% % % con_sys = con_sys({strcat('y_node',num2str(model.c_n))},{strcat('d_node',num2str(model.c_n))});
+% % % net.controllers = {};
+% % % x0 = zeros(order(con_sys), 1);
+% % % x0(1:2) = test_ini;
+% % % % get memory
+% % % norm_rl_set = zeros(parfor_N, 1);
+% % % norm_lqr_set = zeros(parfor_N, 1);
+% % % norm_ori_set = zeros(parfor_N, 1);
+% % % norm_compared_set = zeros(parfor_N, 1);
+% % % % loop
+% % % parfor_progress(parfor_N)
+% % % parfor noise_seed = 1 : parfor_N
+% % %     x_rl = train.sim(test_ini, test_Te, [], [], noise_seed,'mode-parrallerl', mode_parallel);
+% % %     norm_rl_set(noise_seed, 1) = norm(x_rl(:,2));
+% % %     
+% % %     x_lqr = train.sim_lqrcontroller(test_ini,test_Te,[],noise_seed);
+% % %     norm_lqr_set(noise_seed, 1) = norm(x_lqr(:,2));
+% % %     
+% % %     x_ori = train.sim_original(test_ini,test_Te,[],noise_seed);
+% % %     norm_ori_set(noise_seed, 1) = norm(x_ori(:,2));
+% % %     
+% % %     rng(noise_seed)
+% % %     ddd = randn(length(t), 2);
+% % %     x_compared = lsim(con_sys, ddd, t, x0);
+% % %     norm_compared_set(noise_seed, 1) = norm(x_compared(:,2));
+% % %     rng('shuffle')
+% % %     
+% % %     parfor_progress();
+% % % end
+% % % parfor_progress(0);
+% % % 
+% % % figure
+% % % boxplot([norm_ori_set,norm_lqr_set,norm_rl_set,norm_compared_set],'Labels',{'ori','lqr','rl','compared'})
+%%
 mail_message('End')
+
+savename = char(datetime);
+savename = strrep(savename,'/','-');
+savename = strrep(savename,':','-');
+savename = strrep(savename,' ','-');
+save(savename)
+toc
 %% local
