@@ -15,11 +15,11 @@ classdef optimizer < handle
             obj.counter = 0;
         end
         
-        function opt(obj, delta, state, varargin)
-            grad = obj.approximate_function_class.grad(state, varargin{:});
+        function opt(obj, data)
+            grad = obj.approximate_function_class.grad(data);
             params = obj.approximate_function_class.get_params();
-            new_params = obj.update_rule.updator(params, grad, delta, varargin{:});
-            if obj.approximate_function_class.constraint(new_params, varargin{:})
+            new_params = obj.update_rule.updator(params, grad, data, obj.approximate_function_class);
+            if obj.approximate_function_class.constraint(new_params, data)
                 obj.approximate_function_class.set_params(new_params);
                 obj.counter = obj.counter + 1;
             end

@@ -58,22 +58,30 @@ end
 recorder_sys = [A,B];
 
 %% generate apx function for value
-% parmeter
-basis_N = 11;
-% generate line
-% basis function RBF
-range = [-1,1];
-width = (range(2)-range(1))/(basis_N-1);
-m = range(1):width:range(2);
-mu = m;
-for itr = 1 : belief_N*nnn - 1
-mu = combvec(mu, m); % col vector combinater function
+% % parmeter
+% basis_N = 11;
+% % generate line
+% % basis function RBF
+% range = [-1,1];
+% width = (range(2)-range(1))/(basis_N-1);
+% m = range(1):width:range(2);
+% mu = m;
+% for itr = 1 : belief_N*nnn - 1
+% mu = combvec(mu, m); % col vector combinater function
+% end
+% mu = mu';
+% sigma = 0.25*ones(size(mu, 1), 1);
+% RBF1 = Radial_Basis_Function(size(mu, 1), mu, sigma);
+% value  =  value_RBF(RBF1);
+% value_update_rule = TD_lambda(1e-5, 0.999);
+% opt_value = optimizer(value_update_rule, value);
+deep_net = py.deep_network_model.deep_model.simple_net();
+gpu_id = int64(0);
+if gpu_id >= 0
+    deep_net.to_gpu(gpu_id);
 end
-mu = mu';
-sigma = 0.25*ones(size(mu, 1), 1);
-RBF1 = Radial_Basis_Function(size(mu, 1), mu, sigma);
-value  =  value_RBF(RBF1);
-value_update_rule = TD_lambda(1e-5, 0.999);
+value = value_chainer_deep_net(py.chainer.optimizers.SGD(pyargs('lr',0.01)).setup(deep_net));
+value_update_rule = deep_update_rule();
 opt_value = optimizer(value_update_rule, value);
 
 %% generate apx function for policy
@@ -86,7 +94,7 @@ opt_policy = optimizer(policy_update_rule, policy);
 
 %% trainer
 train = network_retro_by_AC_episodic(model, opt_policy, opt_value, recorder_sys);
-train.max_episode = 2e3;
+train.max_episode = 6e3;
 train_seed = 28;
 
 Te = 5;
@@ -138,49 +146,49 @@ disp('compared')
 disp(norm(x_compared(:,2)))
 
 %% parfor test
-% % % test_ini = [0;0.4];
-% % % test_Te  = 10;
-% % % t = (0:model.Ts:test_Te)';
-% % % parfor_N = 1e3;
-% % % 
-% % % % extend retro
-% % % net.add_controller(model.c_n, balred(model.sys_env, controller_n-2), train.Q_c, train.R)
-% % % con_sys = net.get_sys_controlled(model.sys_all);
-% % % con_sys = con_sys({strcat('y_node',num2str(model.c_n))},{strcat('d_node',num2str(model.c_n))});
-% % % net.controllers = {};
-% % % x0 = zeros(order(con_sys), 1);
-% % % x0(1:2) = test_ini;
-% % % % get memory
-% % % norm_rl_set = zeros(parfor_N, 1);
-% % % norm_lqr_set = zeros(parfor_N, 1);
-% % % norm_ori_set = zeros(parfor_N, 1);
-% % % norm_compared_set = zeros(parfor_N, 1);
-% % % % loop
-% % % parfor_progress(parfor_N)
-% % % parfor noise_seed = 1 : parfor_N
-% % %     x_rl = train.sim(test_ini, test_Te, [], [], noise_seed,'mode-parrallerl', mode_parallel);
-% % %     norm_rl_set(noise_seed, 1) = norm(x_rl(:,2));
-% % %     
-% % %     x_lqr = train.sim_lqrcontroller(test_ini,test_Te,[],noise_seed);
-% % %     norm_lqr_set(noise_seed, 1) = norm(x_lqr(:,2));
-% % %     
-% % %     x_ori = train.sim_original(test_ini,test_Te,[],noise_seed);
-% % %     norm_ori_set(noise_seed, 1) = norm(x_ori(:,2));
-% % %     
-% % %     rng(noise_seed)
-% % %     ddd = randn(length(t), 2);
-% % %     x_compared = lsim(con_sys, ddd, t, x0);
-% % %     norm_compared_set(noise_seed, 1) = norm(x_compared(:,2));
-% % %     rng('shuffle')
-% % %     
-% % %     parfor_progress();
-% % % end
-% % % parfor_progress(0);
-% % % 
-% % % figure
-% % % boxplot([norm_ori_set,norm_lqr_set,norm_rl_set,norm_compared_set],'Labels',{'ori','lqr','rl','compared'})
+% % % % test_ini = [0;0.4];
+% % % % test_Te  = 10;
+% % % % t = (0:model.Ts:test_Te)';
+% % % % parfor_N = 1e3;
+% % % % 
+% % % % % extend retro
+% % % % net.add_controller(model.c_n, balred(model.sys_env, controller_n-2), train.Q_c, train.R)
+% % % % con_sys = net.get_sys_controlled(model.sys_all);
+% % % % con_sys = con_sys({strcat('y_node',num2str(model.c_n))},{strcat('d_node',num2str(model.c_n))});
+% % % % net.controllers = {};
+% % % % x0 = zeros(order(con_sys), 1);
+% % % % x0(1:2) = test_ini;
+% % % % % get memory
+% % % % norm_rl_set = zeros(parfor_N, 1);
+% % % % norm_lqr_set = zeros(parfor_N, 1);
+% % % % norm_ori_set = zeros(parfor_N, 1);
+% % % % norm_compared_set = zeros(parfor_N, 1);
+% % % % % loop
+% % % % parfor_progress(parfor_N)
+% % % % parfor noise_seed = 1 : parfor_N
+% % % %     x_rl = train.sim(test_ini, test_Te, [], [], noise_seed,'mode-parrallerl', mode_parallel);
+% % % %     norm_rl_set(noise_seed, 1) = norm(x_rl(:,2));
+% % % %     
+% % % %     x_lqr = train.sim_lqrcontroller(test_ini,test_Te,[],noise_seed);
+% % % %     norm_lqr_set(noise_seed, 1) = norm(x_lqr(:,2));
+% % % %     
+% % % %     x_ori = train.sim_original(test_ini,test_Te,[],noise_seed);
+% % % %     norm_ori_set(noise_seed, 1) = norm(x_ori(:,2));
+% % % %     
+% % % %     rng(noise_seed)
+% % % %     ddd = randn(length(t), 2);
+% % % %     x_compared = lsim(con_sys, ddd, t, x0);
+% % % %     norm_compared_set(noise_seed, 1) = norm(x_compared(:,2));
+% % % %     rng('shuffle')
+% % % %     
+% % % %     parfor_progress();
+% % % % end
+% % % % parfor_progress(0);
+% % % % 
+% % % % figure
+% % % % boxplot([norm_ori_set,norm_lqr_set,norm_rl_set,norm_compared_set],'Labels',{'ori','lqr','rl','compared'})
 %%
-mail_message('End')
+% mail_message('End')
 
 savename = char(datetime);
 savename = strrep(savename,'/','-');

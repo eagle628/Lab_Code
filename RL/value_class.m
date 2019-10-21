@@ -7,7 +7,7 @@ classdef value_class < approximate_function_class
     
     methods(Abstract)
         est_value(obj)
-        grad(obj)
+        value_grad(obj)
     end
 end
 

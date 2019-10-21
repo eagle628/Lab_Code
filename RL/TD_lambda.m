@@ -22,11 +22,15 @@ classdef TD_lambda < Update_Rule
             obj.zeta = 1;
         end
         
-        function new_params = updator(obj, params, grad, delta, varargin)
-            gamma = varargin{2};
-            obj.z = gamma*obj.lambda*obj.z + obj.zeta*grad;
+        function new_params = updator(obj, params, grad, data, varargin)
+            obj.z = data.gamma*obj.lambda*obj.z + obj.zeta*grad;
+            if strcmp(class(data.delta), 'couble')
+                delta = data.delta;
+            else
+                delta = single(py.numpy.squeeze(data.delta).tolist);
+            end
             new_params = params + obj.alpha*delta*obj.z;
-            obj.zeta = obj.zeta*gamma;
+            obj.zeta = obj.zeta*data.gamma;
         end
         
         function initialize(obj)

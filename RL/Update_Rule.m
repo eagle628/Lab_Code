@@ -11,5 +11,9 @@ classdef Update_Rule < handle
            
         end 
     end
+    
+    methods(Abstract)
+       updator(obj) 
+    end
 end
 

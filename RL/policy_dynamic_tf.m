@@ -123,9 +123,9 @@ classdef policy_dynamic_tf < policy_class
             update = ~(sum(abs(pole)>1));
         end
         
-        function update = constraint(obj, new_params, varargin)
-            model = varargin{3};
-            AB = varargin{4};
+        function update = constraint(obj, new_params, data, varargin)
+            model = data.model;
+            AB = data.belief_sys;%varargin{4};
             A = AB(:, 1:size(AB, 1));
             B = AB(:, size(AB, 1)+1:end);
             C = A;
@@ -143,8 +143,8 @@ classdef policy_dynamic_tf < policy_class
             update = abs(max(pole))< 1;
         end
         
-        function grad = grad(obj, state, varargin)
-            grad = obj.policy_grad_mu(varargin{1}, state);
+        function grad = grad(obj, data)
+            grad = obj.policy_grad_mu(data.pre_input, data.state);
         end
     end
 end
