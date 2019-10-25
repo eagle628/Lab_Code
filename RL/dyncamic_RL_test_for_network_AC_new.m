@@ -1,11 +1,10 @@
 clear
 close all
 
-tic
 %% define model
 % % % network version
 seed1 = 8;
-Node_number = 30;
+Node_number = 2;
 net = network_swing_simple(Node_number, [1,2], [2,12]*1e-3, 1, [0.1,6], 0.8, seed1);
 net.Adj_ref = net.Adj_ref*0;
 % local system
@@ -58,43 +57,48 @@ end
 recorder_sys = [A,B];
 
 %% generate apx function for value
-% % parmeter
-% basis_N = 11;
-% % generate line
-% % basis function RBF
-% range = [-1,1];
-% width = (range(2)-range(1))/(basis_N-1);
-% m = range(1):width:range(2);
-% mu = m;
-% for itr = 1 : belief_N*nnn - 1
-% mu = combvec(mu, m); % col vector combinater function
-% end
-% mu = mu';
-% sigma = 0.25*ones(size(mu, 1), 1);
-% RBF1 = Radial_Basis_Function(size(mu, 1), mu, sigma);
-% value  =  value_RBF(RBF1);
-% value_update_rule = TD_lambda(1e-5, 0.999);
-% opt_value = optimizer(value_update_rule, value);
-deep_net = py.deep_network_model.deep_model.simple_net();
-gpu_id = int64(0);
-if gpu_id >= 0
-    deep_net.to_gpu(gpu_id);
+% parmeter
+basis_N = 11;
+% generate line
+% basis function RBF
+range = [-1,1];
+width = (range(2)-range(1))/(basis_N-1);
+m = range(1):width:range(2);
+mu = m;
+for itr = 1 : belief_N*nnn - 1
+mu = combvec(mu, m); % col vector combinater function
 end
-value = value_chainer_deep_net(py.chainer.optimizers.SGD(pyargs('lr',0.01)).setup(deep_net));
-value_update_rule = deep_update_rule();
+mu = mu';
+sigma = 0.25*ones(size(mu, 1), 1);
+RBF1 = Radial_Basis_Function(size(mu, 1), mu, sigma);
+value  =  value_RBF(RBF1);
+value_update_rule = TD_lambda(1e-5, 0.999);
 opt_value = optimizer(value_update_rule, value);
+% deep ver
+% net_seed = 10;
+% py.deep_network_model.reset_seed(net_seed);
+% deep_net = py.deep_network_model.deep_model.simple_net();
+% gpu_id = int64(0);
+% if gpu_id >= 0
+%     deep_net.to_gpu(gpu_id);
+% end
+% value = value_chainer_deep_net(py.chainer.optimizers.SGD(pyargs('lr',0.01)).setup(deep_net));
+% value_update_rule = deep_update_rule();
+% opt_value = optimizer(value_update_rule, value);
 
 %% generate apx function for policy
 pi_sigma = 1;
-apx_function = gen_tf(controller_n,controller_m,controller_l);
+% apx_function = gen_tf(controller_n,controller_m,controller_l);
+apx_function = gen_ss_tridiag(controller_n,controller_m,controller_l);
 apx_function.set_sys(controller);
-policy = policy_dynamic_tf(apx_function, pi_sigma);
+% policy = policy_dynamic_tf(apx_function, pi_sigma);
+policy = policy_dynamic_ss(apx_function, pi_sigma);
 policy_update_rule = TD_lambda(1e-5, 0);
 opt_policy = optimizer(policy_update_rule, policy);
 
 %% trainer
 train = network_retro_by_AC_episodic(model, opt_policy, opt_value, recorder_sys);
-train.max_episode = 6e3;
+train.max_episode = 10;
 train_seed = 28;
 
 Te = 5;
@@ -109,7 +113,7 @@ mode_parallel = false;
 test_ini = [0;0.4];
 test_Te  = 10;
 t = (0:model.Ts:test_Te)';
-noise_seed = 16;
+noise_seed = 1;
 x_rl = train.sim(test_ini, test_Te, [], [], noise_seed,'mode-parrallerl', mode_parallel);
 
 figure
@@ -195,5 +199,4 @@ savename = strrep(savename,'/','-');
 savename = strrep(savename,':','-');
 savename = strrep(savename,' ','-');
 save(savename)
-toc
 %% local

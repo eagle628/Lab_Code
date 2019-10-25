@@ -63,6 +63,7 @@ classdef network_retro_by_AC_episodic < RL_train
             record_idx = 1;
             belief_state = zeros(2, size(obj.belief_sys, 1));% belief state % 1 line: current state , 2 line: previous state
             for episode = 1 : obj.max_episode
+                tic;
                 % memory reset
                 local_x_all = nan(sim_N, obj.model.local_nx);
                 env_x_all = nan(sim_N, obj.model.env_nx);
@@ -116,12 +117,6 @@ classdef network_retro_by_AC_episodic < RL_train
                     obj.opt_policy.opt(data);
                     obj.opt_value.opt(data);
                 end
-                % record history
-                if ~mod(episode, obj.snapshot)
-                    value_snapshot{record_idx} = obj.opt_value.approximate_function_class.get_params(); 
-                    policy_snapshot{record_idx} = obj.opt_policy.approximate_function_class.get_params();
-                    record_idx =  record_idx + 1;
-                end
                 reward_history(episode) = reward;
                 % callback
                 subplot(3,1,1)
@@ -153,7 +148,15 @@ classdef network_retro_by_AC_episodic < RL_train
                 disp(strcat('Episode-',num2str(episode),' : policy constraint update times : ', num2str(obj.opt_policy.counter) ,'/',num2str(sim_N-1)))
                 if nargout > 7
                    varargout{1}(episode) = getframe(gcf);
-               end
+                end
+                timer = toc;
+                fprintf('This epoch %f[s], Estimated time to finish:%f [h].\n',timer, timer*(obj.max_episode-episode)/3600)
+                % record history
+                if ~mod(episode, obj.snapshot)
+                    value_snapshot{record_idx} = obj.opt_value.approximate_function_class.get_params(); 
+                    policy_snapshot{record_idx} = obj.opt_policy.approximate_function_class.get_params();
+                    record_idx =  record_idx + 1;
+                end
             end
         end
         

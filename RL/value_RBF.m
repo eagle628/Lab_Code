@@ -33,7 +33,10 @@ classdef value_RBF < value_class
         end
         
         function grad = grad(obj, state, varargin)
-           grad = obj.value_grad(state, varargin{:}); 
+            if isstruct(state)
+                state = state.state;
+            end
+            grad = obj.value_grad(state, varargin{:}); 
         end
         
         function value = predict(obj, state, w)

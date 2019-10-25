@@ -86,7 +86,7 @@ classdef policy_dynamic_ss < policy_class
             [A, B, C, D, dA, dB, dC, dD] = obj.apx_function.get_ss(theta);
             n = size(A, 1);
             l = size(C, 1);
-%             % old version
+            % old version
 %             Abig = kron(eye(np+1), A);
 %             Bbig = kron(ones(np+1, 1), B*0);
 %             Bbig(1:n,:) = B;
@@ -99,25 +99,29 @@ classdef policy_dynamic_ss < policy_class
 %                 Cbig(itr*l+(1:l), 1:n) = dC{itr};
 %                 Dbig(itr*l+(1:l), :) = dD{itr};
 %             end
-            % new version
-            Abig = kron(repmat([1,zeros(1,np)],np+1,1),-A) + kron(eye(np+1), A);
-            Bbig = kron(ones(np+1, 1), B*0);
-            Cbig = kron(repmat([1,zeros(1,np)],np+1,1),-C) + kron(eye(np+1), C);
-            Dbig = kron(ones(np+1,1), D*0);
-            alpha = 1e-2;
-            dA = cellfun(@(x)x*alpha,dA,'UniformOutput',false);
-            dB = cellfun(@(x)x*alpha,dB,'UniformOutput',false);
-            dC = cellfun(@(x)x*alpha,dC,'UniformOutput',false);
-            dD = cellfun(@(x)x*alpha,dD,'UniformOutput',false);
-            Abig = Abig + blkdiag(zeros(size(A)),dA{:});
-            Bbig = Bbig + cat(1, zeros(size(B)),dB{:});
-            Cbig = Cbig + blkdiag(zeros(size(C)),dC{:});
-            Dbig = Dbig + cat(1, zeros(size(D)),dD{:});
-            % grad only
-            Abig = Abig(n+1:end ,:);
-            Bbig = Bbig(n+1:end ,:);
-            Cbig = Cbig(l+1:end ,:);
-            Dbig = Dbig(l+1:end ,:);
+            Abig = [cat(1, dA{:}), kron(eye(np), A)];
+            Bbig =  cat(1, dB{:});
+            Cbig = [cat(1, dC{:}), kron(eye(np), C)];
+            Dbig =  cat(1, dD{:});
+%             % new version
+%             Abig = kron(repmat([1,zeros(1,np)],np+1,1),-A) + kron(eye(np+1), A);
+%             Bbig = kron(ones(np+1, 1), B*0);
+%             Cbig = kron(repmat([1,zeros(1,np)],np+1,1),-C) + kron(eye(np+1), C);
+%             Dbig = kron(ones(np+1,1), D*0);
+%             alpha = 1e-2;
+%             dA = cellfun(@(x)x*alpha,dA,'UniformOutput',false);
+%             dB = cellfun(@(x)x*alpha,dB,'UniformOutput',false);
+%             dC = cellfun(@(x)x*alpha,dC,'UniformOutput',false);
+%             dD = cellfun(@(x)x*alpha,dD,'UniformOutput',false);
+%             Abig = Abig + blkdiag(zeros(size(A)),dA{:});
+%             Bbig = Bbig + cat(1, zeros(size(B)),dB{:});
+%             Cbig = Cbig + blkdiag(zeros(size(C)),dC{:});
+%             Dbig = Dbig + cat(1, zeros(size(D)),dD{:});
+%             % grad only
+%             Abig = Abig(n+1:end ,:);
+%             Bbig = Bbig(n+1:end ,:);
+%             Cbig = Cbig(l+1:end ,:);
+%             Dbig = Dbig(l+1:end ,:);
         end
         
         function update = policy_constraint(obj, new_params, model, belief_N, varargin)
@@ -143,6 +147,30 @@ classdef policy_dynamic_ss < policy_class
             A_all = [Ak,Bk*Cp; Bp*Ck, Ap+Bp*Dk*Cp];
             pole = eig(A_all);
             update = ~(sum(abs(pole)>1));
+        end
+        
+        function update = constraint(obj, new_params, data, varargin)
+            model = data.model;
+            AB = data.belief_sys;%varargin{4};
+            A = AB(:, 1:size(AB, 1));
+            B = AB(:, size(AB, 1)+1:end);
+            C = A;
+            D = B;
+            recorder = ss(A,B,C,D,model.Ts);
+            target = model.sys_local({'y','w'},{'u'});
+            target = c2d(target, model.Ts);
+            [a,b,c,d] = obj.apx_function.get_ss(new_params);
+            controller = ss(a,b,c,d,model.Ts);
+            true_controller = controller*recorder;
+            [Ap,Bp,Cp,~]  = ssdata(target);
+            [Ak,Bk,Ck,Dk] = ssdata(true_controller);
+            A_all = [Ak,Bk*Cp; Bp*Ck, Ap+Bp*Dk*Cp];
+            pole = eig(A_all);
+            update = abs(max(pole))< 1;
+        end
+        
+        function grad = grad(obj, data)
+            grad = obj.policy_grad_mu(data.pre_input, data.state);
         end
     end
 end

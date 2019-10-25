@@ -2,6 +2,16 @@
 import chainer
 import chainer.links as L
 import chainer.functions as F
+import numpy as np
+import random
+
+
+def reset_seed(seed=0):
+    """Set random seed."""
+    random.seed(seed)
+    np.random.seed(seed)
+    if chainer.cuda.available:
+        chainer.cuda.cupy.random.seed(seed)
 
 
 class simple_net(chainer.Chain):
