@@ -57,34 +57,34 @@ end
 recorder_sys = [A,B];
 
 %% generate apx function for value
-% parmeter
-basis_N = 11;
-% generate line
-% basis function RBF
-range = [-1,1];
-width = (range(2)-range(1))/(basis_N-1);
-m = range(1):width:range(2);
-mu = m;
-for itr = 1 : belief_N*nnn - 1
-mu = combvec(mu, m); % col vector combinater function
-end
-mu = mu';
-sigma = 0.25*ones(size(mu, 1), 1);
-RBF1 = Radial_Basis_Function(size(mu, 1), mu, sigma);
-value  =  value_RBF(RBF1);
-value_update_rule = TD_lambda(1e-5, 0.999);
-opt_value = optimizer(value_update_rule, value);
-% deep ver
-% net_seed = 10;
-% py.deep_network_model.reset_seed(net_seed);
-% deep_net = py.deep_network_model.deep_model.simple_net();
-% gpu_id = int64(0);
-% if gpu_id >= 0
-%     deep_net.to_gpu(gpu_id);
+% % parmeter
+% basis_N = 11;
+% % generate line
+% % basis function RBF
+% range = [-1,1];
+% width = (range(2)-range(1))/(basis_N-1);
+% m = range(1):width:range(2);
+% mu = m;
+% for itr = 1 : belief_N*nnn - 1
+% mu = combvec(mu, m); % col vector combinater function
 % end
-% value = value_chainer_deep_net(py.chainer.optimizers.SGD(pyargs('lr',0.01)).setup(deep_net));
-% value_update_rule = deep_update_rule();
+% mu = mu';
+% sigma = 0.25*ones(size(mu, 1), 1);
+% RBF1 = Radial_Basis_Function(size(mu, 1), mu, sigma);
+% value  =  value_RBF(RBF1);
+% value_update_rule = TD_lambda(1e-5, 0.999);
 % opt_value = optimizer(value_update_rule, value);
+% % deep ver
+net_seed = 10;
+py.deep_network_model.deep_model.reset_seed(int64(net_seed));
+deep_net = py.deep_network_model.deep_model.simple_net();
+gpu_id = int64(0);
+if gpu_id >= 0
+    deep_net.to_gpu(gpu_id);
+end
+value = value_chainer_deep_net(py.chainer.optimizers.SGD(pyargs('lr',0.01)).setup(deep_net));
+value_update_rule = deep_update_rule();
+opt_value = optimizer(value_update_rule, value);
 
 %% generate apx function for policy
 pi_sigma = 1;
@@ -194,9 +194,9 @@ disp(norm(x_compared(:,2)))
 %%
 % mail_message('End')
 
-savename = char(datetime);
-savename = strrep(savename,'/','-');
-savename = strrep(savename,':','-');
-savename = strrep(savename,' ','-');
-save(savename)
+% savename = char(datetime);
+% savename = strrep(savename,'/','-');
+% savename = strrep(savename,':','-');
+% savename = strrep(savename,' ','-');
+% save(savename)
 %% local
