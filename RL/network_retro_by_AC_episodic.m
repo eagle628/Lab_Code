@@ -103,7 +103,9 @@ classdef network_retro_by_AC_episodic < RL_train
                     r = obj.reward([local_x_all(k+1, :), rect_x_all(k+1, :)], rl_u_all(k, :)+mpc_u_all(k, :));
                     reward =  reward + obj.gamma^(k-1)*r;
                     % TD Erorr 
+                    py.chainer.using_config.enable_backprop =  false;
                     V_k1 = obj.opt_value.approximate_function_class.est_value(belief_state(1, :));
+                    py.chainer.using_config.enable_backprop =  true;
                     V_k0 = obj.opt_value.approximate_function_class.est_value(belief_state(2, :));
                     delta = r + obj.gamma*V_k1 - V_k0;
                     % parameter update
@@ -220,8 +222,8 @@ classdef network_retro_by_AC_episodic < RL_train
                 y_w_v_all(k, :) = ywv';
                 mpc_u_all(k, :) = ([K1,-K2]*rect_x_all(k, :)')' -(K1*y_w_v_all(k, 1:obj.model.ny)')';
                 % RL input
-%                 rl_u_all(k, :) = obj.opt_policy.approximate_function_class.stocastic_policy(belief_state(1, :), theta_mu);
-                rl_u_all(k, :) = obj.opt_policy.approximate_function_class.determistic_policy(belief_state(1, :), theta_mu);
+                rl_u_all(k, :) = obj.opt_policy.approximate_function_class.stocastic_policy(belief_state(1, :), theta_mu);
+%                 rl_u_all(k, :) = obj.opt_policy.approximate_function_class.determistic_policy(belief_state(1, :), theta_mu);
                 %  observe S_(k+1)
                 [~, local_ne_x, env_ne_x] = obj.model.dynamics(local_x_all(k, :)', env_x_all(k, :)', rl_u_all(k, :) + mpc_u_all(k, :), d_L(k, :)');
                 local_x_all(k+1, :) = local_ne_x';
