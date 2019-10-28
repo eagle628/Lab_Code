@@ -93,6 +93,9 @@ classdef gen_ss_tridiag < gen_ss
         end
         
         function [A, B, C, D, dA, dB, dC, dD] = get_ss(obj, theta)
+            if nargin < 2
+                theta = obj.get_params();
+            end
             n = obj.n;%#ok
             m = obj.m;%#ok
             l = obj.l;%#ok
