@@ -115,59 +115,67 @@ classdef gen_ss_tridiag < gen_ss
                 dB = cell(np, 1);
                 dC = cell(np, 1);
                 dD = cell(np, 1);
+                % % precomputation
+                A0 = A*0;
+                B0 = B*0;
+                C0 = C*0;
+                D0 = D*0;
+                % % dA
                 for itr = 1:n%#ok
                     M = zeros(n, n);%#ok
                     M(itr, itr) = 1;
                     dA{itr} = M;
-                    dB{itr} = B*0;
-                    dC{itr} = C*0;
-                    dD{itr} = D*0;
+                    dB{itr} = B0;
+                    dC{itr} = C0;
+                    dD{itr} = D0;
                 end
                 b = n;%#ok
                 for itr = 1:n-1%#ok
                     M = zeros(n, n);%#ok
                     M(itr+1, itr) = 1;
                     dA{itr+b} = M;
-                    dB{itr+b} = B*0;
-                    dC{itr+b} = C*0;
-                    dD{itr+b} = D*0;
+                    dB{itr+b} = B0;
+                    dC{itr+b} = C0;
+                    dD{itr+b} = D0;
                 end
                 b = 2*n-1;%#ok
                 for itr = 1:n-1%#ok
                     M = zeros(n, n);%#ok
                     M(itr, itr+1) = 1;
                     dA{itr+b} = M;
-                    dB{itr+b} = B*0;
-                    dC{itr+b} = C*0;
-                    dD{itr+b} = D*0;
+                    dB{itr+b} = B0;
+                    dC{itr+b} = C0;
+                    dD{itr+b} = D0;
                 end
                 b = 3*n-2;%#ok
+                % % dB
                 for itr = 1:n*m%#ok
-                    dA{itr+b} = A*0;
+                    dA{itr+b} = A0;
                     M = B*0;
                     M(1+mod(itr-1, n), 1+floor((itr-1)/n)) = 1;%#ok
                     dB{itr+b} = M;
-                    dC{itr+b} = C*0;
-                    dD{itr+b} = D*0;
+                    dC{itr+b} = C0;
+                    dD{itr+b} = D0;
                 end
                 b = b+n*m;%#ok
+                % % dC
                 for itr = 1:n*l%#ok
-                    dA{itr+b} = A*0;
-                    dB{itr+b} = B*0;
+                    dA{itr+b} = A0;
+                    dB{itr+b} = B0;
                     M = zeros(l, n);%#ok
                     M(1+mod(itr-1, l), 1+floor((itr-1)/l)) = 1;%#ok
                     dC{itr+b} = M;
-                    dD{itr+b} = D*0;
+                    dD{itr+b} = D0;
                 end
                 b = b+n*l;%#ok
-                
+                % % dD
                 
                 for itr = 1:m*l%#ok
-                    dA{itr+b} = A*0;
-                    dB{itr+b} = B*0;
+                    dA{itr+b} = A0;
+                    dB{itr+b} = B0;
                     M = zeros(l, m);%#ok
                     M(1+mod(itr-1, l), 1+floor((itr-1)/l)) = 1; %#ok
-                    dC{itr+b} = C*0;
+                    dC{itr+b} = C0;
                     dD{itr+b} = M;
                 end
             end

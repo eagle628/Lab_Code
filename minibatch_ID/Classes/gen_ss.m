@@ -18,9 +18,16 @@ classdef gen_ss < handle
             
         end
         
-        function sys = get_sys(obj)
-           [A, B, C, D] = obj.get_ss(obj.get_params());
-           sys = ss(A, B, C, D);
+        function sys = get_sys(obj, Ts, x)
+            if nargin < 3 || isempty(x)
+                x = obj.get_params();
+            end
+           [A, B, C, D] = obj.get_ss(x);
+           if nargin < 2 || isempty(Ts)
+               sys = ss(A, B, C, D);
+           else
+               sys = ss(A, B, C, D, Ts);
+           end
         end
         function varargout = get_ss_p(obj)
             varargout = cell(nargout, 1);
