@@ -251,7 +251,9 @@ classdef Retrofit
                         eye(size(C_L_y , 1)), tools.zeros(C_L_y ,B_L), tools.zeros(C_L_y ,B_L);
                         zeros(size(B_L, 2),size(C_L_y , 1)), eye(size(B_L, 2)), zeros(size(B_L, 2));
                         ];
-            D_rect = [ D_rect ; zeros(size(C_rect,1) - size(D_rect,1),size(D_rect, 2))];
+            D_rect = [ D_rect ; zeros(size(C_rect,1) - size(D_rect,1),size(D_rect, 2))];% % Enable state in observaation
+            C_rect = [ C_rect; zeros(size(D_rect, 2), size(C_rect, 2)); ]; % Enable input in observaation
+            D_rect = [ D_rect ; eye(size(D_rect, 2)); ];% Enable input in observaation
             rect_sys = ss(A_rect, B_rect, C_rect, D_rect);
             rect_sys.InputGroup.y = 1:size(C_L_y, 2);
             rect_sys.InputGroup.w = size(C_L_y, 2) + (1:size(B_L, 2));
@@ -261,6 +263,9 @@ classdef Retrofit
             rect_sys.OutputGroup.x_e = size(C_L_y, 2) + size(B_L, 2) + (1:size(A_E, 1));
             rect_sys.OutputGroup.x_l = size(C_L_y, 2) + size(B_L, 2) + size(A_E, 1) + (1:size(A_L, 1));
             rect_sys.OutputGroup.x = size(C_L_y, 2) + size(B_L, 2) + (1:size(A_E, 1)+size(A_L, 1));
+            rect_sys.OutputGroup.y = size(C_L_y, 2) + size(B_L, 2) + size(A_E, 1) + size(A_L, 1) + (1:size(C_L_y, 2));
+            rect_sys.OutputGroup.w = size(C_L_y, 2) + size(B_L, 2) + size(A_E, 1) + size(A_L, 1) + size(C_L_y, 2) + (1:size(B_L, 2));
+            rect_sys.OutputGroup.v = size(C_L_y, 2) + size(B_L, 2) + size(A_E, 1) + size(A_L, 1) + size(C_L_y, 2) + size(B_L, 2) + (1:size(B_L, 2));
         end
     end
     
