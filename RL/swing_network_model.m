@@ -8,6 +8,7 @@ classdef swing_network_model < environment_model
     properties
         net
         sys_local
+        sys_local_discrete
         sys_env
         apx_sys_env
         sys_all
@@ -44,6 +45,7 @@ classdef swing_network_model < environment_model
             end
             obj.sys_all = sys_all;
             [obj.sys_local, obj.sys_env] = net.get_sys_local(obj.c_n);
+            obj.sys_local_discrete = c2d(obj.sys_local({'y','w'},{'u'}), Ts,'zoh');
             sys_design = Retrofit.generate_fb(obj.sys_local, apx_environment);
             sys_design = sys_design('y','u');
             obj.A = sys_design.A;
@@ -67,13 +69,13 @@ classdef swing_network_model < environment_model
             obj.port_control = {strcat('u_node',num2str(c_n))};
             % rect_sys
             rect_sys = Retrofit.generate_rectifier(obj.sys_local, apx_environment);
-            rect_sys = c2d(rect_sys, obj.Ts, 'foh');
+            rect_sys = c2d(rect_sys, obj.Ts, 'zoh');
 %             rect_sys = rect_sys({'x'},:);
             rect_sys = rect_sys({'yhat','what'},:);
             obj.system_rect = [rect_sys.A, rect_sys.B; rect_sys.C, rect_sys.D];
             % all_sys
             sys_all = obj.sys_all({obj.port_y,obj.port_w,obj.port_v}, {obj.port_control,obj.port_d_L}); 
-            sys_all = c2d(sys_all, obj.Ts, 'foh');
+            sys_all = c2d(sys_all, obj.Ts, 'zoh');
             obj.observe_all  = sys_all.C;
             obj.dynamics_all = [sys_all.A, sys_all.B];
         end
@@ -132,8 +134,9 @@ classdef swing_network_model < environment_model
             if nargout == 1 
                 ywv = obj.observe_all*all_x;
             else
-                ywv = obj.observe_all*all_x; % a little void
-                ne_all_x = obj.dynamics_all*[all_x; d_L ;u];
+                ywv = obj.observe_all*all_x;
+%                 ne_all_x = obj.dynamics_all*[all_x; d_L ;u];
+                ne_all_x = obj.dynamics_all*[all_x; u; d_L]; % こちらが正しい．
                 [ne_local_x, ne_env_x] = obj.all_to_L_ans_E(ne_all_x);
             end
         end
