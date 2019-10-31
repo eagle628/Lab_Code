@@ -47,7 +47,7 @@ classdef swing_network_model < environment_model
             [obj.sys_local, obj.sys_env] = net.get_sys_local(obj.c_n);
             obj.sys_local_discrete = c2d(obj.sys_local({'y','w'},{'u'}), Ts,'zoh');
             sys_design = Retrofit.generate_fb(obj.sys_local, apx_environment);
-            sys_design = sys_design('y','u');
+            sys_design = c2d(sys_design('y','u'),Ts,'zoh');
             obj.A = sys_design.A;
             obj.B = sys_design.B;
             obj.Ts = Ts;
