@@ -36,16 +36,41 @@ classdef policy_dynamic_ss < policy_class
         end
         
         function input = determistic_policy(obj, state, varargin)
-            [~,~,c,d] = obj.apx_function.get_ss(obj.params);
-            input = c*obj.internal_state + d*state';
+%             [a,b,c,d] = obj.apx_function.get_ss(obj.params);
+%             obj.internal_state_ = a*obj.internal_state_ + b*state';
+%             input = c*obj.internal_state_ + d*state';
+            [a,b,c,d] = obj.apx_function.get_ss(obj.params);
+            ABCD = [a,b;c,d];
+            xy = ABCD*[obj.internal_state;state'];
+            input = xy(size(a, 1)+1 : end);
+            obj.internal_state_ = obj.internal_state;
+            obj.internal_state  = xy(1 : size(a, 1));
         end
         
         function grad = policy_grad_mu(obj, pre_input, state)
             [~,~,c,d] = obj.apx_function.get_ss(obj.params);
             % old version
-            [Abig, Bbig, Cbig, Dbig] = obj.get_sys_big();
-            ABCD = [Abig, Bbig; Cbig, Dbig];
-            xy = ABCD*[obj.internal_state_; obj.grad_internal_state; state'];
+%             [Abig, Bbig, Cbig, Dbig] = obj.get_sys_big();
+%             ABCD = [Abig, Bbig; Cbig, Dbig];
+%             xy = ABCD*[obj.internal_state_; obj.grad_internal_state; state'];
+%             xx = [obj.internal_state_; obj.grad_internal_state;];
+%             x_ = Abig*xx + Bbig*state';
+%             y_= Cbig*xx + Dbig*state';
+%             xy = [x_; y_];
+            
+            [A, B, C, D, dA, dB, dC, dD] = obj.apx_function.get_ss(obj.params);
+            dx = reshape(obj.grad_internal_state, size(A, 1), []);
+            x = obj.internal_state;
+            Adx = A*dx;
+            dAx = vertcat(dA{:})*x;
+            Cdx = C*dx;
+            dCx = vertcat(dC{:})*x;
+            tmpx_ = Adx(:)+dAx+vertcat(dB{:})*state';
+            tmpy_ = Cdx(:)+dCx+vertcat(dD{:})*state';
+            xy = [tmpx_; tmpy_];
+%             tmpx = arrayfun(@(i) double(dA{i})*double(x)+dB{i}*state', 1:numel(dA), 'UniformOutput', false);
+%             tmpy = arrayfun(@(i) C*dx(:, i)+dC{i}*x+dD{i}*state', 1:numel(dC), 'UniformOutput', false);
+%             xy = vertcat(tmpx{:}, y_);
             obj.grad_internal_state_ = obj.grad_internal_state;
             obj.grad_internal_state  = xy(1 : length(obj.grad_internal_state));
             apx_function_grad = xy(length(obj.grad_internal_state)+1 :  end);
@@ -87,6 +112,17 @@ classdef policy_dynamic_ss < policy_class
             n = size(A, 1);
             l = size(C, 1);
             % old version
+            if false
+            Abig = zeros(np*n, (np+1)*n);
+            for itr = 1:np
+                Abig((itr-1)*n+1:itr*n, itr*n+1:(itr+1)*n) = A;
+                if any(any(dA{itr}))
+                Abig((itr-1)*n+1:itr*n, 1:n) = dA{itr};
+            end
+            end
+            else
+               Abig = []; 
+            end
 %             Abig = kron(eye(np+1), A);
 %             Bbig = kron(ones(np+1, 1), B*0);
 %             Bbig(1:n,:) = B;
@@ -99,7 +135,17 @@ classdef policy_dynamic_ss < policy_class
 %                 Cbig(itr*l+(1:l), 1:n) = dC{itr};
 %                 Dbig(itr*l+(1:l), :) = dD{itr};
 %             end
-            Abig = [cat(1, dA{:}), kron(eye(np), A)];
+%             Abig = [cat(1, dA{:}), kron(eye(np), A)];
+%             tmp1 = cat(1, dA{:});
+%             tmp2 = vertcat(dA{:});
+%             tmp3 = kron(eye(np), A);
+%             Abig2 = [tmp1, tmp3];
+               
+%             Abig2 = kron(eye(np), A)
+%             for i = 1:numel(dA)
+%             
+%             end
+%             
             Bbig =  cat(1, dB{:});
             Cbig = [cat(1, dC{:}), kron(eye(np), C)];
             Dbig =  cat(1, dD{:});
@@ -151,19 +197,26 @@ classdef policy_dynamic_ss < policy_class
         
         function update = constraint(obj, new_params, data, varargin)
             model = data.model;
-            AB = data.belief_sys;%varargin{4};
-            A = AB(:, 1:size(AB, 1));
-            B = AB(:, size(AB, 1)+1:end);
-            C = A;
-            D = B;
-            recorder = ss(A,B,C,D,model.Ts);
-            target = model.sys_local({'y','w'},{'u'});
-            target = c2d(target, model.Ts);
+%             AB = data.belief_sys;%varargin{4};
+%             A = AB(:, 1:size(AB, 1));
+%             B = AB(:, size(AB, 1)+1:end);
+%             C = A;
+%             D = B;
+%             recorder = ss(A,B,C,D,model.Ts);
+            recorder = data.recorder;
+%             target = model.sys_local({'y','w'},{'u'});
+%             target = c2d(target, model.Ts);
+            target = model.sys_local_discrete;
             [a,b,c,d] = obj.apx_function.get_ss(new_params);
-            controller = ss(a,b,c,d,model.Ts);
-            true_controller = controller*recorder;
+            [A, B, C, D] = ssdata(recorder);
+            Ak = [A, tools.zeros(A, a); b*C, a];
+            Bk = [B; b*D];
+            Ck = [d*C c];
+            Dk = d*D;
+%             controller = ss(a,b,c,d,model.Ts);
+%             true_controller = controller*recorder;
             [Ap,Bp,Cp,~]  = ssdata(target);
-            [Ak,Bk,Ck,Dk] = ssdata(true_controller);
+%             [Ak,Bk,Ck,Dk] = ssdata(true_controller);
             A_all = [Ak,Bk*Cp; Bp*Ck, Ap+Bp*Dk*Cp];
             pole = eig(A_all);
             update = abs(max(pole))< 1;
