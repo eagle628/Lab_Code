@@ -104,9 +104,7 @@ classdef swing_network_model < environment_model
         function z = evaluate(obj, data)
             narginchk(1, inf)
             if nargin == 2
-                data = mat2cell(data, size(data,1),ones(1, size(data,2)));
-                z = cellfun(@(x)obj.evaluate_C*x, data, 'UniformOutput', false);
-                z = cell2mat(z);
+                z = obj.evaluate_C*data;
                 return
             end
             z = obj.evaluate_C*obj.state; 
