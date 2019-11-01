@@ -29,9 +29,9 @@ policy = policy_RBF(RBF1, sigma_pi);
 value  =  value_RBF(RBF1);
 %%
 % set train
-% train = general_actor_critic_with_eligibility_tracess_episodic(model, policy, value, Te);
+train = general_actor_critic_with_eligibility_traces_episodic(model, policy, value, Te);
 advantage_N  = 100;
-train = general_A2C(model, policy, value, Te, advantage_N);
+% train = general_A2C(model, policy, value, Te, advantage_N);
 
 mode_parallel = 'off';
 Input_Clipping = 10;

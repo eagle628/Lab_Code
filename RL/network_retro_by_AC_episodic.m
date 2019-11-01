@@ -12,6 +12,7 @@ classdef network_retro_by_AC_episodic < RL_train
         gamma = 0.99
         max_episode = 3.5e3
         snapshot = 100;
+        recorder
     end
     
     methods
@@ -27,6 +28,12 @@ classdef network_retro_by_AC_episodic < RL_train
             obj.gamma = 0.99;
             obj.max_episode = 3.5e3;
             obj.snapshot = 100;
+            AB = belief_sys;
+            A = AB(:, 1:size(AB, 1));
+            B = AB(:, size(AB, 1)+1:end);
+            C = A;
+            D = B;
+            obj.recorder = ss(A,B,C,D,model.Ts);
         end
         
         function [local_x_all, mpc_u_all, rl_u_all, policy_snapshot, value_snapshot, reward_history, varargout] = train(obj, ini, Te, seed, varargin)
@@ -43,10 +50,10 @@ classdef network_retro_by_AC_episodic < RL_train
             policy_snapshot = cell(1, length(record_point));
             % calculate MBC gain
             K = zeros(size(obj.model.B'));
-            tmp = strcmp(varargin, 'parallel');
+            tmp = strcmp(varargin, 'mode-parallel');
             if sum(tmp)
                 if  varargin{find(tmp)+1}
-                    K = lqr(obj.model.A, obj.model.B, blkdiag(obj.Q_c, eye(obj.model.apx_nx)*obj.Q1), obj.R);
+                    K = dlqr(obj.model.A, obj.model.B, blkdiag(obj.Q_c, eye(obj.model.apx_nx)*obj.Q1), obj.R);
                 end
             end
             K1 = K(1:obj.model.local_nx);
@@ -55,8 +62,8 @@ classdef network_retro_by_AC_episodic < RL_train
             % local noise
             d_L = zeros(sim_N, 2);
             % generate initial
-            local_ini = repmat(ini, obj.max_episode, 1);
-%             local_ini = rand(obj.max_episode, obj.model.local_nx) - 0.5;
+%             local_ini = repmat(ini, obj.max_episode, 1);
+            local_ini = randn(obj.max_episode, obj.model.local_nx);
             env_ini   = zeros(obj.max_episode, obj.model.env_nx);
             rect_ini  = zeros(obj.max_episode, obj.model.rect_nx);
             % start episode learning
@@ -116,22 +123,36 @@ classdef network_retro_by_AC_episodic < RL_train
                     data.gamma = obj.gamma;
                     data.model = obj.model;
                     data.belief_sys = obj.belief_sys;
+                    data.recorder = obj.recorder;
                     obj.opt_policy.opt(data);
                     obj.opt_value.opt(data);
                 end
                 reward_history(episode) = reward;
                 % callback
+                % % 
+                subplot(3,1,3)
+                plot(nonzeros(reward_history),'-b')
+                ylabel('Culumative Reward')
+                drawnow
+                disp(strcat('Episode-',num2str(episode),' : value  constraint update times : ', num2str(obj.opt_value.counter) ,'/',num2str(sim_N-1)))
+                disp(strcat('Episode-',num2str(episode),' : policy constraint update times : ', num2str(obj.opt_policy.counter) ,'/',num2str(sim_N-1)))
+                % %
                 subplot(3,1,1)
-                plot(t, local_x_all)
+                test_y = obj.sim(ini, Te*3, [], 0, rng(), 'mode-parrallerl', false);
+%                 rng('shuffle')
+%                 plot(t, local_x_all)
+                plot(test_y)
                 title(['\fontsize{16}','Episode-',num2str(episode)])
                 ylabel('z')
                 grid on
-                xlim([0, t(end)])
-                lim = max(max(abs(local_x_all),[],'omitnan'));
+%                 xlim([0, t(end)])
+%                 lim = max(max(abs(local_x_all),[],'omitnan'));
+                lim = max(max(abs(test_y),[],'omitnan'));
                 if isempty(lim) || lim == 0
                     lim = 1;
                 end
                 ylim([-lim, lim]);
+                % %
                 subplot(3,1,2)
                 plot(t, rect_x_all)
                 grid on
@@ -142,15 +163,6 @@ classdef network_retro_by_AC_episodic < RL_train
                     lim = 1;
                 end
                 ylim([-lim, lim]);
-                subplot(3,1,3)
-                plot(nonzeros(reward_history),'-b')
-                ylabel('Culumative Reward')
-                drawnow
-                disp(strcat('Episode-',num2str(episode),' : value  constraint update times : ', num2str(obj.opt_value.counter) ,'/',num2str(sim_N-1)))
-                disp(strcat('Episode-',num2str(episode),' : policy constraint update times : ', num2str(obj.opt_policy.counter) ,'/',num2str(sim_N-1)))
-                if nargout > 7
-                   varargout{1}(episode) = getframe(gcf);
-                end
                 timer = toc;
                 fprintf('This epoch %f[s], Estimated time to finish:%f [h].\n',timer, timer*(obj.max_episode-episode)/3600)
                 % record history
@@ -158,6 +170,9 @@ classdef network_retro_by_AC_episodic < RL_train
                     value_snapshot{record_idx} = obj.opt_value.approximate_function_class.get_params(); 
                     policy_snapshot{record_idx} = obj.opt_policy.approximate_function_class.get_params();
                     record_idx =  record_idx + 1;
+                end
+                if nargout > 7
+                   varargout{1}(episode) = getframe(gcf);
                 end
             end
         end
@@ -173,7 +188,8 @@ classdef network_retro_by_AC_episodic < RL_train
             lidx = 2; % rectifier の周波数成分のみ小さくすれば良い
 %             R = -1/10*(x(lidx)*obj.Q_r(2,2)*x(lidx) + u*obj.R*u');
 %             R = -1/10*(x*blkdiag(obj.Q_r, obj.Q_r, eye(obj.model.apx_nx)*obj.Q1)*x' + u*obj.R*u');
-            R = -1/10*(x(1:2)*obj.Q_r*x(1:2)' + u*obj.R*u');
+%             R = -1/10*(x(1:2)*obj.Q_r*x(1:2)' + u*obj.R*u');
+            R = -1/10*(x(2)*x(2)' + u*obj.R*u');
         end
         
         function [local_x_all, env_x_all, rect_x_all, y_w_v_all, rl_u_all, reward] = sim(obj, ini, Te, theta_mu, noise_power, seed, varargin)
@@ -199,15 +215,17 @@ classdef network_retro_by_AC_episodic < RL_train
             y_w_v_all = zeros(sim_N, obj.model.ny+obj.model.nw+obj.model.nv);
             rl_u_all = zeros(sim_N, obj.model.nu);
             mpc_u_all = zeros(sim_N, obj.model.nu);
-            obj.opt_policy.approximate_function_class.initialize_memory();
+            % episode initialize
+            obj.opt_policy.initialize();
+            obj.opt_value.initialize();
             % set initial
             local_x_all(1, :) = ini';
             % calculate MBC gain
-            K = lqr(obj.model.A, obj.model.B, blkdiag(obj.Q_c, eye(obj.model.apx_nx)*obj.Q1), obj.R);
-            tmp = strcmp(varargin, 'parallel');
+            K = zeros(size(obj.model.B'));
+            tmp = strcmp(varargin, 'mode-parallel');
             if sum(tmp)
-                if  strcmp(varargin{find(tmp)+1},'off')
-                    K = zeros(size(K));
+                if  varargin{find(tmp)+1}
+                    K = dlqr(obj.model.A, obj.model.B, blkdiag(obj.Q_c, eye(obj.model.apx_nx)*obj.Q1), obj.R);
                 end
             end
             K1 = K(1:obj.model.local_nx);
@@ -256,7 +274,7 @@ classdef network_retro_by_AC_episodic < RL_train
             % set initial
             local_x_all(1, :) = ini';
             % calculate MBC gain
-            K = lqr(obj.model.A, obj.model.B, blkdiag(obj.Q_c, eye(obj.model.apx_nx)*obj.Q1), obj.R);
+            K = dlqr(obj.model.A, obj.model.B, blkdiag(obj.Q_c, eye(obj.model.apx_nx)*obj.Q1), obj.R);
             K1 = K(1:obj.model.local_nx);
             K2 = K(obj.model.local_nx+1 : end);
             % initialize reward

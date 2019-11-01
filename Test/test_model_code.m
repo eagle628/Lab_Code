@@ -21,7 +21,7 @@ in_d = {'d_node1'};
 
 %% 
 Te = 10;
-ini = [0,0];
+ini = [0.4,0];
 
 %% original (model current dynamics)
 MPC_mode = false;
@@ -187,7 +187,7 @@ end
 function [local_x_all, env_x_all, rect_x_all, mpc_u_all,t,d_L] = test_sim(model, Te, ini, Q,R,MPC_mode)
     sim_N = Te/model.Ts + 1;
     t = (0:model.Ts:Te)';
-    d_L = randn(sim_N, 2);
+    d_L = 0*randn(sim_N, 2);
     local_x_all = zeros(sim_N, model.local_nx);
     env_x_all = zeros(sim_N, model.env_nx);
     rect_x_all = zeros(sim_N, model.rect_nx);

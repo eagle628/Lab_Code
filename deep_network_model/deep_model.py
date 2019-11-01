@@ -68,3 +68,31 @@ class test_clss():
     def func2(self, a):
         """Print args class name."""
         return type(a)
+
+
+class simple_linear5_net(chainer.Chain):
+    """Make linear 5layers network."""
+
+    def __init__(self, n_mid_units=100, n_out=1):
+        """
+        Set network Specification.
+
+        ('Parameters')
+        n_mid_units : hidden layers number.
+        n_out : output number.
+        """
+        super(simple_linear5_net, self).__init__()
+        with self.init_scope():
+            self.l1 = L.Linear(None, n_mid_units)
+            self.l2 = L.Linear(n_mid_units, n_mid_units)
+            self.l3 = L.Linear(n_mid_units, n_mid_units)
+            self.l4 = L.Linear(n_mid_units, n_mid_units)
+            self.l5 = L.Linear(n_mid_units, n_out)
+
+    def __call__(self, x):
+        """Network foward calculation."""
+        h1 = F.relu(self.l1(x))
+        h2 = F.dropout(F.relu(self.l2(h1)), ratio=0.25)
+        h3 = F.relu(self.l3(h2))
+        h4 = F.dropout(F.relu(self.l4(h3)), ratio=0.25)
+        return self.l5(h4)
