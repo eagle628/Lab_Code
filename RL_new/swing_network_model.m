@@ -1,20 +1,44 @@
 classdef swing_network_model < environment_model
-    %UNTITLED6 このクラスの概要をここに記述
-    %   詳細説明をここに記述
+    % network reinforcement learning Environment
+    % Args
+    % net : network class (Ex. network_swing_simple)
+    % c_n : interested subsystem node number
+    % sys_local : interested subsystem SS
+    % sys_local_discrete : c2d(sys_local)
+    % sys_env : network system except c_n node system SS
+    % apx_sys_env : approximate network system except c_n node system SS
+    % sys_all : All network sysmet SS
+    % rect_nx : Rectifier state number
+    % local_nx : local system(sys_local) state number
+    % env_nx : Environment system(sys_env) state number
+    % port_v : local system input interconnection v name
+    % port_w : local system output interconnection w name
+    % port_y : local system output observation y name
+    % port_xhat : rectifier state name
+    % port_d_L : local system input diturbance
+    % port_control : local system input control
+    % RL_env_all : Environment for Rl Angent SS (from {port_control} to
+    % {port_y,port_w,port_v}))
+    % dynamics_A : RL_env_all.A
+    % dynamics_B : RL_env_all.B
+    % dynamics_C : RL_env_all.C {port_y,port_w}
+    % evaluate_C : evaluation point matrix
+    % Q : reward weight (state)
+    % R : reward weight (input)
+    % discrete_type : system dicretize type('zoh', or 'foh')
+    % nz : evaluation size
     
     properties(Constant)
     end
     
     properties
         net
+        c_n
         sys_local
         sys_local_discrete
         sys_env
         apx_sys_env
         sys_all
-        c_n
-        A
-        B
         rect_nx
         local_nx
         env_nx
@@ -54,10 +78,6 @@ classdef swing_network_model < environment_model
             [obj.sys_local, obj.sys_env] = net.get_sys_local(obj.c_n);
             obj.discrete_type = discrete_type;
             obj.sys_local_discrete = c2d(obj.sys_local({'y','w'},{'u'}), Ts,obj.discrete_type);
-            sys_design = Retrofit.generate_fb(obj.sys_local, apx_environment);
-            sys_design = c2d(sys_design('y','u'),Ts,obj.discrete_type);
-            obj.A = sys_design.A;
-            obj.B = sys_design.B;
             obj.Ts = Ts;
             obj.rect_nx = length(c_n)*2 + order(apx_environment); % retifier dim
             obj.local_nx = order(obj.sys_local); % local dim
@@ -114,6 +134,21 @@ classdef swing_network_model < environment_model
                 return
             end
             z = obj.evaluate_C*obj.state; 
+        end
+        
+        function update = constraint(obj, target, new_params, data)
+            [a2,b2,c2,d2] = target.apx_function.form.get_ss(new_params);
+            AB = data.belief_sys;
+            a1 = AB(:, 1:size(AB, 1));
+            b1 = AB(:, size(AB, 1)+1:end);
+            Ak = [a1, tools.zeros(a1, a2); b2*a1, a2];
+            Bk = [b1; b2*b1];
+            Ck = [d2*a1 c2];
+            Dk = d2*b1;
+            [Ap,Bp,Cp,~]  = ssdata(obj.sys_local_discrete);
+            A_all = [Ak,Bk*Cp; Bp*Ck, Ap+Bp*Dk*Cp];
+            pole = eig(A_all);
+            update = abs(max(pole))< 1;
         end
     end
 end
