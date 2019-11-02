@@ -39,6 +39,7 @@ classdef AC_episodic < RL_train
             % 
             data = struct();
             data.model = obj.model;
+            data.belief_sys = obj.belief_sys;
             data.gamma = obj.gamma;
             data.state = [];
             data.delta = [];
@@ -88,7 +89,6 @@ classdef AC_episodic < RL_train
                         break;
                     end
                 end
-%                close 3
                 % record history
                 if ~mod(episode, obj.snapshot) 
                     value_snapshot{record_idx}  = obj.opt_value.target.apx_function.get_params();
@@ -96,7 +96,7 @@ classdef AC_episodic < RL_train
                     record_idx =  record_idx + 1;
                 end
                 reward_history(episode) = reward;
-                obj.render(t, y_all, reward_history, episode, k);
+                obj.render(t, x_all, y_all, reward_history, episode, k);
             end
         end
         
@@ -144,7 +144,7 @@ classdef AC_episodic < RL_train
             end
         end
         
-        function render(obj, t, y_all, reward_history, episode, update_chance)
+        function render(obj, t, x_all, y_all, reward_history, episode, update_chance)
             figure(1)
             subplot(2,1,1)
             plot(t, y_all)

@@ -31,11 +31,16 @@ classdef swing_network_model < environment_model
         evaluate_C
         Q
         R
+        discrete_type
+        nz
     end
     
     methods
-        function obj = swing_network_model(net, c_n, Ts, apx_environment)
-            if nargin < 4
+        function obj = swing_network_model(net, c_n, Ts, apx_environment, discrete_type)
+            if nargin < 5
+                discrete_type = 'zoh';
+            end
+            if nargin < 4 || isepmty(apx_environment)
                 apx_environment = ss(0);
             end
             obj.net = net;
@@ -47,10 +52,10 @@ classdef swing_network_model < environment_model
             end
             obj.sys_all = sys_all;
             [obj.sys_local, obj.sys_env] = net.get_sys_local(obj.c_n);
-            discrete_mode = 'zoh';
-            obj.sys_local_discrete = c2d(obj.sys_local({'y','w'},{'u'}), Ts,discrete_mode);
+            obj.discrete_type = discrete_type;
+            obj.sys_local_discrete = c2d(obj.sys_local({'y','w'},{'u'}), Ts,obj.discrete_type);
             sys_design = Retrofit.generate_fb(obj.sys_local, apx_environment);
-            sys_design = c2d(sys_design('y','u'),Ts,discrete_mode);
+            sys_design = c2d(sys_design('y','u'),Ts,obj.discrete_type);
             obj.A = sys_design.A;
             obj.B = sys_design.B;
             obj.Ts = Ts;
@@ -77,7 +82,7 @@ classdef swing_network_model < environment_model
             RL_env_all = ss(Ak,Bk,Ck,Dk);
             RL_env_all.OutputGroup = rect_sys.OutputGroup;
             RL_env_all.InputGroup = sys_all.InputGroup;
-            RL_env_all = c2d(RL_env_all, Ts, discrete_mode);
+            RL_env_all = c2d(RL_env_all, Ts, obj.discrete_type);
             obj.RL_env_all = RL_env_all;
             [obj.dynamics_A,obj.dynamics_B,obj.dynamics_C,~] = ssdata(RL_env_all({'yhat','what'},:));
             [~,~,obj.evaluate_C,~] = ssdata(RL_env_all({'y'},:));
@@ -85,6 +90,7 @@ classdef swing_network_model < environment_model
             obj.nx = order(RL_env_all); 
             obj.ny = size(obj.sys_local.OutputGroup.y,2)+size(obj.sys_local.OutputGroup.w, 2);
             obj.nu = size(obj.sys_local.InputGroup.u, 2);
+            obj.nz = size(obj.sys_local.OutputGroup.y,2);
             % weight
             obj.Q = 1;
             obj.R = 1;
@@ -94,7 +100,7 @@ classdef swing_network_model < environment_model
             obj.state = obj.dynamics_A*obj.state + obj.dynamics_B*u;
             ywv = observe(obj);
             z = evaluate(obj);
-            reward = z(2)'*obj.Q*z(2) + u'*obj.R*u;
+            reward = -1/10*(z(2)'*obj.Q*z(2) + u'*obj.R*u);
         end
         
         function ywv = observe(obj)

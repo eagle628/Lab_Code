@@ -5,7 +5,7 @@ close all
 %% define model
 % % % network version
 seed1 = 8;
-Node_number = 2;
+Node_number = 100;
 net = network_swing_simple(Node_number, [1,2], [2,12]*1e-3, 1, [0.1,6], 0.8, seed1);
 % net.Adj_ref = net.Adj_ref*0;
 % local system
@@ -14,7 +14,7 @@ c_n = 1;
 Ts = 0.1;
 model = swing_network_model(net, c_n, Ts);
 %% belief_N(What numbers do observe signal store ?)
-belief_N = 1;
+belief_N = 3;
 %% define init controller
 seed_define = 2;
 rng(seed_define)
@@ -34,10 +34,10 @@ recorder_sys = [A,B];
 
 %% generate apx function for value
 % parmeter
-basis_N = 11;
+basis_N = 5;
 % generate line
 % basis function RBF
-range = [-1,1];
+range = [-5,5];
 width = (range(2)-range(1))/(basis_N-1);
 m = range(1):width:range(2);
 mu = m;
@@ -54,11 +54,11 @@ sigma_pi = 0.5;
 policy = Stocastic_Policy(RBF1, sigma_pi);
 value  =  Value_base(RBF2);
 
-opt_policy = TD_lambda(policy, 1e-4, 0.99);
+opt_policy = TD_lambda(policy, 1e-6, 0.99);
 opt_policy.target.pi_grad_enable = true;
-opt_value = TD_lambda(value, 5e-4, 0.99);
+opt_value = TD_lambda(value, 5e-6, 0.99);
 %%
-train = AC_episodic(model, opt_policy, opt_value, recorder_sys);
+train = AC_episodic_for_net(model, opt_policy, opt_value, recorder_sys);
 
 train_seed = 28;
 Te = 50;
