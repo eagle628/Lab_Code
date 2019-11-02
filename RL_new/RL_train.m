@@ -1,7 +1,7 @@
 classdef RL_train < handle
     % Reinforcement learning train base class
-    
-    properties(Abstract)
+    % model : reinforcement learning environment (inheritanced environment_model class)
+    properties
         model
     end
     

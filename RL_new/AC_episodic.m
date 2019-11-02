@@ -4,7 +4,6 @@ classdef AC_episodic < RL_train
     properties
         opt_policy
         opt_value
-        model
         gamma
         max_episode
         snapshot
@@ -97,42 +96,7 @@ classdef AC_episodic < RL_train
                     record_idx =  record_idx + 1;
                 end
                 reward_history(episode) = reward;
-                figure(1)
-                subplot(2,1,1)
-%                 plot(t, y_all)
-%                 lim = max(max(abs(y_all),[],'omitnan'));
-                z = obj.model.evaluate(x_all);
-                lim = max(max(abs(z),[],'omitnan'));
-                plot(t, z)
-                title(['\fontsize{16}','Episode-',num2str(episode)])
-                ylabel('y')
-                grid on
-                if isempty(lim) || lim == 0
-                    lim = 1;
-                end
-                ylim([-lim, lim]);
-                subplot(2,1,2)
-                plot(nonzeros(reward_history),'-b')
-                ylabel('Culumative Reward')
-                drawnow
-                disp(strcat('Episode-',num2str(episode),' : value  constraint update times : ', num2str(obj.opt_value.counter) ,'/',num2str(sim_N-1)))
-                disp(strcat('Episode-',num2str(episode),' : policy constraint update times : ', num2str(obj.opt_policy.counter) ,'/',num2str(sim_N-1)))
-                timer = toc;
-                fprintf('This epoch %f[s], Estimated time to finish:%f [h].\n',timer, timer*(obj.max_episode-episode)/3600)
-%                 % %
-%                 figure(2)
-%                 [X,Y] = meshgrid(-.5:.1:.5, -2:.4:2);
-%                 mesh_size = size(X, 1);
-%                 XY = zeros(2*mesh_size, mesh_size);
-%                 XY(1:2:end, :) = X;
-%                 XY(2:2:end, :) = Y;
-%                 XY = mat2cell(XY, 2*ones(1,mesh_size), ones(1,mesh_size));
-%                 Z = cellfun(@(x)obj.opt_value.target.predict(x), XY);
-%                 mesh(X,Y,Z)
-%                 xlabel('x_1')
-%                 ylabel('x_2')
-%                 zlabel('Value')
-%                 title(strcat('episode-',num2str(episode)));
+                obj.render(t, y_all, reward_history, episode);
             end
         end
         
@@ -159,7 +123,7 @@ classdef AC_episodic < RL_train
             end
         end
         
-         function [x_all, y_all, mpc_u_all, t, reward] = sim_lqrcontroller(obj, ini, Te, varargin)
+        function [x_all, y_all, mpc_u_all, t, reward] = sim_lqrcontroller(obj, ini, Te, varargin)
             sim_N = Te/obj.model.Ts + 1;
             t = (0:obj.model.Ts:Te)';
             K = dlqr(obj.model.A, obj.model.B, obj.model.Q, obj.model.R);
@@ -180,6 +144,41 @@ classdef AC_episodic < RL_train
             end
         end
         
+        function render(t, y_all, reward_history, episode)
+            figure(1)
+            subplot(2,1,1)
+            plot(t, y_all)
+            title(['\fontsize{16}','Episode-',num2str(episode)])
+            ylabel('y')
+            grid on
+            lim = max(max(abs(y_all),[],'omitnan'));
+            if isempty(lim) || lim == 0
+                lim = 1;
+            end
+            ylim([-lim, lim]);
+            subplot(2,1,2)
+            plot(nonzeros(reward_history),'-b')
+            ylabel('Culumative Reward')
+            drawnow
+            disp(strcat('Episode-',num2str(episode),' : value  constraint update times : ', num2str(obj.opt_value.counter) ,'/',num2str(sim_N-1)))
+            disp(strcat('Episode-',num2str(episode),' : policy constraint update times : ', num2str(obj.opt_policy.counter) ,'/',num2str(sim_N-1)))
+            timer = toc;
+            fprintf('This epoch %f[s], Estimated time to finish:%f [h].\n',timer, timer*(obj.max_episode-episode)/3600)
+            % %
+            figure(2)
+            [X,Y] = meshgrid(-.5:.1:.5, -2:.4:2);
+            mesh_size = size(X, 1);
+            XY = zeros(2*mesh_size, mesh_size);
+            XY(1:2:end, :) = X;
+            XY(2:2:end, :) = Y;
+            XY = mat2cell(XY, 2*ones(1,mesh_size), ones(1,mesh_size));
+            Z = cellfun(@(x)obj.opt_value.target.predict(x), XY);
+            mesh(X,Y,Z)
+            xlabel('x_1')
+            ylabel('x_2')
+            zlabel('Value')
+            title(['\fontsize{16}','Episode-',num2str(episode)]);
+        end
         
 % %         function w = set_w(obj, K, w0)
 % %             if nargin < 3
