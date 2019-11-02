@@ -29,8 +29,13 @@ classdef TD_lambda < optimizer
         end
         
         function new_params = updator(obj, grad, data)
+            if isa(data.delta, 'double')
+                delta = data.delta;
+            else
+                delta = single(py.numpy.squeeze(data.delta.data).tolist);
+            end
             obj.z = data.gamma*obj.lambda*obj.z + obj.zeta*grad;
-            new_params = obj.target.get_params() + obj.alpha*data.delta*obj.z;
+            new_params = obj.target.get_params() + obj.alpha*delta*obj.z;
             obj.zeta = obj.zeta*obj.gamma;
         end
         
