@@ -30,8 +30,7 @@ classdef optimizer < handle
         end
         
         function update = constraint(obj, new_params, data)
-            new_controller = obj.target.get_controller(new_params);
-            update = model.constraint(new_controller, data);
+            update = data.model.constraint(obj.target, new_params, data);
         end
         
         function optimizer_initialize(obj)
