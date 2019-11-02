@@ -24,7 +24,7 @@ classdef optimizer < handle
            obj.target = target; 
         end
         
-        function update = constraint(obj)
+        function update = constraint(obj, neq_params, data)
             update = true;
             % pass function
         end
@@ -36,7 +36,10 @@ classdef optimizer < handle
         function opt(obj, data)
             grad = obj.target.grad(data);
             new_params = obj.updator(grad, data);
-            obj.target.set_params(new_params);
+            if obj.constraint(new_params, data)
+               obj.target.set_params(new_params);
+               obj.counter = obj.counter + 1;
+            end
         end
         
     end
