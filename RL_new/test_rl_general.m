@@ -18,15 +18,18 @@ width = (range(2)-range(1))/(nnn-1);
 mm = (range(1):width:range(2))';
 mu = [kron(m,ones(nnn,1)),repmat(mm,nnn,1)]; 
 sigma = 0.25*ones(basis_N, 1);
-RBF1 = Radial_Basis_Function(mu, sigma);
-RBF2 = Radial_Basis_Function(mu, sigma);
-sigma_pi = 0.5;
-policy = Stocastic_Policy(RBF1, sigma_pi);
-value  =  Value_base(RBF2);
-
-opt_policy = TD_lambda(policy, 1e-4, 0.99);
-opt_policy.target.pi_grad_enable = true;
+apx_function1 = Radial_Basis_Function(mu, sigma);
+value  =  Value_base(apx_function1);
 opt_value = TD_lambda(value, 5e-4, 0.99);
+
+%% set policy
+% apx_function2 = Radial_Basis_Function(mu, sigma);
+apx_function2 = Dynamic_LTI_SS(gen_ss_tridiag(4,2,1));
+sigma_pi = 0.5;
+policy = Stocastic_Policy(apx_function2, sigma_pi);
+% opt_policy = TD_lambda(policy, 1e-4, 0.99); % When rbf.
+opt_policy = TD_lambda(policy, 1e-9, 0);
+opt_policy.target.pi_grad_enable = true;
 %%
 train = AC_episodic(model, opt_policy, opt_value);
 
