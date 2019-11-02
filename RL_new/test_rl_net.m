@@ -5,7 +5,7 @@ close all
 %% define model
 % % % network version
 seed1 = 8;
-Node_number = 100;
+Node_number = 2;
 net = network_swing_simple(Node_number, [1,2], [2,12]*1e-3, 1, [0.1,6], 0.8, seed1);
 % net.Adj_ref = net.Adj_ref*0;
 % local system
@@ -29,6 +29,17 @@ B(1:nnn,1:nnn) = eye(nnn);
 C = A;
 D = B;
 recorder = ss(A,B,C,D,model.Ts);
+iter = 1;
+disp('initial controller')
+while true
+    controller = drss(controller_n, controller_l, controller_m);
+    loop = feedback(model.sys_local_discrete, controller*recorder, +1);
+    if isstable(loop)
+        break;
+    end
+    disp(iter)
+    iter = iter+1;
+end
 % transform canon
 recorder_sys = [A,B];
 
@@ -46,23 +57,26 @@ mu = combvec(mu, m); % col vector combinater function
 end
 mu = mu';
 sigma = 0.25*ones(size(mu, 1), 1);
-RBF1 = Radial_Basis_Function(mu, sigma);
-RBF2 = Radial_Basis_Function(mu, sigma);
+apx_function1 = Radial_Basis_Function(mu, sigma);
+value  =  Value_base(apx_function1);
+opt_value = TD_lambda(value, 5e-4, 0.99);
+opt_value.constraint_enable = false;
 
-%% Set value policy
+%% set policy
+ss_model = gen_ss_tridiag(controller_n,controller_m,controller_l);
+ss_model.set_sys(controller);
+apx_function2 = Dynamic_LTI_SS(ss_model);
 sigma_pi = 0.5;
-policy = Stocastic_Policy(RBF1, sigma_pi);
-value  =  Value_base(RBF2);
-
-opt_policy = TD_lambda(policy, 1e-6, 0.99);
-opt_policy.target.pi_grad_enable = true;
-opt_value = TD_lambda(value, 5e-6, 0.99);
+policy = Stocastic_Policy(apx_function2, sigma_pi);
+opt_policy = TD_lambda(policy, 1e-9, 0);
+opt_policy.constraint_enable = true;
+opt_policy.target.pi_grad_enable = false;
 %%
 train = AC_episodic_for_net(model, opt_policy, opt_value, recorder_sys);
 
 train_seed = 28;
 Te = 50;
-train.max_episode = 3000;
+train.max_episode = 10;
 initial_set = zeros(model.nx, train.max_episode);
 initial_set(1:end-model.rect_nx, :) = 2*rand(model.nx-model.rect_nx, train.max_episode)-1;
 [x_all, rl_u_all, policy_snapshot, value_snapshot, reward_history] = train.train(initial_set, Te, train_seed);

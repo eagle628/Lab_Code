@@ -21,6 +21,7 @@ sigma = 0.25*ones(basis_N, 1);
 apx_function1 = Radial_Basis_Function(mu, sigma);
 value  =  Value_base(apx_function1);
 opt_value = TD_lambda(value, 5e-4, 0.99);
+opt_value.constraint_enable = false;
 
 %% set policy
 % apx_function2 = Radial_Basis_Function(mu, sigma);
@@ -29,6 +30,7 @@ sigma_pi = 0.5;
 policy = Stocastic_Policy(apx_function2, sigma_pi);
 % opt_policy = TD_lambda(policy, 1e-4, 0.99); % When rbf.
 opt_policy = TD_lambda(policy, 1e-9, 0);
+opt_policy.constraint_enable = false;
 opt_policy.target.pi_grad_enable = true;
 %%
 train = AC_episodic(model, opt_policy, opt_value);

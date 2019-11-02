@@ -86,10 +86,10 @@ classdef AC_episodic < RL_train
                     data.pre_input_mu = rl_u_k;
                     obj.opt_policy.opt(data);
                     obj.opt_value.opt(data);
-                    if abs(x_all(1, k)) > 0.5
-                        reward = -30;
-                        break;
-                    end
+%                     if abs(x_all(1, k)) > 0.5
+%                         reward = -30;
+%                         break;
+%                     end
                 end
                 % record history
                 if ~mod(episode, obj.snapshot) 
