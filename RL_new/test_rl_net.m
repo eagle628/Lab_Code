@@ -44,39 +44,53 @@ end
 recorder_sys = [A,B];
 
 %% generate apx function for value
-% parmeter
-basis_N = 5;
-% generate line
-% basis function RBF
-range = [-5,5];
-width = (range(2)-range(1))/(basis_N-1);
-m = range(1):width:range(2);
-mu = m;
-for itr = 1 : belief_N*nnn - 1
-mu = combvec(mu, m); % col vector combinater function
+% % rbf etc.
+% basis_N = 5;
+% % generate line
+% % basis function RBF
+% range = [-5,5];
+% width = (range(2)-range(1))/(basis_N-1);
+% m = range(1):width:range(2);
+% mu = m;
+% for itr = 1 : belief_N*nnn - 1
+% mu = combvec(mu, m); % col vector combinater function
+% end
+% mu = mu';
+% sigma = 0.25*ones(size(mu, 1), 1);
+% apx_function1 = Radial_Basis_Function(mu, sigma);
+% value  =  Value_base(apx_function1);
+% opt_value = TD_lambda(value, 5e-4, 0.99);
+% deep net
+net_seed = 10;
+py.deep_network_model.deep_model.reset_seed(int64(net_seed));
+deep_net = py.deep_network_model.deep_model.simple_net();
+% deep_net = py.deep_network_model.deep_model.simple_linear5_net();
+gpu_id = int64(0);
+if gpu_id >= 0
+    deep_net.to_gpu(gpu_id);
 end
-mu = mu';
-sigma = 0.25*ones(size(mu, 1), 1);
-apx_function1 = Radial_Basis_Function(mu, sigma);
-value  =  Value_base(apx_function1);
-opt_value = TD_lambda(value, 5e-4, 0.99);
+% value = Chainer_Deep_Value(py.chainer.optimizers.SGD(pyargs('lr',0.01)).setup(deep_net), gpu_id);
+value = Chainer_Deep_Value(py.chainer.optimizers.RMSprop(pyargs('lr',0.01)).setup(deep_net), gpu_id);
+opt_value = Chainer_Deep_Optimizer(value);
+% config
 opt_value.constraint_enable = false;
 
 %% set policy
 ss_model = gen_ss_tridiag(controller_n,controller_m,controller_l);
 ss_model.set_sys(controller);
 apx_function2 = Dynamic_LTI_SS(ss_model);
-sigma_pi = 0.5;
+sigma_pi = 10;
 policy = Stocastic_Policy(apx_function2, sigma_pi);
 opt_policy = TD_lambda(policy, 1e-9, 0);
 opt_policy.constraint_enable = true;
-opt_policy.target.pi_grad_enable = false;
+opt_policy.target.pi_grad_enable = true;
+
 %%
 train = AC_episodic_for_net(model, opt_policy, opt_value, recorder_sys);
 
 train_seed = 28;
 Te = 50;
-train.max_episode = 10;
+train.max_episode = 3000;
 initial_set = zeros(model.nx, train.max_episode);
 initial_set(1:end-model.rect_nx, :) = 2*rand(model.nx-model.rect_nx, train.max_episode)-1;
 [x_all, rl_u_all, policy_snapshot, value_snapshot, reward_history] = train.train(initial_set, Te, train_seed);
