@@ -22,9 +22,9 @@ classdef Dynamic_LTI_SS < apx_function
         % override get & set (need for wrapper class)
         function params = get_params(obj)
             params = obj.form.get_params();
-            if ~all(params == obj.theta)
-                disp('policy dynamic class parameter error');
-            end
+%             if ~all(params == obj.theta)
+%                 disp('policy dynamic class parameter error');
+%             end
         end
         
         function set_params(obj, theta)
@@ -142,58 +142,6 @@ classdef Dynamic_LTI_SS < apx_function
 %             Bbig = Bbig(n+1:end ,:);
 %             Cbig = Cbig(l+1:end ,:);
 %             Dbig = Dbig(l+1:end ,:);
-        end
-        
-        function update = policy_constraint(obj, new_params, model, belief_N, varargin)
-            tmp = strcmp(varargin, 'Invalid-Constraint');
-            if sum(tmp)
-                update = varargin{find(tmp)+1};
-                return
-            end
-            A = diag(ones(1, belief_N-1), -1);
-            A = kron(A, repmat([1,0], model.ny, 1));
-            B  = zeros(size(A, 1), model.ny);
-            B(1:model.ny,1:model.ny) = eye(model.ny);
-            C = A;
-            D = B;
-            recorder = ss(A,B,C,D,model.Ts);
-            target = model.sys_local({'y'},{'u'});
-            target = c2d(target, model.Ts);
-            [a,b,c,d] = obj.form.get_ss(new_params);
-            controller = ss(a,b,c,d,model.Ts);
-            true_controller = controller*recorder;
-            [Ap,Bp,Cp,~]  = ssdata(target);
-            [Ak,Bk,Ck,Dk] = ssdata(true_controller);
-            A_all = [Ak,Bk*Cp; Bp*Ck, Ap+Bp*Dk*Cp];
-            pole = eig(A_all);
-            update = ~(sum(abs(pole)>1));
-        end
-        
-        function update = constraint(obj, new_params, data, varargin)
-            model = data.model;
-%             AB = data.belief_sys;%varargin{4};
-%             A = AB(:, 1:size(AB, 1));
-%             B = AB(:, size(AB, 1)+1:end);
-%             C = A;
-%             D = B;
-%             recorder = ss(A,B,C,D,model.Ts);
-            recorder = data.recorder;
-%             target = model.sys_local({'y','w'},{'u'});
-%             target = c2d(target, model.Ts);
-            target = model.sys_local_discrete;
-            [a,b,c,d] = obj.form.get_ss(new_params);
-            [A, B, C, D] = ssdata(recorder);
-            Ak = [A, tools.zeros(A, a); b*C, a];
-            Bk = [B; b*D];
-            Ck = [d*C c];
-            Dk = d*D;
-%             controller = ss(a,b,c,d,model.Ts);
-%             true_controller = controller*recorder;
-            [Ap,Bp,Cp,~]  = ssdata(target);
-%             [Ak,Bk,Ck,Dk] = ssdata(true_controller);
-            A_all = [Ak,Bk*Cp; Bp*Ck, Ap+Bp*Dk*Cp];
-            pole = eig(A_all);
-            update = abs(max(pole))< 1;
         end
     end
 end
