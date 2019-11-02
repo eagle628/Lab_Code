@@ -16,18 +16,20 @@ classdef Stocastic_Policy < RL_structure
             obj.pi_grad_enable = false;
         end
        
-        function input = predict(obj, state, random)
+        function [input_real, input] = predict(obj, state, random)
             if nargin < 3
                 random = true;
             end
             input = obj.apx_function.predict(state);
             if random
-                input = input + obj.pi_sigma^2*randn(size(input));
+                input_real = input + obj.pi_sigma^2*randn(size(input));
+            else
+                input_real = input;
             end
         end
        
         function grad = grad(obj, data)
-            grad = ((data.pre_input - obj.apx_function.predict(data.state))./(obj.pi_sigma^2))*obj.apx_function.grad(data.state);
+            grad = ((data.pre_input - data.pre_input_mu)./(obj.pi_sigma^2))*obj.apx_function.grad(data.state);
             if obj.pi_grad_enable
                 grad2 = obj.grad2(data);
             else
@@ -37,7 +39,7 @@ classdef Stocastic_Policy < RL_structure
         end
         
         function grad = grad2(obj, data)
-            grad =  ((data.pre_input - obj.apx_function.predict(data.state))^2 - (obj.pi_sigma).^2)./(obj.pi_sigma) * (1-obj.pi_sigma);
+            grad =  ((data.pre_input - data.pre_input_mu)^2 - (obj.pi_sigma).^2)./(obj.pi_sigma) * (1-obj.pi_sigma);
         end
        
         function set_policy_sigma(obj, theta2)

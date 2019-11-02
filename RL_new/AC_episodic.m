@@ -44,6 +44,7 @@ classdef AC_episodic < RL_train
             data.state = [];
             data.delta = [];
             data.pre_input = [];
+            data.pre_input_mu = [];
             % start episode learning
             record_idx = 1;
             belief_state = zeros(size(obj.belief_sys, 1), 2);% belief state % 1 line: current state , 2 line: previous state
@@ -66,7 +67,7 @@ classdef AC_episodic < RL_train
                 x_all(:, 1) = obj.model.state;
                 belief_state(:, 1) =  obj.belief_sys*[belief_state(:, 1); y_all(:, 1)];
                 for k = 1 : sim_N-1
-                    rl_u_all(:, k) = obj.opt_policy.target.predict(belief_state(:, 1), true);
+                    [rl_u_all(:, k), rl_u_k] = obj.opt_policy.target.predict(belief_state(:, 1), true);
                     % next step
                     [y_all(:, k+1), r] = obj.model.dynamics(rl_u_all(:, k));
                     x_all(:, k+1) = obj.model.state;
@@ -82,6 +83,7 @@ classdef AC_episodic < RL_train
                     data.delta = delta;
                     data.state = belief_state(:, 2);
                     data.pre_input = rl_u_all(:, k);
+                    data.pre_input_mu = rl_u_k;
                     obj.opt_policy.opt(data);
                     obj.opt_value.opt(data);
                     if abs(x_all(1, k)) > 0.5
