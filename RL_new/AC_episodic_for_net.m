@@ -40,9 +40,11 @@ classdef  AC_episodic_for_net < AC_episodic
             subplot(3,1,2)
             plot(t, y_all(1:obj.model.nz, :));
             ylabel('$\hat{y}$','Interpreter','latex')
+            grid on
             subplot(3,1,3)
             plot(nonzeros(reward_history),'-b')
             ylabel('Culumative Reward')
+            grid on
             drawnow
             disp(strcat('Episode-',num2str(episode),' : value  constraint update times : ', num2str(obj.opt_value.counter) ,'/',num2str(update_chance)))
             disp(strcat('Episode-',num2str(episode),' : policy constraint update times : ', num2str(obj.opt_policy.counter) ,'/',num2str(update_chance)))

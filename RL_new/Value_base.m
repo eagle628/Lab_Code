@@ -12,7 +12,7 @@ classdef Value_base < RL_structure
           obj.apx_function = apx_function;
        end
        
-       function out = predict(obj, state)
+       function out = predict(obj, state, varargin)
            out = obj.apx_function.predict(state);
        end
        

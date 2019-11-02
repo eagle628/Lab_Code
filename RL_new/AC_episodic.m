@@ -76,8 +76,8 @@ classdef AC_episodic < RL_train
                     belief_state(:, 2) = belief_state(:, 1);
                     belief_state(:, 1) = obj.belief_sys*[belief_state(:, 1); y_all(:, k+1)]; % momory store
                     % TD Erorr
-                    V_k1 = obj.opt_value.target.predict(belief_state(:, 1));
-                    V_k0 = obj.opt_value.target.predict(belief_state(:, 2));
+                    V_k1 = obj.opt_value.target.predict(belief_state(:, 1), false);
+                    V_k0 = obj.opt_value.target.predict(belief_state(:, 2), true);
                     delta = r + obj.gamma*V_k1 - V_k0;
                     % parameter update
                     data.delta = delta;
