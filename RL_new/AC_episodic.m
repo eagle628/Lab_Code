@@ -96,7 +96,7 @@ classdef AC_episodic < RL_train
                     record_idx =  record_idx + 1;
                 end
                 reward_history(episode) = reward;
-                obj.render(t, y_all, reward_history, episode);
+                obj.render(t, y_all, reward_history, episode, k);
             end
         end
         
@@ -144,7 +144,7 @@ classdef AC_episodic < RL_train
             end
         end
         
-        function render(t, y_all, reward_history, episode)
+        function render(obj, t, y_all, reward_history, episode, update_chance)
             figure(1)
             subplot(2,1,1)
             plot(t, y_all)
@@ -160,8 +160,8 @@ classdef AC_episodic < RL_train
             plot(nonzeros(reward_history),'-b')
             ylabel('Culumative Reward')
             drawnow
-            disp(strcat('Episode-',num2str(episode),' : value  constraint update times : ', num2str(obj.opt_value.counter) ,'/',num2str(sim_N-1)))
-            disp(strcat('Episode-',num2str(episode),' : policy constraint update times : ', num2str(obj.opt_policy.counter) ,'/',num2str(sim_N-1)))
+            disp(strcat('Episode-',num2str(episode),' : value  constraint update times : ', num2str(obj.opt_value.counter) ,'/',num2str(update_chance)))
+            disp(strcat('Episode-',num2str(episode),' : policy constraint update times : ', num2str(obj.opt_policy.counter) ,'/',num2str(update_chance)))
             timer = toc;
             fprintf('This epoch %f[s], Estimated time to finish:%f [h].\n',timer, timer*(obj.max_episode-episode)/3600)
             % %
