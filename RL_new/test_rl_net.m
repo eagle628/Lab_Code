@@ -90,10 +90,10 @@ train = AC_episodic_for_net(model, opt_policy, opt_value, recorder_sys);
 
 train_seed = 28;
 Te = 50;
-train.max_episode = 30;
+train.max_episode = 1000;
 initial_set = zeros(model.nx, train.max_episode);
 initial_set(1:end-model.rect_nx, :) = 2*rand(model.nx-model.rect_nx, train.max_episode)-1;
-% [x_all_train, u_all_train, policy_snapshot, value_snapshot, reward_train] = train.train(initial_set, Te, train_seed);
+[x_all_train, u_all_train, policy_snapshot, value_snapshot, reward_train] = train.train(initial_set, Te, train_seed);
 
 %%
 test_ini = zeros(model.nx, 1);
@@ -111,3 +111,10 @@ plot(t1, y_all_rl);
 hold on, grid on
 plot(t1, y_all_lqr, ':');
 plot(t1, y_all_elqr, '--');
+
+%%
+savename = char(datetime);
+savename = strrep(savename,'/','-');
+savename = strrep(savename,':','-');
+savename = strrep(savename,' ','-');
+save(savename)
