@@ -99,6 +99,10 @@ classdef AC_episodic < RL_train
                 end
                 reward_history(episode) = reward;
                 obj.render(t, x_all, y_all, reward_history, episode, k);
+                disp(strcat('Episode-',num2str(episode),' : value  constraint update times : ', num2str(obj.opt_value.counter) ,'/',num2str(update_chance)))
+                disp(strcat('Episode-',num2str(episode),' : policy constraint update times : ', num2str(obj.opt_policy.counter) ,'/',num2str(update_chance)))
+                timer = toc;
+                fprintf('This epoch %f[s], Estimated time to finish:%f [h].\n',timer, timer*(obj.max_episode-episode)/3600)
             end
         end
         
