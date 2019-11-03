@@ -14,7 +14,7 @@ c_n = 1;
 Ts = 0.1;
 model = swing_network_model(net, c_n, Ts);
 %% belief_N(What numbers do observe signal store ?)
-belief_N = 3;
+belief_N = 1;
 %% define init controller
 seed_define = 2;
 rng(seed_define)
@@ -90,28 +90,24 @@ train = AC_episodic_for_net(model, opt_policy, opt_value, recorder_sys);
 
 train_seed = 28;
 Te = 50;
-train.max_episode = 3000;
+train.max_episode = 30;
 initial_set = zeros(model.nx, train.max_episode);
 initial_set(1:end-model.rect_nx, :) = 2*rand(model.nx-model.rect_nx, train.max_episode)-1;
-[x_all, rl_u_all, policy_snapshot, value_snapshot, reward_history] = train.train(initial_set, Te, train_seed);
+% [x_all_train, u_all_train, policy_snapshot, value_snapshot, reward_train] = train.train(initial_set, Te, train_seed);
 
 %%
-% test_ini = [-0.4;0];
-% test_Te = 10;
-% [x_all1, y_all1, rl_u_all1, t1, reward1] = train.sim(test_ini, test_Te);
-% [x_all2, y_all2, mpc_u_all2, t2, reward2] = train.sim_lqrcontroller(test_ini, test_Te);
-% 
-%  figure
-% plot(t1,y_all1)
-% plot(t1,y_all1)
-% grid on
-% hold on
-% plot(t1,y_all2,'--')
-% norm(y_all1(1,:))
-% norm(y_all2(1,:))
-% 
-% figure
-% plot(t1, rl_u_all1)
-% hold on
-% grid on
-% plot(t1, mpc_u_all2,'--')
+test_ini = zeros(model.nx, 1);
+% test_ini(2*model.c_n-1:2*model.c_n) = randn(model.local_nx ,1);
+test_ini(1:end-2) = randn(model.nx -2, 1);
+test_Te = 100;
+[x_all_rl, y_all_rl, u_all_rl, t1, reward1_rl] = train.sim(test_ini, test_Te);
+Q = eye(model.local_nx);
+R = eye(model.nu);
+[x_all_lqr, y_all_lqr, u_all_lqr, t2, reward_lqr] = train.sim_lqrcontroller(test_ini, test_Te, Q, R);
+[x_all_elqr, y_all_elqr, u_all_elqr, t3, reward_elqr] = train.sim_extendlqrcontroller(test_ini, test_Te, controller_n-model.local_nx, Q, R);
+
+figure
+plot(t1, y_all_rl);
+hold on, grid on
+plot(t1, y_all_lqr, ':');
+plot(t1, y_all_elqr, '--');

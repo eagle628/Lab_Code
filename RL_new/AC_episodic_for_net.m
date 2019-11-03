@@ -15,14 +15,56 @@ classdef  AC_episodic_for_net < AC_episodic
             obj.snapshot = 1000;
         end
         
-        function [x_all, y_all, t] = sim_lqrcontroller(obj, ini, Te, varargin)
+        function [x_all, y_all, u_all, t, reward] = sim_lqrcontroller(obj, ini, Te, Q, R)
+            if nargin < 5 || isempty(R)
+                R = eye(obj.model.nu);
+            end
+            if nargin < 4 || isempty(Q)
+                Q = eye(obj.model.local_nx);
+            end
             t = (0:obj.model.Ts:Te)';
-            obj.model.net.add_controller(obj.model.c_n,obj.model.Q,obj.model.R);
+            obj.model.net.add_controller(obj.model.c_n, Q, R);
+            sys_all = obj.model.net.get_sys_controlled(obj.model.sys_all);
+            sys_all = sys_all(obj.model.port_y, obj.model.port_d_L);
+            u_len = size(sys_all.B, 2);
+            ddd = zeros(length(t), u_len);
+            sys_all = c2d(sys_all, obj.model.Ts, obj.model.discrete_type);
+            obj.model.net.controllers = {};
+            [y_all, ~, x_all] = lsim(sys_all, ddd, t, ini);
+            u_all = [];
+            reward = [];
+        end
+        
+        function [x_all, y_all, t] = sim_original(obj, ini, Te)
+            % ini : sys_all length cut off
+            t = (0:obj.model.Ts:Te)';
+            sys_all = obj.model.sys_all(obj.model.port_y, obj.model.port_d_L);
+            sys_all = c2d(sys_all, obj.model.Ts, obj.model.discrete_type);
+            u_len = size(sys_all.B, 2);
+            ddd = zeros(length(t), u_len);
+            [y_all, ~, x_all] = lsim(sys_all, ddd, t, ini(1:order(sys_all)));
+        end
+        
+        function [x_all, y_all, u_all, t, reward] = sim_extendlqrcontroller(obj, ini, Te, apx_env_dim, Q, R)
+            if nargin < 6 || isempty(R)
+                R = eye(obj.model.nu);
+            end
+            if nargin < 5 || isempty(Q)
+                Q = eye(obj.model.local_nx);
+            end
+            t = (0:obj.model.Ts:Te)';
+            obj.model.net.add_controller(obj.model.c_n, balred(obj.model.sys_env,apx_env_dim), Q, R);
             sys_all = obj.model.net.get_sys_controlled(obj.model.sys_all);
             sys_all = sys_all(obj.model.port_y, obj.model.port_d_L);
             sys_all = c2d(sys_all, obj.model.Ts, obj.model.discrete_type);
             obj.model.net.controllers = {};
-            [y_all, ~, x_all] = lsim(sys_all, ddd, t, ini);
+            u_len = size(sys_all.B, 2);
+            ddd = zeros(length(t), u_len);
+            pre_ini = zeros(order(sys_all), 1);
+            pre_ini(1:length(ini)) = ini;
+            [y_all, ~, x_all] = lsim(sys_all, ddd, t, pre_ini);
+            u_all = [];
+            reward = [];
         end
         
         function render(obj, t, x_all, y_all, reward_history, episode, update_chance)
