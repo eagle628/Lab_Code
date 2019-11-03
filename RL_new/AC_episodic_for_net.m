@@ -67,7 +67,7 @@ classdef  AC_episodic_for_net < AC_episodic
             reward = [];
         end
         
-        function render(obj, t, x_all, y_all, reward_history, episode, update_chance)
+        function render(obj, t, x_all, y_all, reward_history, episode)
             subplot(3,1,1)
             z = obj.model.evaluate(x_all);
             plot(t, z)
