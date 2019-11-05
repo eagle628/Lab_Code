@@ -43,7 +43,7 @@ classdef Chainer_Deep_Value < RL_structure
         end
         
         function state = predict_parser(obj, state)
-            state = py.numpy.array(state,pyargs('dtype','float32'));
+            state = py.numpy.array(state',pyargs('dtype','float32'));
             state = py.numpy.vstack(state);% N*1 2-d numpy array
             state = state.T;% batch size Single
             state = py.chainer.dataset.to_device(obj.gpu_device, state);
