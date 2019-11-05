@@ -31,6 +31,8 @@ classdef  AC_episodic_for_net < AC_episodic
             sys_all = c2d(sys_all, obj.model.Ts, obj.model.discrete_type);
             obj.model.net.controllers = {};
             [y_all, ~, x_all] = lsim(sys_all, ddd, t, ini);
+            y_all = y_all';
+            x_all = x_all';
             u_all = [];
             reward = [];
         end
@@ -43,6 +45,8 @@ classdef  AC_episodic_for_net < AC_episodic
             u_len = size(sys_all.B, 2);
             ddd = zeros(length(t), u_len);
             [y_all, ~, x_all] = lsim(sys_all, ddd, t, ini(1:order(sys_all)));
+            y_all = y_all';
+            x_all = x_all';
         end
         
         function [x_all, y_all, u_all, t, reward] = sim_extendlqrcontroller(obj, ini, Te, apx_env_dim, Q, R)
@@ -63,6 +67,8 @@ classdef  AC_episodic_for_net < AC_episodic
             pre_ini = zeros(order(sys_all), 1);
             pre_ini(1:length(ini)) = ini;
             [y_all, ~, x_all] = lsim(sys_all, ddd, t, pre_ini);
+            y_all = y_all';
+            x_all = x_all';
             u_all = [];
             reward = [];
         end
