@@ -151,8 +151,7 @@ classdef AC_episodic < RL_train
         end
         
         function render(obj, t, x_all, y_all, reward_history, episode, update_chance)
-            figure(1)
-            subplot(2,1,1)
+            subplot(2,2,1)
             plot(t, y_all)
             title(['\fontsize{16}','Episode-',num2str(episode)])
             ylabel('y')
@@ -162,7 +161,7 @@ classdef AC_episodic < RL_train
                 lim = 1;
             end
             ylim([-lim, lim]);
-            subplot(2,1,2)
+            subplot(2,2,3)
             plot(nonzeros(reward_history),'-b')
             ylabel('Culumative Reward')
             drawnow
@@ -171,7 +170,7 @@ classdef AC_episodic < RL_train
             timer = toc;
             fprintf('This epoch %f[s], Estimated time to finish:%f [h].\n',timer, timer*(obj.max_episode-episode)/3600)
             % %
-            figure(2)
+            subplot(2,2,[2,4])
             [X,Y] = meshgrid(-.5:.1:.5, -2:.4:2);
             mesh_size = size(X, 1);
             XY = zeros(2*mesh_size, mesh_size);
