@@ -4,7 +4,7 @@ close all
 
 %% define model
 % % % network version
-seed1 = 8;
+seed1 = 1;
 Node_number = 2;
 net = network_swing_simple(Node_number, [1,2], [2,12]*1e-3, 1, [0.1,6], 0.8, seed1);
 % net.Adj_ref = net.Adj_ref*0;
@@ -16,32 +16,39 @@ model = swing_network_model(net, c_n, Ts);
 %% belief_N(What numbers do observe signal store ?)
 belief_N = 1;
 %% define init controller
-seed_define = 2;
+seed_define = 3;
 rng(seed_define)
-% sys = ss(model.A, model.B, eye(2), [], model.Ts);
+% controller dimension
 controller_n = 4;% state
 controller_l = 1;% output
 nnn = model.ny;
 controller_m = belief_N*nnn;% input
+% recorder sys define
 A = diag(ones(1,(belief_N-1)*nnn),-nnn);
 B = zeros(size(A,1),nnn);
 B(1:nnn,1:nnn) = eye(nnn);
 C = A;
 D = B;
 recorder = ss(A,B,C,D,model.Ts);
+% explore
 iter = 1;
 disp('initial controller')
 while true
     controller = drss(controller_n, controller_l, controller_m);
     loop = feedback(model.sys_local_discrete, controller*recorder, +1);
     if isstable(loop)
-        break;
+%         if order(minreal(loop,[],false)) == order(loop)
+            break;
+%         end
     end
-    disp(iter)
     iter = iter+1;
 end
+fprintf('Found the intial controller for the %dth time.\n', iter)
 % transform canon
 recorder_sys = [A,B];
+figure('Name','Loop Pzmap')
+pzmap(loop)
+
 
 %% generate apx function for value
 % % rbf etc.
@@ -88,33 +95,44 @@ opt_policy.target.pi_grad_enable = true;
 %%
 train = AC_episodic_for_net(model, opt_policy, opt_value, recorder_sys);
 
-train_seed = 28;
+train_policy_seed = 28;
+train_initial_seed = 1024;
 Te = 50;
 train.max_episode = 1000;
 initial_set = zeros(model.nx, train.max_episode);
+rng(train_initial_seed)
 initial_set(1:end-model.rect_nx, :) = 2*rand(model.nx-model.rect_nx, train.max_episode)-1;
-[x_all_train, u_all_train, policy_snapshot, value_snapshot, reward_train] = train.train(initial_set, Te, train_seed);
+[x_all_train, u_all_train, policy_snapshot, value_snapshot, reward_train] = train.train(initial_set, Te, train_policy_seed);
 
 %%
+test_initial_seed = 256;
+rng(test_initial_seed);
 test_ini = zeros(model.nx, 1);
-% test_ini(2*model.c_n-1:2*model.c_n) = randn(model.local_nx ,1);
-test_ini(1:end-2) = randn(model.nx -2, 1);
-test_Te = 100;
+test_ini(2*model.c_n-1:2*model.c_n) = randn(model.local_nx ,1);
+% test_ini(1:end-2) = randn(model.nx -2, 1);
+test_Te = 1000;
 [x_all_rl, y_all_rl, u_all_rl, t1, reward1_rl] = train.sim(test_ini, test_Te);
 Q = eye(model.local_nx);
 R = eye(model.nu);
 [x_all_lqr, y_all_lqr, u_all_lqr, t2, reward_lqr] = train.sim_lqrcontroller(test_ini, test_Te, Q, R);
 [x_all_elqr, y_all_elqr, u_all_elqr, t3, reward_elqr] = train.sim_extendlqrcontroller(test_ini, test_Te, controller_n-model.local_nx, Q, R);
 
-figure
-plot(t1, y_all_rl);
+figure('Name','Respose')
+plot(t1, y_all_rl(2, :));
 hold on, grid on
-plot(t1, y_all_lqr, ':');
-plot(t1, y_all_elqr, '--');
+plot(t1, y_all_lqr(2, :), ':');
+plot(t1, y_all_elqr(2, :), '--');
+
+disp('RL')
+disp(norm(y_all_rl(2, :)));
+disp('LQR')
+disp(norm(y_all_lqr(2, :)));
+disp('Extend LQR')
+disp(norm(y_all_elqr(2, :)));
 
 %%
-savename = char(datetime);
-savename = strrep(savename,'/','-');
-savename = strrep(savename,':','-');
-savename = strrep(savename,' ','-');
-save(savename)
+% savename = char(datetime);
+% savename = strrep(savename,'/','-');
+% savename = strrep(savename,':','-');
+% savename = strrep(savename,' ','-');
+% save(savename)
