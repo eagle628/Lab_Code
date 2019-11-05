@@ -93,8 +93,8 @@ classdef AC_episodic < RL_train
                 end
                 % record history
                 if ~mod(episode, obj.snapshot) 
-                    value_snapshot{record_idx}  = obj.opt_value.target.apx_function.get_params();
-                    policy_snapshot{record_idx} = obj.opt_policy.target.apx_function.get_params();
+                    value_snapshot{record_idx}  = obj.opt_value.target.get_params();
+                    policy_snapshot{record_idx} = obj.opt_policy.target.get_params();
                     record_idx =  record_idx + 1;
                 end
                 reward_history(episode) = reward;
