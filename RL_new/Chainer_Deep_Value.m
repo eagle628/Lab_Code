@@ -30,7 +30,8 @@ classdef Chainer_Deep_Value < RL_structure
 %             state = state.T;% batch size Single
 %             state = py.chainer.dataset.to_device(obj.gpu_device, state);
             state = predict_parser(obj, state);
-            out = obj.apx_function.target(state);
+%             out = obj.apx_function.target(state);
+            out = obj.apx_function.target.predict(state, enable_backprop);
         end
         
         function grad(obj, data)

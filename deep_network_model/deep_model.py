@@ -37,11 +37,16 @@ class simple_net(chainer.Chain):
         h2 = F.relu(self.l2(h1))
         return self.l3(h2)
 
-    def predict(self, x):
+    def predict(self, x, enable_backprop):
         """Network foward calculation."""
-        h1 = F.relu(self.l1(x))
-        h2 = F.relu(self.l2(h1))
-        return self.l3(h2)
+        with chainer.using_config('enable_backprop', enable_backprop):
+            h1 = F.relu(self.l1(x))
+            h2 = F.relu(self.l2(h1))
+            return self.l3(h2)
+
+    def reset_state(self):
+        """Reset mid unit states."""
+        pass
 
 
 class test_clss():

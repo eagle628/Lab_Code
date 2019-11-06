@@ -14,7 +14,7 @@ c_n = 1;
 Ts = 0.1;
 model = swing_network_model(net, c_n, Ts);
 %% belief_N(What numbers do observe signal store ?)
-belief_N = 1;
+belief_N = 6;
 %% define init controller
 seed_define = 3;
 rng(seed_define)
@@ -86,48 +86,63 @@ opt_value.constraint_enable = false;
 ss_model = gen_ss_tridiag(controller_n,controller_m,controller_l);
 ss_model.set_sys(controller);
 apx_function2 = Dynamic_LTI_SS(ss_model);
-sigma_pi = 10;
+sigma_pi = 100;
 policy = Stocastic_Policy(apx_function2, sigma_pi);
-opt_policy = TD_lambda(policy, 1e-9, 0);
+opt_policy = TD_lambda(policy, 1e-4, 0);
 opt_policy.constraint_enable = true;
 opt_policy.target.pi_grad_enable = true;
 
-%%
+%% define train class
 train = AC_episodic_for_net(model, opt_policy, opt_value, recorder_sys);
-
+%% train contdition
 train_policy_seed = 28;
 train_initial_seed = 1024;
-Te = 50;
-train.max_episode = 1000;
-initial_set = zeros(model.nx, train.max_episode);
+train_Te = 50;
+train.max_episode = 2000;
+train_initial_set = zeros(model.nx, train.max_episode);
 rng(train_initial_seed)
-initial_set(1:end-model.rect_nx, :) = 2*rand(model.nx-model.rect_nx, train.max_episode)-1;
-[x_all_train, u_all_train, policy_snapshot, value_snapshot, reward_train] = train.train(initial_set, Te, train_policy_seed);
-
-%%
+train_initial_set(1:end-model.rect_nx, :) = 2*rand(model.nx-model.rect_nx, train.max_episode)-1;
+%% test condition
 test_initial_seed = 256;
 rng(test_initial_seed);
 test_ini = zeros(model.nx, 1);
 test_ini(2*model.c_n-1:2*model.c_n) = randn(model.local_nx ,1);
 % test_ini(1:end-2) = randn(model.nx -2, 1);
 test_Te = 1000;
-[x_all_rl, y_all_rl, u_all_rl, t1, reward1_rl] = train.sim(test_ini, test_Te);
+% initial 
+[x_all_rl_initial, y_all_rl_initial, u_all_rl_initial, t, reward1_rl_initial] = train.sim(test_ini, test_Te);
+z_all_rl_initial = train.model.evaluate(x_all_rl_initial);
+%% Run train
+figure('Name','Train Progress report')
+[x_all_train, u_all_train, policy_snapshot, value_snapshot, reward_train] = train.train(train_initial_set, train_Te, train_policy_seed);
+
+%%
+
+[x_all_rl_train, y_all_rl_train, u_all_rl_train, ~, reward1_rl_train] = train.sim(test_ini, test_Te);
+z_all_rl_train = train.model.evaluate(x_all_rl_train);
+[x_all_original, y_all_original, ~] = train.sim_original(test_ini, test_Te);
 Q = eye(model.local_nx);
 R = eye(model.nu);
-[x_all_lqr, y_all_lqr, u_all_lqr, t2, reward_lqr] = train.sim_lqrcontroller(test_ini, test_Te, Q, R);
-[x_all_elqr, y_all_elqr, u_all_elqr, t3, reward_elqr] = train.sim_extendlqrcontroller(test_ini, test_Te, controller_n-model.local_nx, Q, R);
+[x_all_lqr, y_all_lqr, u_all_lqr, ~, reward_lqr] = train.sim_lqrcontroller(test_ini, test_Te, Q, R);
+[x_all_elqr, y_all_elqr, u_all_elqr, ~, reward_elqr] = train.sim_extendlqrcontroller(test_ini, test_Te, controller_n-model.local_nx, Q, R);
 
 figure('Name','Respose')
-plot(t1, y_all_rl(2, :));
+plot(t, z_all_rl_initial(2, :),'r:');
 hold on, grid on
-plot(t1, y_all_lqr(2, :), ':');
-plot(t1, y_all_elqr(2, :), '--');
+plot(t, z_all_rl_train(2, :),'m--');
+plot(t, y_all_original(2, :),'k');
+plot(t, y_all_lqr(2, :), 'b');
+plot(t, y_all_elqr(2, :), 'g');
 
-disp('RL')
-disp(norm(y_all_rl(2, :)));
+disp('RL-initial')
+disp(norm(z_all_rl_initial(2, :)));
+disp('RL-train')
+disp(norm(z_all_rl_train(2, :)));
+disp('Original')
+disp(norm(y_all_original(2, :)));
 disp('LQR')
 disp(norm(y_all_lqr(2, :)));
-disp('Extend LQR')
+disp('Extend-LQR')
 disp(norm(y_all_elqr(2, :)));
 
 %%
