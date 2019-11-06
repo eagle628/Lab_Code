@@ -36,7 +36,7 @@ classdef Chainer_Deep_Value < Value_base
         function out = predict(obj, state, enable_backprop, varargin)
             state = predict_parser(obj, state);
             if obj.fixed_apx_function_enable && ~enable_backprop
-                out = obj.fixed_apx_function(state);
+                out = obj.fixed_apx_function.predict(state, enable_backprop);
                 return
             end
             out = obj.apx_function.target.predict(state, enable_backprop);
