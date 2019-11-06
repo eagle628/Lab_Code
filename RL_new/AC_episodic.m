@@ -24,14 +24,19 @@ classdef AC_episodic < RL_train
             obj.belief_sys = belief_sys;
         end
         
-        function [x_all, rl_u_all, policy_snapshot, value_snapshot, reward_history] = train(obj, ini_set, Te, seed, varargin)
+        function [x_all, rl_u_all, policy_snapshot, value_snapshot, history] = train(obj, ini_set, Te, seed, varargin)
             sim_N = Te/obj.model.Ts + 1;
             t = (0:obj.model.Ts:Te)';
             if nargin < 3 || isempty(seed)
                 seed = rng();
             end
             rng(seed)
-            reward_history = zeros(obj.max_episode, 1);
+            % history
+            history = struct();
+            history.reward_= zeros(obj.max_episode, 1);
+            history.policy_conter = zeros(obj.max_episode, 1);
+            history.value_conter = zeros(obj.max_episode, 1);
+            history.delta = cell(obj.max_episode, 1);
             % record point
             record_point = obj.snapshot:obj.snapshot:obj.max_episode;
             value_snapshot = cell(1, length(record_point));
@@ -97,8 +102,11 @@ classdef AC_episodic < RL_train
                     policy_snapshot{record_idx} = obj.opt_policy.target.get_params();
                     record_idx =  record_idx + 1;
                 end
-                reward_history(episode) = reward;
-                obj.render(t, x_all, y_all, reward_history, episode);
+                history.reward(episode) = reward;
+                history.policy_counter(episode) = obj.opt_policy.counter;
+                history.value_counter(episode) = obj.opt_value.counter;
+                history.delta{episode} = data.delta;
+                obj.render(t, x_all, y_all, history.reward, episode);
                 disp(strcat('Episode-',num2str(episode),' : value  constraint update times : ', num2str(obj.opt_value.counter) ,'/',num2str(k)))
                 disp(strcat('Episode-',num2str(episode),' : policy constraint update times : ', num2str(obj.opt_policy.counter) ,'/',num2str(k)))
                 timer = toc;
