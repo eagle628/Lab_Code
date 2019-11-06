@@ -33,7 +33,7 @@ classdef optimizer < handle
             update = data.model.constraint(obj.target, new_params, data);
         end
         
-        function optimizer_initialize(obj)
+        function optimizer_initialize(obj, episode)
             % pass function
         end
         
