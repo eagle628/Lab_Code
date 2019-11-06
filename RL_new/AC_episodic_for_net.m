@@ -10,9 +10,6 @@ classdef  AC_episodic_for_net < AC_episodic
                 belief_sys = [zeros(model.ny), eye(model.ny)];
             end
             obj@AC_episodic(model, opt_policy, opt_value, belief_sys);
-            obj.gamma = 0.99;
-            obj.max_episode = 10000;
-            obj.snapshot = 1000;
         end
         
         function [x_all, y_all, u_all, t, reward] = sim_lqrcontroller(obj, ini, Te, Q, R)

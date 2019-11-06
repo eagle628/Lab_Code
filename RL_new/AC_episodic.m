@@ -8,6 +8,7 @@ classdef AC_episodic < RL_train
         max_episode
         snapshot
         belief_sys
+        fixed_apx_function_period
     end
     
     methods
@@ -22,6 +23,7 @@ classdef AC_episodic < RL_train
             obj.max_episode = 10000;
             obj.snapshot = 1000;
             obj.belief_sys = belief_sys;
+            obj.fixed_apx_function_period = 100;
         end
         
         function [x_all, rl_u_all, policy_snapshot, value_snapshot, history] = train(obj, ini_set, Te, seed, varargin)
@@ -67,6 +69,12 @@ classdef AC_episodic < RL_train
                 obj.opt_policy.initialize();
                 obj.opt_value.initialize();
                 reward = 0;
+                % fixed apx function
+                if isprop(obj.opt_value.target,'fixed_apx_function_enable') && obj.opt_value.target.fixed_apx_function_enable
+                    if ~mod(episode, obj.fixed_apx_function_period)
+                            obj.opt_value.target.fixed_apx_function_update();
+                    end
+                end
                 % belief initialize
                 y_all(:, 1) = obj.model.observe();
                 x_all(:, 1) = obj.model.state;

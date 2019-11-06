@@ -76,8 +76,12 @@ gpu_id = int64(0);
 if gpu_id >= 0
     deep_net.to_gpu(gpu_id);
 end
-% value = Chainer_Deep_Value(py.chainer.optimizers.SGD(pyargs('lr',0.01)).setup(deep_net), gpu_id);
-value = Chainer_Deep_Value(py.chainer.optimizers.RMSprop(pyargs('lr',0.01)).setup(deep_net), gpu_id);
+% fixed target network enable
+fixed_apx_function_enable = true;
+% construct value
+% chainer_optimizer = py.chainer.optimizers.SGD(pyargs('lr',0.01)).setup(deep_net);
+chainer_optimizer = py.chainer.optimizers.RMSprop(pyargs('lr',0.01)).setup(deep_net);
+value = Chainer_Deep_Value(chainer_optimizer, gpu_id, fixed_apx_function_enable);
 opt_value = Chainer_Deep_Optimizer(value);
 % config
 opt_value.constraint_enable = false;
@@ -98,7 +102,8 @@ train = AC_episodic_for_net(model, opt_policy, opt_value, recorder_sys);
 train_policy_seed = 28;
 train_initial_seed = 1024;
 train_Te = 50;
-train.max_episode = 2000;
+train.max_episode = 1000;
+train.fixed_apx_function_period = 100;
 train.gamma = 1;
 train_initial_set = zeros(model.nx, train.max_episode);
 rng(train_initial_seed)
@@ -109,13 +114,13 @@ rng(test_initial_seed);
 test_ini = zeros(model.nx, 1);
 test_ini(2*model.c_n-1:2*model.c_n) = randn(model.local_nx ,1);
 % test_ini(1:end-2) = randn(model.nx -2, 1);
-test_Te = 1000;
+test_Te = 100;
 % initial 
 [x_all_rl_initial, y_all_rl_initial, u_all_rl_initial, t, reward1_rl_initial] = train.sim(test_ini, test_Te);
 z_all_rl_initial = train.model.evaluate(x_all_rl_initial);
 %% Run train
 figure('Name','Train Progress report')
-[x_all_train, u_all_train, policy_snapshot, value_snapshot, reward_train] = train.train(train_initial_set, train_Te, train_policy_seed);
+[x_all_train, u_all_train, policy_snapshot, value_snapshot, history] = train.train(train_initial_set, train_Te, train_policy_seed);
 
 %%
 

@@ -1,17 +1,28 @@
-classdef Chainer_Deep_Value < RL_structure
+classdef Chainer_Deep_Value < Value_base
     % apx_function : Chainer optimizer class
     
     properties
         gpu_device
+        fixed_apx_function_enable
+        fixed_apx_function
     end
     
     methods
-        function obj = Chainer_Deep_Value(apx_function, gpu_device)
-            if nargin < 2
+        function obj = Chainer_Deep_Value(apx_function, gpu_device, fixed_apx_function_enable)
+            if nargin < 3 || isempty(fixed_apx_function_enable)
+                fixed_apx_function_enable = false;
+            end
+            if nargin < 2 || isempty(gpu_device)
                 gpu_device = int64(-1);
             end
-            obj.apx_function = apx_function;
+            obj@Value_base(apx_function)
+%             obj.apx_function = apx_function;
             obj.gpu_device = gpu_device;
+            obj.fixed_apx_function_enable = fixed_apx_function_enable;
+            obj.fixed_apx_function = [];
+            if obj.fixed_apx_function_enable
+                obj.fixed_apx_function = py.copy.deepcopy(obj.apx_function.target);
+            end
         end
         
         function params = get_params(obj)
@@ -23,14 +34,11 @@ classdef Chainer_Deep_Value < RL_structure
         end 
         
         function out = predict(obj, state, enable_backprop, varargin)
-%             py.chainer.configuration.using_config(pyargs('enable_backprop', enable_backprop))
-            py.chainer.using_config.enable_backprop =  enable_backprop;
-%             state = py.numpy.array(state,pyargs('dtype','float32'));
-%             state = py.numpy.vstack(state);% N*1 2-d numpy array
-%             state = state.T;% batch size Single
-%             state = py.chainer.dataset.to_device(obj.gpu_device, state);
             state = predict_parser(obj, state);
-%             out = obj.apx_function.target(state);
+            if obj.fixed_apx_function_enable && ~enable_backprop
+                out = obj.fixed_apx_function(state);
+                return
+            end
             out = obj.apx_function.target.predict(state, enable_backprop);
         end
         
@@ -48,6 +56,12 @@ classdef Chainer_Deep_Value < RL_structure
             state = py.numpy.vstack(state);% N*1 2-d numpy array
             state = state.T;% batch size Single
             state = py.chainer.dataset.to_device(obj.gpu_device, state);
+        end
+        
+        function fixed_apx_function_update(obj)
+            if obj.fixed_apx_function_enable
+                obj.fixed_apx_function = py.copy.deepcopy(obj.apx_function.target);
+            end
         end
     end
 end
