@@ -147,9 +147,9 @@ classdef swing_network_model < environment_model
             Dk = d2*b1;
             [Ap,Bp,Cp,~]  = ssdata(obj.sys_local_discrete);
             A_all = [Ak,Bk*Cp; Bp*Ck, Ap+Bp*Dk*Cp];
-            Flag =  ~any(any(isnan(A_all))) || ~any(any(isinf(A_all)));
-            if ~Flag
-                update = Flag;
+            Flag =  any(any(isnan(A_all))) || any(any(isinf(A_all)));
+            if Flag
+                update = ~Flag;
                 return
             end
             pole = eig(A_all);
