@@ -35,9 +35,9 @@ classdef AC_episodic < RL_train
             rng(seed)
             % history
             history = struct();
-            history.reward_= zeros(obj.max_episode, 1);
-            history.policy_conter = zeros(obj.max_episode, 1);
-            history.value_conter = zeros(obj.max_episode, 1);
+            history.reward = zeros(obj.max_episode, 1);
+            history.policy_counter = zeros(obj.max_episode, 1);
+            history.value_counter = zeros(obj.max_episode, 1);
             history.delta = cell(obj.max_episode, 1);
             % record point
             record_point = obj.snapshot:obj.snapshot:obj.max_episode;
