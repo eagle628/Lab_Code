@@ -66,8 +66,8 @@ classdef AC_episodic < RL_train
                 % set initial
                 obj.model.initialize(ini_set(:, episode));
                  % episode initialize
-                obj.opt_policy.initialize();
-                obj.opt_value.initialize();
+                obj.opt_policy.initialize(episode);
+                obj.opt_value.initialize(episode);
                 reward = 0;
                 % fixed apx function
                 if isprop(obj.opt_value.target,'fixed_apx_function_enable') && obj.opt_value.target.fixed_apx_function_enable

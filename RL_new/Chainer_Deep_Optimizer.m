@@ -21,7 +21,7 @@ classdef Chainer_Deep_Optimizer < optimizer
         end
         
         % override
-        function initialize(obj)
+        function initialize(obj, episode)
             obj.target.apx_function.target.reset_state();% For rnn initialize
             obj.counter = 0;
             optimizer_initialize(obj);

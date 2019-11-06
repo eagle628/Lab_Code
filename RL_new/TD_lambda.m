@@ -39,7 +39,7 @@ classdef TD_lambda < optimizer
             obj.zeta = obj.zeta*obj.gamma;
         end
         
-        function optimizer_initialize(obj)
+        function optimizer_initialize(obj, episode)
            obj.zeta = 1;
            obj.z = zeros(size(obj.z));
         end

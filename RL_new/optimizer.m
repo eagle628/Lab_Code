@@ -19,7 +19,7 @@ classdef optimizer < handle
             obj.constraint_enable = constraint_enable;
         end
         
-        function initialize(obj)
+        function initialize(obj, episode)
             obj.target.apx_function.initialize();
             obj.counter = 0;
             optimizer_initialize(obj);
