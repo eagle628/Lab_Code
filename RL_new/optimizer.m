@@ -7,6 +7,9 @@ classdef optimizer < handle
         target
         constraint_enable
         counter
+        trigger_enable
+        trigger_period
+        trigger_form
     end
     
     methods
@@ -17,12 +20,15 @@ classdef optimizer < handle
             obj.target = target; 
             obj.counter = 0;
             obj.constraint_enable = constraint_enable;
+            obj.trigger_enable = false;
+            obj.trigger_period = 100;
+            obj.trigger_form = @(x)0.1*x;
         end
         
         function initialize(obj, episode)
             obj.target.apx_function.initialize();
             obj.counter = 0;
-            optimizer_initialize(obj);
+            optimizer_initialize(obj, episode);
         end
         
         function set_up(obj, target)

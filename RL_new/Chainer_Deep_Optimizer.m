@@ -26,5 +26,13 @@ classdef Chainer_Deep_Optimizer < optimizer
             obj.counter = 0;
             optimizer_initialize(obj, episode);
         end
+        
+        function optimizer_initialize(obj, episode)
+           if (episode~=0) && obj.trigger_enable
+              if ~mod(episode, obj.trigger_period)
+                 obj.target.apx_function.lr = obj.trigger_form(obj.target.apx_function.lr); 
+              end
+           end
+        end
     end
 end

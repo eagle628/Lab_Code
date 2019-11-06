@@ -135,7 +135,7 @@ classdef AC_episodic < RL_train
             belief_state = zeros(size(obj.belief_sys, 1), 1);
             belief_state =  obj.belief_sys*[belief_state; y_all(:, 1)];
             reward = 0;
-            obj.opt_policy.initialize();
+            obj.opt_policy.initialize(0);
             for k = 1 : sim_N-1
                 rl_u_all(:, k) = obj.opt_policy.target.predict(belief_state, false);
                 [y_all(:, k+1), r] = obj.model.dynamics(rl_u_all(:, k));
@@ -157,7 +157,7 @@ classdef AC_episodic < RL_train
             y_all(:, 1) = obj.model.observe();
             x_all(:, 1) = obj.model.state;
             reward = 0;
-            obj.opt_policy.initialize();
+            obj.opt_policy.initialize(0);
             for k = 1 : sim_N-1
                 mpc_u_all(:, k) = -K*x_all(:, k);
                 [y_all(:, k+1), r] = obj.model.dynamics(mpc_u_all(:, k));

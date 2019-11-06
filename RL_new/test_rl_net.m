@@ -85,6 +85,9 @@ value = Chainer_Deep_Value(chainer_optimizer, gpu_id, fixed_apx_function_enable)
 opt_value = Chainer_Deep_Optimizer(value);
 % config
 opt_value.constraint_enable = false;
+opt_value.trigger_enable = true;
+opt_value.trigger_period = 1000;
+opt_value.trigger_form = @(x) 0.1*x;
 
 %% set policy
 ss_model = gen_ss_tridiag(controller_n,controller_m,controller_l);
@@ -93,8 +96,12 @@ apx_function2 = Dynamic_LTI_SS(ss_model);
 sigma_pi = 100;
 policy = Stocastic_Policy(apx_function2, sigma_pi);
 opt_policy = TD_lambda(policy, 1e-4, 0);
+% config
 opt_policy.constraint_enable = true;
 opt_policy.target.pi_grad_enable = true;
+opt_policy.trigger_enable = true;
+opt_policy.trigger_period = 1000;
+opt_policy.trigger_form = @(x)0.1*x;
 
 %% define train class
 train = AC_episodic_for_net(model, opt_policy, opt_value, recorder_sys);
@@ -102,9 +109,9 @@ train = AC_episodic_for_net(model, opt_policy, opt_value, recorder_sys);
 train_policy_seed = 28;
 train_initial_seed = 1024;
 train_Te = 50;
-train.max_episode = 1000;
-train.fixed_apx_function_period = 100;
-train.gamma = 1;
+train.max_episode = 10000;
+train.fixed_apx_function_period = 1;
+train.gamma = 0.999;
 train_initial_set = zeros(model.nx, train.max_episode);
 rng(train_initial_seed)
 train_initial_set(1:end-model.rect_nx, :) = 2*rand(model.nx-model.rect_nx, train.max_episode)-1;

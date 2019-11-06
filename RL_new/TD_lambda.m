@@ -42,6 +42,11 @@ classdef TD_lambda < optimizer
         function optimizer_initialize(obj, episode)
            obj.zeta = 1;
            obj.z = zeros(size(obj.z));
+           if (episode~=0) && obj.trigger_enable
+              if ~mod(episode, obj.trigger_period)
+                 obj.alpha = obj.trigger_form(obj.alpha); 
+              end
+           end
         end
     end
 end
