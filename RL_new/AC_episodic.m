@@ -38,7 +38,7 @@ classdef AC_episodic < RL_train
             history.reward = zeros(obj.max_episode, 1);
             history.policy_counter = zeros(obj.max_episode, 1);
             history.value_counter = zeros(obj.max_episode, 1);
-            history.delta = cell(obj.max_episode, 1);
+%             history.delta = cell(obj.max_episode, 1);
             % record point
             record_point = obj.snapshot:obj.snapshot:obj.max_episode;
             value_snapshot = cell(1, length(record_point));
@@ -61,6 +61,7 @@ classdef AC_episodic < RL_train
                 x_all = nan(obj.model.nx, sim_N);
                 y_all = nan(obj.model.ny, sim_N);
                 rl_u_all = nan(obj.model.nu, sim_N);
+%                 delta_history = cell(sim_N-1, 1);
                 % belief initialize
                 belief_state = zeros(size(belief_state));
                 % set initial
@@ -103,6 +104,8 @@ classdef AC_episodic < RL_train
 %                         reward = -30;
 %                         break;
 %                     end
+                    % save delta
+%                     delta_history{k} = data.delta;
                 end
                 % record history
                 if ~mod(episode, obj.snapshot) 
@@ -113,7 +116,7 @@ classdef AC_episodic < RL_train
                 history.reward(episode) = reward;
                 history.policy_counter(episode) = obj.opt_policy.counter;
                 history.value_counter(episode) = obj.opt_value.counter;
-                history.delta{episode} = data.delta;
+%                 history.delta{episode} = delta_history;
                 obj.render(t, x_all, y_all, history.reward, episode);
                 disp(strcat('Episode-',num2str(episode),' : value  constraint update times : ', num2str(obj.opt_value.counter) ,'/',num2str(k)))
                 disp(strcat('Episode-',num2str(episode),' : policy constraint update times : ', num2str(obj.opt_policy.counter) ,'/',num2str(k)))

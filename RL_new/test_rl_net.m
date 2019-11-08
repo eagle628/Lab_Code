@@ -14,9 +14,9 @@ c_n = 1;
 Ts = 0.1;
 model = swing_network_model(net, c_n, Ts);
 %% belief_N(What numbers do observe signal store ?)
-belief_N = 6;
+belief_N = 12;
 %% define init controller
-seed_define = 3;
+seed_define = 6;
 rng(seed_define)
 % controller dimension
 controller_n = 4;% state
@@ -70,8 +70,10 @@ pzmap(loop)
 % deep net
 net_seed = 10;
 py.deep_network_model.deep_model.reset_seed(int64(net_seed));
-deep_net = py.deep_network_model.deep_model.simple_net();
+% deep_net = py.deep_network_model.deep_model.simple_net();
 % deep_net = py.deep_network_model.deep_model.simple_linear5_net();
+% deep_net = py.deep_network_model.deep_model.linear3_net();
+deep_net = py.deep_network_model.deep_model.linear5_net(pyargs('ratio',0));
 gpu_id = int64(0);
 if gpu_id >= 0
     deep_net.to_gpu(gpu_id);
@@ -79,15 +81,17 @@ end
 % fixed target network enable
 fixed_apx_function_enable = true;
 % construct value
-% chainer_optimizer = py.chainer.optimizers.SGD(pyargs('lr',0.01)).setup(deep_net);
-chainer_optimizer = py.chainer.optimizers.RMSprop(pyargs('lr',0.01)).setup(deep_net);
+value_initial_lr = 1;
+% chainer_optimizer = py.chainer.optimizers.SGD(pyargs('lr',initila_lr)).setup(deep_net);
+chainer_optimizer = py.chainer.optimizers.RMSprop(pyargs('lr',value_initial_lr)).setup(deep_net);
 value = Chainer_Deep_Value(chainer_optimizer, gpu_id, fixed_apx_function_enable);
 opt_value = Chainer_Deep_Optimizer(value);
 % config
 opt_value.constraint_enable = false;
-opt_value.trigger_enable = true;
-opt_value.trigger_period = 1000;
-opt_value.trigger_form = @(x) 0.1*x;
+opt_value.trigger_enable = false;
+opt_value.trigger_period = 1;
+value_lr_inf_lim = 0.1;
+opt_value.trigger_form = @(x) decay(x, value_lr_inf_lim, 1, (value_initial_lr-value_lr_inf_lim)/1000);
 
 %% set policy
 ss_model = gen_ss_tridiag(controller_n,controller_m,controller_l);
@@ -95,13 +99,15 @@ ss_model.set_sys(controller);
 apx_function2 = Dynamic_LTI_SS(ss_model);
 sigma_pi = 100;
 policy = Stocastic_Policy(apx_function2, sigma_pi);
-opt_policy = TD_lambda(policy, 1e-4, 0);
+policy_initial_lr = 1e-4;
+opt_policy = TD_lambda(policy, policy_initial_lr, 0);
 % config
 opt_policy.constraint_enable = true;
-opt_policy.target.pi_grad_enable = true;
-opt_policy.trigger_enable = true;
-opt_policy.trigger_period = 1000;
-opt_policy.trigger_form = @(x)0.1*x;
+opt_policy.target.pi_grad_enable = false;
+opt_policy.trigger_enable = false;
+policy_lr_inf_lim = 1e-6;
+opt_policy.trigger_period = 1;
+opt_policy.trigger_form = @(x) decay(x, policy_lr_inf_lim, 1, (policy_initial_lr-policy_lr_inf_lim)/1000);
 
 %% define train class
 train = AC_episodic_for_net(model, opt_policy, opt_value, recorder_sys);
@@ -109,9 +115,9 @@ train = AC_episodic_for_net(model, opt_policy, opt_value, recorder_sys);
 train_policy_seed = 28;
 train_initial_seed = 1024;
 train_Te = 50;
-train.max_episode = 10000;
-train.fixed_apx_function_period = 1;
-train.gamma = 0.999;
+train.max_episode = 6000;
+train.fixed_apx_function_period = 4;
+train.gamma = 0.9;
 train_initial_set = zeros(model.nx, train.max_episode);
 rng(train_initial_seed)
 train_initial_set(1:end-model.rect_nx, :) = 2*rand(model.nx-model.rect_nx, train.max_episode)-1;
@@ -159,8 +165,17 @@ disp('Extend-LQR')
 disp(norm(y_all_elqr(2, :)));
 
 %%
-% savename = char(datetime);
-% savename = strrep(savename,'/','-');
-% savename = strrep(savename,':','-');
-% savename = strrep(savename,' ','-');
-% save(savename)
+savename = char(datetime);
+savename = strrep(savename,'/','-');
+savename = strrep(savename,':','-');
+savename = strrep(savename,' ','-');
+save(savename)
+
+%% local
+function out = decay(in, inf_lim, a, b)
+    if in <= inf_lim
+        out = in;
+        return;
+    end
+    out = a*in-b;
+end
