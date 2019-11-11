@@ -1,5 +1,5 @@
 % general actor critic test
-clear
+% clear
 close all
 
 %% define model
@@ -99,7 +99,7 @@ ss_model.set_sys(controller);
 apx_function2 = Dynamic_LTI_SS(ss_model);
 sigma_pi = 100;
 policy = Stocastic_Policy(apx_function2, sigma_pi);
-policy_initial_lr = 1e-4;
+policy_initial_lr = 1;
 opt_policy = TD_lambda(policy, policy_initial_lr, 0);
 % config
 opt_policy.constraint_enable = true;
@@ -115,14 +115,14 @@ train = AC_episodic_for_net(model, opt_policy, opt_value, recorder_sys);
 train_policy_seed = 28;
 train_initial_seed = 1024;
 train_Te = 50;
-train.max_episode = 6000;
+train.max_episode = 3000;
 train.fixed_apx_function_period = 4;
-train.gamma = 0.9;
+train.gamma = 1;
 train_initial_set = zeros(model.nx, train.max_episode);
 rng(train_initial_seed)
 train_initial_set(1:end-model.rect_nx, :) = 2*rand(model.nx-model.rect_nx, train.max_episode)-1;
 %% test condition
-test_initial_seed = 256;
+test_initial_seed = 64;
 rng(test_initial_seed);
 test_ini = zeros(model.nx, 1);
 test_ini(2*model.c_n-1:2*model.c_n) = randn(model.local_nx ,1);
