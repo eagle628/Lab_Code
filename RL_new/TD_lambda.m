@@ -32,7 +32,7 @@ classdef TD_lambda < optimizer
             if isa(data.delta, 'double')
                 delta = data.delta;
             else
-                delta = single(py.numpy.squeeze(data.delta.data).tolist);
+                delta = double(py.numpy.squeeze(data.delta.data).tolist);
             end
             obj.z = data.gamma*obj.lambda*obj.z + obj.zeta*grad;
             new_params = obj.target.get_params() + obj.alpha*delta*obj.z;
