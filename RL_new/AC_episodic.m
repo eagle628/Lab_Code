@@ -13,8 +13,8 @@ classdef AC_episodic < RL_train
     
     methods
         function obj = AC_episodic(model, opt_policy, opt_value, belief_sys)
-            if nargin < 4
-                belief_sys = [zeros(model.ny), eye(model.ny)];
+            if nargin < 4 || isempty(belief_sys)
+                belief_sys = observation_accumulater(model.ny, 1);
             end
             obj.model = model;
             obj.opt_policy = opt_policy;
@@ -54,7 +54,7 @@ classdef AC_episodic < RL_train
             data.pre_input_mu = [];
             % start episode learning
             record_idx = 1;
-            belief_state = zeros(size(obj.belief_sys, 1), 2);% belief state % 1 line: current state , 2 line: previous state
+            belief_state = zeros(size(obj.belief_sys.A, 1), 2);% belief state % 1 line: current state , 2 line: previous state
             for episode = 1 : obj.max_episode
                 tic;
                 % memory reset
@@ -69,6 +69,7 @@ classdef AC_episodic < RL_train
                  % episode initialize
                 obj.opt_policy.initialize(episode);
                 obj.opt_value.initialize(episode);
+                obj.belief_sys.initialize();
                 reward = 0;
                 % fixed apx function
                 if isprop(obj.opt_value.target,'fixed_apx_function_enable') && obj.opt_value.target.fixed_apx_function_enable
@@ -79,7 +80,7 @@ classdef AC_episodic < RL_train
                 % belief initialize
                 y_all(:, 1) = obj.model.observe();
                 x_all(:, 1) = obj.model.state;
-                belief_state(:, 1) =  obj.belief_sys*[belief_state(:, 1); y_all(:, 1)];
+                belief_state(:, 1) =  obj.belief_sys.estimate(y_all(:, 1));
                 for k = 1 : sim_N-1
                     [rl_u_all(:, k), rl_u_k] = obj.opt_policy.target.predict(belief_state(:, 1), true);
                     % next step
@@ -87,8 +88,9 @@ classdef AC_episodic < RL_train
                     x_all(:, k+1) = obj.model.state;
                     reward =  reward + obj.gamma^(k-1)*r;
                     % belief upadate
-                    belief_state(:, 2) = belief_state(:, 1);
-                    belief_state(:, 1) = obj.belief_sys*[belief_state(:, 1); y_all(:, k+1)]; % momory store
+                    belief_state(:, 2) = belief_state(:, 1);% save previous belief state
+                    obj.belief_sys.update_internal_state(y_all(:, k), rl_u_all(:, k));% state estimator  internal state update
+                    belief_state(:, 1) = obj.belief_sys.estimate(y_all(:, k+1));
                     % TD Erorr
                     V_k1 = obj.opt_value.target.predict(belief_state(:, 1), false);
                     V_k0 = obj.opt_value.target.predict(belief_state(:, 2), true);
@@ -134,16 +136,17 @@ classdef AC_episodic < RL_train
             % set initial
             obj.model.initialize(ini);
             y_all(:, 1) = obj.model.observe();
-            x_all(:, 1) = obj.model.state;
-            belief_state = zeros(size(obj.belief_sys, 1), 1);
-            belief_state =  obj.belief_sys*[belief_state; y_all(:, 1)];
+            x_all(:, 1) = obj.model.state;           
             reward = 0;
             obj.opt_policy.initialize(0);
+            obj.belief_sys.initialize();
+            belief_state =  obj.belief_sys.estimate(y_all(:, 1));
             for k = 1 : sim_N-1
                 rl_u_all(:, k) = obj.opt_policy.target.predict(belief_state, false);
                 [y_all(:, k+1), r] = obj.model.dynamics(rl_u_all(:, k));
                 x_all(:, k+1) = obj.model.state;
-                belief_state =  obj.belief_sys*[belief_state; y_all(:, k+1)];
+                obj.belief_sys.update_internal_state(y_all(:, k), rl_u_all(:, k));
+                belief_state =  obj.belief_sys.estimate(y_all(:, k+1));
                 reward = reward + obj.gamma^(k-1)*r;
             end
         end

@@ -7,7 +7,7 @@ classdef  AC_episodic_for_net < AC_episodic
     methods
         function obj = AC_episodic_for_net(model, opt_policy, opt_value, belief_sys)
             if nargin < 4
-                belief_sys = [zeros(model.ny), eye(model.ny)];
+                belief_sys = [];
             end
             obj@AC_episodic(model, opt_policy, opt_value, belief_sys);
         end

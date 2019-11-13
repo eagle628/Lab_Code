@@ -45,7 +45,7 @@ while true
 end
 fprintf('Found the intial controller for the %dth time.\n', iter)
 % transform canon
-recorder_sys = [A,B];
+recorder_sys = observation_accumulater(model.ny, belief_N);
 figure('Name','Loop Pzmap')
 pzmap(loop)
 

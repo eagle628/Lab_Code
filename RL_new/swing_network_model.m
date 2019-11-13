@@ -112,15 +112,15 @@ classdef swing_network_model < environment_model
             obj.nu = size(obj.sys_local.InputGroup.u, 2);
             obj.nz = size(obj.sys_local.OutputGroup.y,2);
             % weight
-            obj.Q = 1;
-            obj.R = 1;
+            obj.Q = eye(obj.nz);
+            obj.R = eye(obj.nu);
         end
         
         function [ywv, reward] = dynamics(obj, u)
             obj.state = obj.dynamics_A*obj.state + obj.dynamics_B*u;
             ywv = observe(obj);
             z = evaluate(obj);
-            reward = -1/10*(z(2)'*obj.Q*z(2) + u'*obj.R*u);
+            reward = -(z'*obj.Q*z + u'*obj.R*u);
         end
         
         function ywv = observe(obj)
@@ -138,15 +138,17 @@ classdef swing_network_model < environment_model
         
         function update = constraint(obj, target, new_params, data)
             [a2,b2,c2,d2] = target.apx_function.form.get_ss(new_params);
-            AB = data.belief_sys;
-            a1 = AB(:, 1:size(AB, 1));
-            b1 = AB(:, size(AB, 1)+1:end);
-            Ak = [a1, tools.zeros(a1, a2); b2*a1, a2];
-            Bk = [b1; b2*b1];
-            Ck = [d2*a1 c2];
-            Dk = d2*b1;
-            [Ap,Bp,Cp,~]  = ssdata(obj.sys_local_discrete);
-            A_all = [Ak,Bk*Cp; Bp*Ck, Ap+Bp*Dk*Cp];
+%             AB = data.belief_sys;
+%             a1 = AB(:, 1:size(AB, 1));
+%             b1 = AB(:, size(AB, 1)+1:end);
+%             Ak = [a1, tools.zeros(a1, a2); b2*a1, a2];
+%             Bk = [b1; b2*b1];
+%             Ck = [d2*a1 c2];
+%             Dk = d2*b1;
+%             [Ap,Bp,Cp,~]  = ssdata(obj.sys_local_discrete);
+%             A_all = [Ak,Bk*Cp; Bp*Ck, Ap+Bp*Dk*Cp];
+            [AL,BL,CL] = data.belief_sys.connect(obj.sys_local_discrete);
+            A_all = [a2,b2*CL; BL*c2, AL+BL*d2*CL];
             Flag =  any(any(isnan(A_all))) || any(any(isinf(A_all)));
             if Flag
                 update = ~Flag;
