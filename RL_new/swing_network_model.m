@@ -116,11 +116,15 @@ classdef swing_network_model < environment_model
             obj.R = eye(obj.nu);
         end
         
-        function [ywv, reward] = dynamics(obj, u)
+        function [ywv, r] = dynamics(obj, u)
             obj.state = obj.dynamics_A*obj.state + obj.dynamics_B*u;
             ywv = observe(obj);
             z = evaluate(obj);
-            reward = -(z'*obj.Q*z + u'*obj.R*u);
+            r = obj.reward(z, u);
+        end
+        
+        function r = reward(obj, z, u)
+            r = -(z'*obj.Q*z + u'*obj.R*u);
         end
         
         function ywv = observe(obj)
