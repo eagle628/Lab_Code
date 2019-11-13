@@ -22,16 +22,35 @@ classdef  AC_episodic_for_net < AC_episodic
             t = (0:obj.model.Ts:Te)';
             obj.model.net.add_controller(obj.model.c_n, Q, R);
             sys_all = obj.model.net.get_sys_controlled(obj.model.sys_all);
-            sys_all = sys_all(obj.model.port_y, obj.model.port_d_L);
+            sys_all = sys_all([obj.model.port_y,obj.model.port_xhat], obj.model.port_d_L);
             u_len = size(sys_all.B, 2);
             ddd = zeros(length(t), u_len);
-            sys_all = c2d(sys_all, obj.model.Ts, obj.model.discrete_type);
-            obj.model.net.controllers = {};
-            [y_all, ~, x_all] = lsim(sys_all, ddd, t, ini);
-            y_all = y_all';
+            sys_all = c2d(sys_all, obj.model.Ts, obj.model.discrete_type);      
+            [xy_all, ~, x_all] = lsim(sys_all, ddd, t, ini);
+            idx = 0;
+            for port_name = obj.model.port_y
+                idx = idx + length(sys_all.OutputGroup.(port_name{:}));
+            end
+            y_all = xy_all(:, 1:idx)';
+            yidx = idx;
+            u_all = zeros(obj.model.nu, length(t));
+            for itr = 1 : length(obj.model.net.controllers)
+                port_len = length(sys_all.OutputGroup.(obj.model.port_xhat{itr}));
+                xhat_all = xy_all(:, idx+(1:port_len))';
+                sys_all = c2d(obj.model.sys_all(:, obj.model.port_control{itr}), obj.model.Ts, obj.model.discrete_type);
+                sys_controller = obj.model.net.controllers{itr}.sys;
+                [~, ~, C2, ~] = ssdata(sys_controller('u', {'y', 'w', 'v'}));
+                u_all(itr, :) = C2*xhat_all;
+                idx = idx + port_len;
+            end
+            reward = cellfun(@(y,u)obj.model.reward(y,u),...
+                                    mat2cell(y_all, yidx, ones(1,size(y_all,2))),...
+                                    mat2cell(u_all, obj.model.nu, ones(1,size(u_all,2))));
+            tmp = 0:length(t)-1;
+            tmp = arrayfun(@(x)obj.gamma^x,tmp);
+            reward = dot(reward, tmp);
             x_all = x_all';
-            u_all = [];
-            reward = [];
+            obj.model.net.controllers = {};
         end
         
         function [x_all, y_all, t] = sim_original(obj, ini, Te)
@@ -56,18 +75,43 @@ classdef  AC_episodic_for_net < AC_episodic
             t = (0:obj.model.Ts:Te)';
             obj.model.net.add_controller(obj.model.c_n, balred(obj.model.sys_env,apx_env_dim), Q, R);
             sys_all = obj.model.net.get_sys_controlled(obj.model.sys_all);
-            sys_all = sys_all(obj.model.port_y, obj.model.port_d_L);
+            sys_all = sys_all([obj.model.port_y,obj.model.port_xhat,{'controller_x1'}], obj.model.port_d_L);
             sys_all = c2d(sys_all, obj.model.Ts, obj.model.discrete_type);
-            obj.model.net.controllers = {};
+            
             u_len = size(sys_all.B, 2);
             ddd = zeros(length(t), u_len);
             pre_ini = zeros(order(sys_all), 1);
             pre_ini(1:length(ini)) = ini;
-            [y_all, ~, x_all] = lsim(sys_all, ddd, t, pre_ini);
-            y_all = y_all';
+            [xy_all, ~, x_all] = lsim(sys_all, ddd, t, pre_ini);
+%             y_all = y_all';
+%             x_all = x_all';
+%             u_all = [];
+%             reward = [];
+            idx = 0;
+            for port_name = obj.model.port_y
+                idx = idx + length(sys_all.OutputGroup.(port_name{:}));
+            end
+            y_all = xy_all(:, 1:idx)';
+            yidx = idx;
+            u_all = zeros(obj.model.nu, length(t));
+            % Number of controller is Single.
+            for itr = 1 : length(obj.model.net.controllers)
+                port_len = length(sys_all.OutputGroup.(obj.model.port_xhat{itr})) + length(sys_all.OutputGroup.('controller_x1'));
+                xhat_all = xy_all(:, idx+(1:port_len))';
+                sys_all = c2d(obj.model.sys_all(:, obj.model.port_control{itr}), obj.model.Ts, obj.model.discrete_type);
+                sys_controller = obj.model.net.controllers{itr}.sys;
+                [~, ~, C2, ~] = ssdata(sys_controller('u', {'y', 'w', 'v'}));
+                u_all(itr, :) = C2*xhat_all;
+                idx = idx + port_len;
+            end
+            reward = cellfun(@(y,u)obj.model.reward(y,u),...
+                                    mat2cell(y_all, yidx, ones(1,size(y_all,2))),...
+                                    mat2cell(u_all, obj.model.nu, ones(1,size(u_all,2))));
+            tmp = 0:length(t)-1;
+            tmp = arrayfun(@(x)obj.gamma^x,tmp);
+            reward = dot(reward, tmp);
             x_all = x_all';
-            u_all = [];
-            reward = [];
+            obj.model.net.controllers = {};
         end
         
         function render(obj, t, x_all, y_all, reward_history, episode)
