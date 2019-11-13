@@ -13,39 +13,32 @@ c_n = 1;
 % set model
 Ts = 0.1;
 model = swing_network_model(net, c_n, Ts);
-%% belief_N(What numbers do observe signal store ?)
-belief_N = 12;
+%% define belief sys
+% belief_N(What numbers do observe signal store ?)
+% belief_N = 12;
+% recorder_sys = observation_accumulater(model.ny, belief_N);
+recorder_sys = one_step_predictive_observer(model.dynamics_A, model.dynamics_B, model.dynamics_C);
 %% define init controller
 seed_define = 6;
 rng(seed_define)
 % controller dimension
 controller_n = 4;% state
 controller_l = 1;% output
-nnn = model.ny;
-controller_m = belief_N*nnn;% input
-% recorder sys define
-A = diag(ones(1,(belief_N-1)*nnn),-nnn);
-B = zeros(size(A,1),nnn);
-B(1:nnn,1:nnn) = eye(nnn);
-C = A;
-D = B;
-recorder = ss(A,B,C,D,model.Ts);
+controller_m = size(recorder_sys.C, 1);% input
 % explore
 iter = 1;
 disp('initial controller')
 while true
     controller = drss(controller_n, controller_l, controller_m);
-    loop = feedback(model.sys_local_discrete, controller*recorder, +1);
+    [a,b,c] = recorder_sys.connect(model.sys_local_discrete);
+    loop = feedback(controller, ss(a,b,c,[],model.Ts), +1);
     if isstable(loop)
-%         if order(minreal(loop,[],false)) == order(loop)
-            break;
-%         end
+        break;
     end
     iter = iter+1;
 end
 fprintf('Found the intial controller for the %dth time.\n', iter)
 % transform canon
-recorder_sys = observation_accumulater(model.ny, belief_N);
 figure('Name','Loop Pzmap')
 pzmap(loop)
 
@@ -97,7 +90,7 @@ opt_value.trigger_form = @(x) decay(x, value_lr_inf_lim, 1, (value_initial_lr-va
 ss_model = gen_ss_tridiag(controller_n,controller_m,controller_l);
 ss_model.set_sys(controller);
 apx_function2 = Dynamic_LTI_SS(ss_model);
-sigma_pi = 100;
+sigma_pi = 1;
 policy = Stocastic_Policy(apx_function2, sigma_pi);
 policy_initial_lr = 1;
 opt_policy = TD_lambda(policy, policy_initial_lr, 0);
@@ -115,7 +108,8 @@ train = AC_episodic_for_net(model, opt_policy, opt_value, recorder_sys);
 train_policy_seed = 28;
 train_initial_seed = 1024;
 train_Te = 50;
-train.max_episode = 3000;
+train.max_episode = 1000;
+train.snapshot = 100;
 train.fixed_apx_function_period = 4;
 train.gamma = 1;
 train_initial_set = zeros(model.nx, train.max_episode);

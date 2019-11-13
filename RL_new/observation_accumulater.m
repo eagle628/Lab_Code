@@ -14,7 +14,6 @@ classdef observation_accumulater < State_Estimator
        D
        ny
        accumulate_N
-       internal_state
     end
     
     methods
