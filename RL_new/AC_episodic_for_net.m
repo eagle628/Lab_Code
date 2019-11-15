@@ -39,8 +39,18 @@ classdef  AC_episodic_for_net < AC_episodic
                 xhat_all = xy_all(:, idx+(1:port_len))';
                 sys_all = c2d(obj.model.sys_all(:, obj.model.port_control{itr}), obj.model.Ts, obj.model.discrete_type);
                 sys_controller = obj.model.net.controllers{itr}.sys;
-                [~, ~, C2, ~] = ssdata(sys_controller('u', {'y', 'w', 'v'}));
+                [~, ~, C2, D2] = ssdata(sys_controller('u', {'y', 'w', 'v'}));
                 u_all(itr, :) = C2*xhat_all;
+                % 
+                lcoal_node_idx = obj.model.net.controllers{itr}.nodes;
+                G_Lap = obj.model.net.get_Laplacian_out(lcoal_node_idx);
+                Cv = -G_Lap(lcoal_node_idx, :)*obj.model.sys_all('theta',:).c;   % Flip interconnection affect 
+                Cw = obj.model.sys_all('theta',:).c(lcoal_node_idx, :);
+                IDX = [lcoal_node_idx(:)*2-1, lcoal_node_idx(:)*2]';
+                Cy = obj.model.sys_all('x',:).c(IDX(:),:);
+                C1 = [Cy; Cw; Cv];
+                u_all(itr, :) = u_all(itr, :) + D2*C1*x_all(:, 1:obj.model.net.N*2)';
+                %
                 idx = idx + port_len;
             end
             reward = cellfun(@(y,u)obj.model.reward(y,u),...
@@ -100,8 +110,18 @@ classdef  AC_episodic_for_net < AC_episodic
                 xhat_all = xy_all(:, idx+(1:port_len))';
                 sys_all = c2d(obj.model.sys_all(:, obj.model.port_control{itr}), obj.model.Ts, obj.model.discrete_type);
                 sys_controller = obj.model.net.controllers{itr}.sys;
-                [~, ~, C2, ~] = ssdata(sys_controller('u', {'y', 'w', 'v'}));
+                [~, ~, C2, D2] = ssdata(sys_controller('u', {'y', 'w', 'v'}));
                 u_all(itr, :) = C2*xhat_all;
+                % 
+                lcoal_node_idx = obj.model.net.controllers{itr}.nodes;
+                G_Lap = obj.model.net.get_Laplacian_out(lcoal_node_idx);
+                Cv = -G_Lap(lcoal_node_idx, :)*obj.model.sys_all('theta',:).c;   % Flip interconnection affect 
+                Cw = obj.model.sys_all('theta',:).c(lcoal_node_idx, :);
+                IDX = [lcoal_node_idx(:)*2-1, lcoal_node_idx(:)*2]';
+                Cy = obj.model.sys_all('x',:).c(IDX(:),:);
+                C1 = [Cy; Cw; Cv];
+                u_all(itr, :) = u_all(itr, :) + D2*C1*x_all(:, 1:obj.model.net.N*2)';
+                %
                 idx = idx + port_len;
             end
             reward = cellfun(@(y,u)obj.model.reward(y,u),...
