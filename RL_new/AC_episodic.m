@@ -89,7 +89,8 @@ classdef AC_episodic < RL_train
                     reward =  reward + obj.gamma^(k-1)*r;
                     % belief upadate
                     belief_state(:, 2) = belief_state(:, 1);% save previous belief state
-                    obj.belief_sys.update_internal_state(y_all(:, k), rl_u_all(:, k));% state estimator  internal state update
+%                     obj.belief_sys.update_internal_state(y_all(:, k), rl_u_all(:, k));% state estimator  internal state update
+                    obj.belief_sys.update_internal_state(y_all(:, k), rl_u_k);% state estimator  internal state update
                     belief_state(:, 1) = obj.belief_sys.estimate(y_all(:, k+1));
                     % TD Erorr
                     V_k1 = obj.opt_value.target.predict(belief_state(:, 1), false);
