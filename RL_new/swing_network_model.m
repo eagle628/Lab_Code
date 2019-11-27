@@ -159,7 +159,7 @@ classdef swing_network_model < environment_model
                 return
             end
             pole = eig(A_all);
-            update = abs(max(pole))< 1;
+            update = max(abs(pole))< 1;
         end
     end
 end
