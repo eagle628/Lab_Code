@@ -46,9 +46,11 @@ classdef optimizer < handle
         function opt(obj, data)
             grad = obj.target.grad(data);
             new_params = obj.updator(grad, data);
-            if (~obj.constraint_enable) || obj.constraint(new_params, data)
-               obj.target.set_params(new_params);
-               obj.counter = obj.counter + 1;
+            if obj.constraint_enable
+                if obj.constraint(new_params, data)
+                   obj.target.set_params(new_params);
+                   obj.counter = obj.counter + 1;
+                end
             end
         end
         
