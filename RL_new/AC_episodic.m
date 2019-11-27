@@ -9,6 +9,7 @@ classdef AC_episodic < RL_train
         snapshot
         belief_sys
         fixed_apx_function_period
+        render_enable
     end
     
     methods
@@ -24,6 +25,7 @@ classdef AC_episodic < RL_train
             obj.snapshot = 1000;
             obj.belief_sys = belief_sys;
             obj.fixed_apx_function_period = 100;
+            obj.render_enable = true;
         end
         
         function [x_all, rl_u_all, policy_snapshot, value_snapshot, history] = train(obj, ini_set, Te, seed, varargin)
@@ -120,7 +122,9 @@ classdef AC_episodic < RL_train
                 history.policy_counter(episode) = obj.opt_policy.counter;
                 history.value_counter(episode) = obj.opt_value.counter;
 %                 history.delta{episode} = delta_history;
-                obj.render(t, x_all, y_all, history.reward, episode);
+                if obj.render_enable
+                    obj.render(t, x_all, y_all, history.reward, episode);
+                end
                 disp(strcat('Episode-',num2str(episode),' : value  constraint update times : ', num2str(obj.opt_value.counter) ,'/',num2str(k)))
                 disp(strcat('Episode-',num2str(episode),' : policy constraint update times : ', num2str(obj.opt_policy.counter) ,'/',num2str(k)))
                 timer = toc;
