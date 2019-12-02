@@ -1,38 +1,85 @@
-% general actor critic test
-% clear
+% function test_rl_net_function(data)
+clear
 close all
+
+%%
+data.net_seed = 1;
+data.node_number = 6;
+data.net_local = 1;
+data.Ts = 0.1;
+data.belief_N = 12;
+data.initial_controller_seed = 240;
+data.controller_state_number = 4;
+data.value_deep_net_seed = 10;
+data.value_fixed_apx_funciton_enable = true;
+data.value_initial_lr = 0.01;
+data.value_constraint_enable = false;
+data.value_trigger_enable = false;
+data.value_trigger_period = 1;
+data.value_lr_inf_lim = 0.1;
+data.policy_pi_sigma = 1000;
+data.policy_initial_lr = 0.1;
+data.policy_constraint_enable = true;
+data.policy_pi_grad_enable = true;
+data.policy_trigger_enable = true;
+data.policy_lr_inf_lim = 1e-2;
+data.policy_trigger_period = 1;
+data.train_seed = 128;
+data.train_initial_seed = 1024;
+data.train_Te = 50;
+data.train_max_episode = 3000;
+data.train_snapshot = 100;
+data.train_fixed_apx_fucntion_period = 1;
+data.train_gamma = 1;
+data.train_render_enable = true;
+data.test_initial_seed = 64;
+data.test_Te = 100;
 
 %% define model
 % % % network version
-net_seed = 1;
-Node_number = 30;
-net = network_swing_simple(Node_number, [1,2], [2,12]*1e-3, 1, [0.1,6], 0.8, net_seed);
+net = network_swing_simple(data.node_number, [1,2], [2,12]*1e-3, 1, [0.1,6], 0.8, data.net_seed);
 % net.Adj_ref = net.Adj_ref*0;
-% local system
-c_n = 1;
 % set model
-Ts = 0.1;
-model = swing_network_model(net, c_n, Ts);
+model = swing_network_model(net, data.net_local, data.Ts);
 %% define belief sys
 % belief_N(What numbers do observe signal store ?)
-% belief_N = 20;
-% recorder_sys = observation_accumulater(model.ny, belief_N);
+recorder_sys = observation_accumulater(model.ny, data.belief_N);
 % one step predictive pbserver
 % model_rl_env = balred(model.RL_env_all({'yhat','what'},:), 6);
-model_rl_env = model.sys_local_discrete;
-recorder_sys = one_step_predictive_observer(model_rl_env.A, model_rl_env.B, model_rl_env.C);
+% recorder_sys = one_step_predictive_observer(model_rl_env.A, model_rl_env.B, model_rl_env.C);
+% recorder_sys = one_step_predictive_observer(model.dynamics_A, zeros(size(model.dynamics_B)), model.dynamics_C);
 %% define init controller
-seed_define = 240;
-rng(seed_define)
+% rng(data.initial_controller_seed)
+% iter = 0;
+% while true
+%     controller = randn(size(recorder_sys.D, 1),1);
+%     controller = Static_Gain(size(recorder_sys.D, 1), model.nu, controller);
+%     [a2,b2,c2,d2] = controller.get_ss();
+%     [a,b,c] = recorder_sys.connect(model.sys_local_discrete);
+%     loop = feedback(ss(a2,b2,c2,d2,model.Ts), ss(a,b,c,[],model.Ts), +1);
+%     if isstable(loop)
+%         break;
+%     end
+%     iter = iter+1;
+% end
+% fprintf('Found the intial controller for the %dth time.\n', iter)
+
+% init dynamic controller
+rng(data.initial_controller_seed)
 % controller dimension
 controller_n = 4;% state
-controller_l = 1;% output
+controller_l = model.nu;% output
 controller_m = size(recorder_sys.C, 1);% input
 % explore
 iter = 1;
 disp('initial controller')
 while true
-    controller = drss(controller_n, controller_l, controller_m);
+    controller = drss(data.controller_state_number, controller_l, model.ny);
+    [a,b,c,d] = ssdata(controller);
+    controller = ss(a,...
+                    [b,zeros(size(b,1),size(recorder_sys.C, 1)-size(b,2))],...
+                    c,...
+                    [d,zeros(size(d,1),size(recorder_sys.C,1)-size(d,2))],model.Ts);
     [a,b,c] = recorder_sys.connect(model.sys_local_discrete);
     loop = feedback(controller, ss(a,b,c,[],model.Ts), +1);
     if isstable(loop)
@@ -42,10 +89,8 @@ while true
 end
 fprintf('Found the intial controller for the %dth time.\n', iter)
 % transform canon
-figure('Name','Loop Pzmap')
-pzmap(loop)
-
-
+% figure('Name','Loop Pzmap')
+% pzmap(loop)
 %% generate apx function for value
 % % rbf etc.
 % basis_N = 5;
@@ -64,8 +109,7 @@ pzmap(loop)
 % value  =  Value_base(apx_function1);
 % opt_value = TD_lambda(value, 5e-4, 0.99);
 % deep net
-deepnet_seed = 10;
-py.deep_network_model.deep_model.reset_seed(int64(deepnet_seed));
+py.deep_network_model.deep_model.reset_seed(int64(data.value_deep_net_seed));
 % deep_net = py.deep_network_model.deep_model.simple_net();
 % deep_net = py.deep_network_model.deep_model.simple_linear5_net();
 % deep_net = py.deep_network_model.deep_model.linear3_net();
@@ -74,65 +118,58 @@ gpu_id = int64(0);
 if gpu_id >= 0
     deep_net.to_gpu(gpu_id);
 end
-% fixed target network enable
-fixed_apx_function_enable = true;
 % construct value
-value_initial_lr = 1;
 % chainer_optimizer = py.chainer.optimizers.SGD(pyargs('lr',initila_lr)).setup(deep_net);
-chainer_optimizer = py.chainer.optimizers.RMSprop(pyargs('lr',value_initial_lr)).setup(deep_net);
-value = Chainer_Deep_Value(chainer_optimizer, gpu_id, fixed_apx_function_enable);
+chainer_optimizer = py.chainer.optimizers.RMSprop(pyargs('lr',data.value_initial_lr)).setup(deep_net);
+value = Chainer_Deep_Value(chainer_optimizer, gpu_id, data.value_fixed_apx_funciton_enable);
 opt_value = Chainer_Deep_Optimizer(value);
 % config
-opt_value.constraint_enable = false;
-opt_value.trigger_enable = false;
-opt_value.trigger_period = 1;
-value_lr_inf_lim = 0.1;
+opt_value.constraint_enable = data.value_constraint_enable;
+opt_value.trigger_enable = data.value_trigger_enable;
+opt_value.trigger_period = data.value_trigger_period;
+value_lr_inf_lim = data.value_lr_inf_lim;
 opt_value.trigger_form = @(x) decay(x, value_lr_inf_lim, 1, (value_initial_lr-value_lr_inf_lim)/1000);
-
 %% set policy
-ss_model = gen_ss_tridiag(controller_n,controller_m,controller_l);
+ss_model = gen_ss_tridiag(controller_n, controller_m, controller_l);
 ss_model.set_sys(controller);
 apx_function2 = Dynamic_LTI_SS(ss_model);
-sigma_pi = 0.1;
-policy = Stocastic_Policy(apx_function2, sigma_pi);
-policy_initial_lr = 1e-1;
+% apx_function2 = Static_Gain(size(recorder_sys.D, 1), model.nu, controller.theta);
+policy = Stocastic_Policy(apx_function2, data.policy_pi_sigma);
+policy_initial_lr = data.policy_initial_lr;
 opt_policy = TD_lambda(policy, policy_initial_lr, 0);
 % config
-opt_policy.constraint_enable = true;
-opt_policy.target.pi_grad_enable = false;
-opt_policy.trigger_enable = false;
-policy_lr_inf_lim = 1e-6;
-opt_policy.trigger_period = 1;
+opt_policy.constraint_enable = data.policy_constraint_enable;
+opt_policy.target.pi_grad_enable = data.policy_pi_grad_enable;
+opt_policy.trigger_enable = data.policy_trigger_enable;
+policy_lr_inf_lim = data.policy_lr_inf_lim;
+opt_policy.trigger_period = data.policy_trigger_period;
 opt_policy.trigger_form = @(x) decay(x, policy_lr_inf_lim, 1, (policy_initial_lr-policy_lr_inf_lim)/1000);
-
 %% define train class
 train = AC_episodic_for_net(model, opt_policy, opt_value, recorder_sys);
 %% train contdition
-train_policy_seed = 256;
-train_initial_seed = 1024;
-train_Te = 50;
-train.max_episode = 2000;
-train.snapshot = 100;
-train.fixed_apx_function_period = 4;
-train.gamma = 1;
+train.render_enable = data.train_render_enable;
+train.max_episode = data.train_max_episode;
+train.snapshot = data.train_snapshot;
+train.fixed_apx_function_period = data.train_fixed_apx_fucntion_period;
+train.gamma = data.train_fixed_apx_fucntion_period;
 train_initial_set = zeros(model.nx, train.max_episode);
-rng(train_initial_seed)
+rng(data.train_initial_seed)
 % train_initial_set(1:end-model.rect_nx, :) = 2*rand(model.nx-model.rect_nx, train.max_episode)-1;
 %% test condition
-test_initial_seed = 64;
-rng(test_initial_seed);
+rng(data.test_initial_seed);
 test_ini = zeros(model.nx, 1);
 test_ini(2*model.c_n-1:2*model.c_n) = randn(model.local_nx ,1);
 % test_ini(1:end-2) = randn(model.nx -2, 1);
-test_Te = 100;
+test_Te = data.test_Te;
 % initial 
 [x_all_rl_initial, y_all_rl_initial, u_all_rl_initial, t, reward1_rl_initial] = train.sim(test_ini, test_Te);
 z_all_rl_initial = train.model.evaluate(x_all_rl_initial);
 %% Run train
-figure('Name','Train Progress report')
-[x_all_train, u_all_train, policy_snapshot, value_snapshot, history] = train.train(train_initial_set, train_Te, train_policy_seed);
-
-%%
+if data.train_render_enable
+    figure('Name','Train Progress report')
+end
+[x_all_train, u_all_train, policy_snapshot, value_snapshot, history] = train.train(train_initial_set, data.train_Te, data.train_seed);
+%% test
 
 [x_all_rl_train, y_all_rl_train, u_all_rl_train, ~, reward1_rl_train] = train.sim(test_ini, test_Te);
 z_all_rl_train = train.model.evaluate(x_all_rl_train);
@@ -185,14 +222,13 @@ disp('LQR')
 disp(reward_lqr);
 disp('Extend-LQR')
 disp(reward_elqr);
-
 %%
-savename = char(datetime);
-savename = strrep(savename,'/','-');
-savename = strrep(savename,':','-');
-savename = strrep(savename,' ','-');
-save(savename)
-
+% savename = DataStruct2FileName(data);
+savetime = char(datetime);
+savetime = strrep(savetime,'/','-');
+savetime = strrep(savetime,':','-');
+savetime = strrep(savetime,' ','=');
+save(savetime)
 %% local
 function out = decay(in, inf_lim, a, b)
     if in <= inf_lim
@@ -201,3 +237,5 @@ function out = decay(in, inf_lim, a, b)
     end
     out = a*in-b;
 end
+
+% end

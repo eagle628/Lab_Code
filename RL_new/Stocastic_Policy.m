@@ -12,7 +12,7 @@ classdef Stocastic_Policy < RL_structure
    methods
         function obj = Stocastic_Policy(apx_function, pi_sigma)
             obj.apx_function = apx_function;
-            obj.pi_sigma = pi_sigma;
+            obj.pi_sigma = 1/(1+exp(-pi_sigma));
             obj.pi_grad_enable = false;
         end
        

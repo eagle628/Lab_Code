@@ -1,6 +1,6 @@
 classdef Dynamic_LTI_SS < apx_function
     % Linear time Invariant systm (expressed state space)
-    
+
     properties
         form
         internal_state_c % current step state
@@ -8,7 +8,7 @@ classdef Dynamic_LTI_SS < apx_function
         grad_internal_state_c
         grad_internal_state_p
     end
-    
+
     methods
         function obj = Dynamic_LTI_SS(gen_ss)
             obj.form = gen_ss;
@@ -18,7 +18,7 @@ classdef Dynamic_LTI_SS < apx_function
             obj.grad_internal_state_c = zeros(obj.form.n*(length(obj.theta)), 1);
             obj.grad_internal_state_p = zeros(obj.form.n*(length(obj.theta)), 1);
         end
-        
+
         % override get & set (need for wrapper class)
         function params = get_params(obj)
             params = obj.form.get_params();
@@ -26,12 +26,12 @@ classdef Dynamic_LTI_SS < apx_function
 %                 disp('policy dynamic class parameter error');
 %             end
         end
-        
+
         function set_params(obj, theta)
             obj.theta = theta;
             obj.form.set_params(theta);
         end
-        
+
         % override superclass initialize
         function initialize(obj)
             obj.internal_state_c = zeros(size(obj.internal_state_c));
@@ -39,7 +39,7 @@ classdef Dynamic_LTI_SS < apx_function
             obj.grad_internal_state_c = zeros(size(obj.grad_internal_state_c));
             obj.grad_internal_state_p = zeros(size(obj.grad_internal_state_p));
         end
-        
+
         function out = predict(obj, state)
             [A, B, C, D] = obj.form.get_ss();
             ABCD = [A,B;C,D];
@@ -48,7 +48,7 @@ classdef Dynamic_LTI_SS < apx_function
             obj.internal_state_c  = xy(1 : obj.form.n);
             out = xy(obj.form.n+1 : end);
         end
-        
+
         function grad = grad(obj, state)
             % old version
 %             [Abig, Bbig, Cbig, Dbig] = obj.get_sys_big();
@@ -75,7 +75,14 @@ classdef Dynamic_LTI_SS < apx_function
             obj.grad_internal_state_c  = xy(1 : length(obj.grad_internal_state_c));
             grad = xy(length(obj.grad_internal_state_c)+1 :  end);
         end
-        
+
+        function [a, b, c, d] = get_ss(obj, theta)
+            if nargin < 2
+                [a,b,c,d] = obj.form.get_ss();
+            else
+                [a,b,c,d] = obj.form.get_ss(theta);
+            end
+        end
         % % Not Used
         function [Abig, Bbig, Cbig, Dbig] = get_sys_big(obj, theta)
             if nargin == 1 || isempty(theta)
@@ -95,7 +102,7 @@ classdef Dynamic_LTI_SS < apx_function
             end
             end
             else
-               Abig = []; 
+               Abig = [];
             end
 %             Abig = kron(eye(np+1), A);
 %             Bbig = kron(ones(np+1, 1), B*0);
@@ -114,12 +121,12 @@ classdef Dynamic_LTI_SS < apx_function
 %             tmp2 = vertcat(dA{:});
 %             tmp3 = kron(eye(np), A);
 %             Abig2 = [tmp1, tmp3];
-               
+
 %             Abig2 = kron(eye(np), A)
 %             for i = 1:numel(dA)
-%             
+%
 %             end
-%             
+%
             Bbig =  cat(1, dB{:});
             Cbig = [cat(1, dC{:}), kron(eye(np), C)];
             Dbig =  cat(1, dD{:});

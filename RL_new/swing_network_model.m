@@ -27,10 +27,10 @@ classdef swing_network_model < environment_model
     % R : reward weight (input)
     % discrete_type : system dicretize type('zoh', or 'foh')
     % nz : evaluation size
-    
+
     properties(Constant)
     end
-    
+
     properties
         net
         c_n
@@ -58,7 +58,7 @@ classdef swing_network_model < environment_model
         discrete_type
         nz
     end
-    
+
     methods
         function obj = swing_network_model(net, c_n, Ts, apx_environment, discrete_type)
             if nargin < 5
@@ -92,7 +92,7 @@ classdef swing_network_model < environment_model
             % rect_sys
             rect_sys = Retrofit.generate_rectifier(obj.sys_local, apx_environment);
             % all_sys
-            sys_all = obj.sys_all({obj.port_y,obj.port_w,obj.port_v}, {obj.port_control}); 
+            sys_all = obj.sys_all({obj.port_y,obj.port_w,obj.port_v}, {obj.port_control});
             [A2,B2,C2,D2] = ssdata(rect_sys);
             [A1,B1,C1,D1] = ssdata(sys_all);
             Ak = [A1, tools.zeros(A1, A2); B2*C1, A2];
@@ -107,7 +107,7 @@ classdef swing_network_model < environment_model
             [obj.dynamics_A,obj.dynamics_B,obj.dynamics_C,~] = ssdata(RL_env_all({'yhat','what'},:));
             [~,~,obj.evaluate_C,~] = ssdata(RL_env_all({'y'},:));
             obj.state = zeros(order(RL_env_all), 1);
-            obj.nx = order(RL_env_all); 
+            obj.nx = order(RL_env_all);
             obj.ny = size(obj.sys_local.OutputGroup.y,2)+size(obj.sys_local.OutputGroup.w, 2);
             obj.nu = size(obj.sys_local.InputGroup.u, 2);
             obj.nz = size(obj.sys_local.OutputGroup.y,2);
@@ -115,33 +115,33 @@ classdef swing_network_model < environment_model
             obj.Q = eye(obj.nz);
             obj.R = eye(obj.nu);
         end
-        
+
         function [ywv, r] = dynamics(obj, u)
             obj.state = obj.dynamics_A*obj.state + obj.dynamics_B*u;
             ywv = observe(obj);
             z = evaluate(obj);
             r = obj.reward(z, u);
         end
-        
+
         function r = reward(obj, z, u)
             r = -(z'*obj.Q*z + u'*obj.R*u);
         end
-        
+
         function ywv = observe(obj)
             ywv = obj.dynamics_C*obj.state;
         end
-        
+
         function z = evaluate(obj, data)
             narginchk(1, inf)
             if nargin == 2
                 z = obj.evaluate_C*data;
                 return
             end
-            z = obj.evaluate_C*obj.state; 
+            z = obj.evaluate_C*obj.state;
         end
-        
+
         function update = constraint(obj, target, new_params, data)
-            [a2,b2,c2,d2] = target.apx_function.form.get_ss(new_params);
+            [a2,b2,c2,d2] = target.apx_function.get_ss(new_params);
 %             AB = data.belief_sys;
 %             a1 = AB(:, 1:size(AB, 1));
 %             b1 = AB(:, size(AB, 1)+1:end);
@@ -163,4 +163,3 @@ classdef swing_network_model < environment_model
         end
     end
 end
-

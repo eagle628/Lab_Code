@@ -153,7 +153,7 @@ classdef  AC_episodic_for_net < AC_episodic
             subplot(3,1,3)
             tmp = nonzeros(reward_history);
             plot(tmp,'-b')
-            ylim([-1e4, 0])
+%             ylim([-1e4, 0])
             ylabel('Culumative Reward')
             grid on
             drawnow
