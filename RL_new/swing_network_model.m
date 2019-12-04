@@ -64,7 +64,7 @@ classdef swing_network_model < environment_model
             if nargin < 5
                 discrete_type = 'zoh';
             end
-            if nargin < 4 || isepmty(apx_environment)
+            if nargin < 4 || isempty(apx_environment)
                 apx_environment = ss(0);
             end
             obj.net = net;
@@ -77,7 +77,7 @@ classdef swing_network_model < environment_model
             obj.sys_all = sys_all;
             [obj.sys_local, obj.sys_env] = net.get_sys_local(obj.c_n);
             obj.discrete_type = discrete_type;
-            obj.sys_local_discrete = c2d(obj.sys_local({'y','w'},{'u'}), Ts,obj.discrete_type);
+            obj.sys_local_discrete = make_new_local(c2d(obj.sys_local,Ts,obj.discrete_type), apx_environment);
             obj.Ts = Ts;
             obj.rect_nx = length(c_n)*2 + order(apx_environment); % retifier dim
             obj.local_nx = order(obj.sys_local); % local dim
@@ -162,4 +162,25 @@ classdef swing_network_model < environment_model
             update = max(abs(pole))< 1;
         end
     end
+end
+
+%% local
+function sys = make_new_local(local, apx_env)
+    if isempty(apx_env.A)
+       sys = local({'y','w'},{'u'});
+       return;
+    end
+    [AE,BE,CE,DE] = ssdata(apx_env);
+    AL = local.A;
+    Bu = local(:,'u').B;
+    Bv = local(:,'v').B;
+    Cy = local('y',:).C;
+    Cw = local('w',:).C;
+    Anew = [AE, BE*Cw; Bv*CE, Bv*DE*Cw+AL];
+    Bnew = [tools.zeros(AE,Bu);Bu];
+    Cnew = [tools.zeros(Cy,AE), Cy; tools.zeros(Cw,AE), Cw];
+    sys = ss(Anew, Bnew, Cnew, [], local.Ts);
+    sys.InputGroup.u = local.InputGroup.u;
+    sys.OutputGroup = local({'y','w'},:).OutputGroup;
+    sys = balreal(sys);
 end
