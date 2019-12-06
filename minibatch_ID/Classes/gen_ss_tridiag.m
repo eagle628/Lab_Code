@@ -25,21 +25,31 @@ classdef gen_ss_tridiag < gen_ss
             for itr = 1:3*n-2
                 obj.params{itr} = sprintf('theta_A_%d', itr);
             end
-            b = itr;
+            if isempty(itr)
+                b = 0;
+            else
+                b = itr;
+            end
             for itr = 1:n*m
                 obj.params{itr+b} = sprintf('theta_B_%d', itr);
             end
-            b = b+itr;
+            if ~isempty(itr)
+                b = b+itr;
+            end
             for itr = 1:l*n
                 obj.params{itr+b} = sprintf('theta_C_%d', itr);
             end
-            b = b + itr;
+            if ~isempty(itr)
+                b = b+itr;
+            end
             for itr = 1:m*l
                 obj.params{itr+b} = sprintf('theta_D_%d', itr);
             end
             obj.theta = zeros(numel(obj.params), 1);
-            obj.theta(1:n) = -0.5*(1:n);
-            obj.theta(3*n-1:end) = 0.1;
+            if n~= 0
+                obj.theta(1:n) = -0.5*(1:n);
+                obj.theta(3*n-1:end) = 0.1;
+            end
             obj.N = length(obj.params);
         end
         
@@ -50,47 +60,93 @@ classdef gen_ss_tridiag < gen_ss
         function theta = get_params(obj)
             theta = obj.theta;
         end
-        
-       
-        function set_sys(obj, sys)
-            A = sys.a;
-            Js = get_jordan_blocks(A);
-            flag = false;
-            for itr = 1:numel(Js)
-                J = Js{itr};
-                if flag
-                    if conj(J(1,1)) ~= J1(1,1)
-                       keyboard 
-                    end
-                    Js{itr} = [];
-                    flag = false;
-                    continue
-                end
-                if ~isreal(J(1, 1))
-                    d1 = ones(size(J,1)*2-1, 1);
-                    d2 = zeros(size(J, 1)*2-1, 1);
-                    d1(1:2:end) = imag(J(1,1));
-                    d2(1:2:end) = -imag(J(1,1));
-                    Js{itr} = diag(ones(size(J, 1)*2, 1)*real(J(1,1))) + diag(d1, 1)+diag(d2, -1);
-                    flag = true;
-                end
-                J1 = J;
+
+        function sys_new = set_sys(obj, sys)
+            if size(sys.a, 1) == 0
+                obj.set_params(sys.d(:));
+                return
             end
-            Anew = blkdiag(Js{:});
-            t = eye(size(Anew));
-            t = t(:);
-            options = optimoptions('fsolve', 'MaxFunEvals', 1e4, 'MaxIterations', 2e3,...
-                'Display', 'none', 'UseParallel', false, 'Algorithm', 'levenberg-marquardt');
-            t0 = fsolve(@(t) [reshape(similar(A, t)-Anew, numel(Anew), 1)], t, options);
-            T = reshape(t0, size(Anew));
-            Bnew = T\sys.b;
-            Cnew = sys.c*T;
-%             sys = obj.get_sys;
-%             Bnew = sys.b;
-%             Cnew = sys.c;
-            params_new = [diag(Anew); diag(Anew, -1); diag(Anew, 1); Bnew(:); Cnew(:); sys.d(:)];
+            sys = balreal(sys);
+            A = sys.a;
+            n = size(sys.a,1);
+            k = n;
+            b = randn(n, 1);
+            c = randn(1, n);
+%             b(1) = 1;
+%             c(1) = 1;
+            
+            beta = sqrt(abs(b'*c'));
+            gamma = sign(b'*c')*beta;
+            v = b/beta;
+            w = c'/gamma;
+            v1 = 0;
+            w1 = 0;
+            
+            V = zeros(n, k);
+            W = zeros(n, k);
+            
+            for j = 1:k
+                alpha = w'*A*v;
+                r = A*v-alpha*v-gamma*v1;
+                q = A'*w-alpha*w-beta*w1;
+                beta = sqrt(abs(r'*q));
+                gamma = sign(r'*q)*beta;
+                v1 = v;
+                w1 = w;
+                V(:, j) = v;
+                W(:, j) = w;
+                v = r/beta;
+                w = q/gamma;
+            end
+            sys_new = ss2ss(sys, W');
+            [Anew, Bnew, Cnew, Dnew] = ssdata(sys_new);
+            if size(Anew, 1) == 1
+                params_new = [Anew; Bnew(:); Cnew(:); Dnew(:)];
+            else
+                params_new = [diag(Anew); diag(Anew, -1); diag(Anew, 1); Bnew(:); Cnew(:); Dnew(:)];
+            end
             obj.set_params(params_new);
         end
+       
+%         function set_sys(obj, sys)
+%             A = sys.a;
+%             Js = get_jordan_blocks(A);
+%             flag = false;
+%             for itr = 1:numel(Js)
+%                 J = Js{itr};
+%                 if flag
+%                     if conj(J(1,1)) ~= J1(1,1)
+%                        keyboard 
+%                     end
+%                     Js{itr} = [];
+%                     flag = false;
+%                     continue
+%                 end
+%                 if ~isreal(J(1, 1))
+%                     d1 = ones(size(J,1)*2-1, 1);
+%                     d2 = zeros(size(J, 1)*2-1, 1);
+%                     d1(1:2:end) = imag(J(1,1));
+%                     d2(1:2:end) = -imag(J(1,1));
+%                     Js{itr} = diag(ones(size(J, 1)*2, 1)*real(J(1,1))) + diag(d1, 1)+diag(d2, -1);
+%                     flag = true;
+%                 end
+%                 J1 = J;
+%             end
+%             Anew = blkdiag(Js{:});
+%             t = eye(size(Anew));
+%             t = t(:);
+%             options = optimoptions('fsolve', 'MaxFunEvals', 1e4, 'MaxIterations', 2e3,...
+%                 'Display', 'none', 'UseParallel', false, 'Algorithm', 'levenberg-marquardt');
+%             t0 = fsolve(@(t) [reshape(similar(A, t)-Anew, numel(Anew), 1)], t, options);
+%             T = reshape(t0, size(Anew));
+%             Bnew = T\sys.b;
+%             Cnew = sys.c*T;
+% %             sys = obj.get_sys;
+% %             Bnew = sys.b;
+% %             Cnew = sys.c;
+%             params_new = [diag(Anew); diag(Anew, -1); diag(Anew, 1); Bnew(:); Cnew(:); sys.d(:)];
+%             obj.set_params(params_new);
+%         end
         
         function [A, B, C, D, dA, dB, dC, dD] = get_ss(obj, theta)
             if nargin < 2
@@ -100,6 +156,28 @@ classdef gen_ss_tridiag < gen_ss
             m = obj.m;%#ok
             l = obj.l;%#ok
             np = numel(obj.params);
+            
+            if n==0 %#ok
+                A = [];
+                B = zeros(0, m); %#ok;
+                C = zeros(l, 0); %#ok;
+                D = reshape(theta, obj.l, obj.m);
+                dA = cell(np, 1);
+                dB = cell(np, 1);
+                dC = cell(np, 1);
+                dD = cell(np, 1);
+                for itr = 1:m*l%#ok
+                    M = zeros(l, m);%#ok
+                    M(1+mod(itr-1, l), 1+floor((itr-1)/l)) = 1; %#ok
+                    dD{itr} = M;
+                    dA{itr} = [];
+                    dB{itr} = zeros(0, m); %#ok
+                    dC{itr} = zeros(l, 0); %#ok
+                end
+                return
+            end
+            
+            
             A = diag(theta(1:n))+diag(theta(n+(1:n-1)), -1) + diag(theta(2*n-1+(1:n-1)), 1); %#ok
             b = 3*n-2;%#ok
             theta_B = theta(b+(1:n*m));%#ok
