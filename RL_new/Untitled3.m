@@ -2,7 +2,7 @@ close all
 clear
 
 %%
-data.net_seed = 1;
+data.net_seed = ;
 data.node_number = 6;
 data.net_local = 1;
 data.Ts = 0.1;

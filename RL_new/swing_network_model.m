@@ -49,6 +49,7 @@ classdef swing_network_model < environment_model
         port_d_L
         port_control
         RL_env_all
+        RL_env_all_prime
         dynamics_A
         dynamics_B
         dynamics_C
@@ -92,7 +93,7 @@ classdef swing_network_model < environment_model
             % rect_sys
             rect_sys = Retrofit.generate_rectifier(obj.sys_local, apx_environment);
             % all_sys
-            sys_all = obj.sys_all({obj.port_y,obj.port_w,obj.port_v}, {obj.port_control});
+            sys_all = obj.sys_all({obj.port_y,obj.port_w,obj.port_v}, {obj.port_control,obj.port_d_L});
             [A2,B2,C2,D2] = ssdata(rect_sys);
             [A1,B1,C1,D1] = ssdata(sys_all);
             Ak = [A1, tools.zeros(A1, A2); B2*C1, A2];
@@ -103,11 +104,12 @@ classdef swing_network_model < environment_model
             RL_env_all.OutputGroup = rect_sys.OutputGroup;
             RL_env_all.InputGroup = sys_all.InputGroup;
             RL_env_all = c2d(RL_env_all, Ts, obj.discrete_type);
-            obj.RL_env_all = RL_env_all;
-            [obj.dynamics_A,obj.dynamics_B,obj.dynamics_C,~] = ssdata(RL_env_all({'yhat','what'},:));
-            [~,~,obj.evaluate_C,~] = ssdata(RL_env_all({'y'},:));
-            obj.state = zeros(order(RL_env_all), 1);
-            obj.nx = order(RL_env_all);
+            obj.RL_env_all_prime = RL_env_all;
+            obj.RL_env_all = RL_env_all(:, {obj.port_control});
+            [obj.dynamics_A,obj.dynamics_B,obj.dynamics_C,~] = ssdata(obj.RL_env_all({'yhat','what'},:));
+            [~,~,obj.evaluate_C,~] = ssdata(obj.RL_env_all({'y'},:));
+            obj.state = zeros(order(obj.RL_env_all), 1);
+            obj.nx = order(obj.RL_env_all);
             obj.ny = size(obj.sys_local.OutputGroup.y,2)+size(obj.sys_local.OutputGroup.w, 2);
             obj.nu = size(obj.sys_local.InputGroup.u, 2);
             obj.nz = size(obj.sys_local.OutputGroup.y,2);

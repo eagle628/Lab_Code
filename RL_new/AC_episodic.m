@@ -103,8 +103,10 @@ classdef AC_episodic < RL_train
                     data.state = belief_state(:, 2);
                     data.pre_input = rl_u_all(:, k);
                     data.pre_input_mu = rl_u_k;
+                    if k > obj.belief_sys.accumulate_N
                     obj.opt_policy.opt(data);
                     obj.opt_value.opt(data);
+                    end
 %                     if abs(x_all(1, k)) > 0.5
 %                         reward = -30;
 %                         break;
