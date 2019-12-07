@@ -47,16 +47,30 @@ classdef gen_ss_Eretro_controller < gen_ss
             Dnew = [eye(ny), zeros(ny, nw); zeros(nw, ny), eye(nw)];
             Cnew = obj.K*Cnew;
             Dnew = obj.K*Dnew;
-            dA = cell(numel(dAE), 1);
-            dB = cell(numel(dAE), 1);
-            dC = cell(numel(dAE), 1);
-            dD = cell(numel(dAE), 1);
+            dA = cell(obj.N, 1);
+            dB = cell(obj.N, 1);
+            dC = cell(obj.N, 1);
+            dD = cell(obj.N, 1);
             if nargout > 4
-                for itr = 1:numel(dAE)
-                    dA{itr} = [dAE, dBE*Cw; BL*dCE, AL+BL*dDE*Cw];
-                    dB{itr} = [zeros(nE, ny), dBE; zeros(nL, ny), BL*dDE];
+                for itr = 1 : numel(dAE)
+                    dA{itr} = [dAE{itr}, dBE{itr}*Cw; BL*dCE{itr}, AL+BL*dDE{itr}*Cw];
+                    dB{itr} = [zeros(nE, ny), dBE{itr}; zeros(nL, ny), BL*dDE{itr}];
                     dC{itr} = obj.K*[zeros(ny, nE), Cy; zeros(nw, nL), Cw];
                     dD{itr} = obj.K*[eye(ny), zeros(ny, nw); zeros(nw, ny), eye(nw)];
+                end
+                b = itr;
+                AE0 = AE*0;
+                BE0 = BE*0;
+                CE0 = CE*0;
+                DE0 = DE*0;
+                for itr = 1 : numel(obj.N)
+                    dA{b+itr} = [AE0, BE0*Cw; BL*CE0, AL+BL*DE0*Cw];
+                    dB{b+itr} = [zeros(nE, ny), BE0; zeros(nL, ny), BL*DE0];
+                    dK = zeros(1, numel(obj.N));
+                    dK(itr) = 1;
+                    dK = reshape(dK, size(obj.N, 1), []);
+                    dC{b+itr} = dK*[zeros(ny, nE), Cy; zeros(nw, nL), Cw];
+                    dD{b+itr} = dK*[eye(ny), zeros(ny, nw); zeros(nw, ny), eye(nw)];
                 end
             else
                 return;
