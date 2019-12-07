@@ -1,6 +1,8 @@
 clear
 close all
 
+%%
+
 %% Exsample GA (https://jp.mathworks.com/help/gads/ga.html)
 % xi = linspace(-6,2,300);
 % % % yi = linspace(-4,4,300);
@@ -61,8 +63,10 @@ opt = optimoptions('ga',...
                     );
 
 rng default % For reproducibility
-N = 1000;
-ddd = randn(N, 2);
+sim_N = 1000;
+mean_N = 100;
+% ddd = randn(sim_N, 2, mean_N);
+ddd = [sim_N, 2, mean_N];
 
 env = model.RL_env_all_prime;
 AE = env.A;
@@ -73,10 +77,17 @@ S  = env('y', :).C;
 
 local = model.sys_local_discrete;
 [Ap,Bp,Cp,~] = ssdata(local);
-yyy_slqr = lsim(sys_all_slqr({'y_node1','u_controlled1'}, {'d_node1'}), ddd, (0:N-1)'*data.Ts, 'zoh');
-yyy_elqr = lsim(sys_all_elqr({'y_node1','u_controlled1'}, {'d_node1'}), ddd, (0:N-1)'*data.Ts, 'zoh');
+
+
 [x, fval] = ga(@(theta)eval_func(theta, AE,BE,CE,R,S,data.Ts, ss_model, ddd), ss_model.N, [], [], [], [], [], [], @(theta)stable_con(theta, Ap,Bp,Cp, ss_model), opt)
 
+%% evaluation
+ddd = randn(sim_N, 2);
+yyy_slqr = lsim(sys_all_slqr({'y_node1','u_controlled1'}, {'d_node1'}), ddd, (0:sim_N-1)'*data.Ts, 'zoh');
+f_slqr = norm(yyy_slqr)
+yyy_elqr = lsim(sys_all_elqr({'y_node1','u_controlled1'}, {'d_node1'}), ddd, (0:sim_N-1)'*data.Ts, 'zoh');
+f_elqr = norm(yyy_elqr)
+[f_global, yyy_global] = eval_func(x, AE,BE,CE,R,S,data.Ts, ss_model, ddd)
 %% local
 function [f, y] = eval_func(theta, AE,BE,CE,R,S,Ts, controller, ddd)
     controller.set_params(theta);
@@ -87,10 +98,15 @@ function [f, y] = eval_func(theta, AE,BE,CE,R,S,Ts, controller, ddd)
     Cnew = [S, tools.zeros(S, Ak); Dk*CE, Ck];
     sys = ss(Anew, Bnew, Cnew, [], Ts);
 
-%     N = 1000;
-%     ddd = randn(N, 2);
-    y = lsim(sys, ddd, []);
-    f = norm(y);
+    f = 0;
+    if length(ddd) == 3
+        ddd = randn(ddd);
+    end
+    for k = 1 : size(ddd, 3)
+        y = lsim(sys, ddd(:,:,k), []);
+        f = f + norm(y);
+    end
+    f = f/size(ddd, 3);
 end
 
 function [c, ceq] = stable_con(theta, Ap,Bp,Cp, controller)
