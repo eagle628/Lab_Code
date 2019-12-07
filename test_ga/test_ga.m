@@ -47,21 +47,13 @@ sys_all_elqr = net.get_sys_controlled(sys_all_elqr);
 net.controllers = {};
 
 %% define controller model
-% ss_model = gen_ss_tridiag(data.controller_n, model.ny, model.nu);
+ss_model = gen_ss_tridiag(data.controller_n, model.ny, model.nu);
 %
-env_n = 2;
-env_model = gen_ss_tridiag(env_n, 1, 1);
-ss_model = gen_ss_Eretro_controller(env_model, c2d(model.sys_local, model.Ts, model.discrete_type));
+% env_n = 2;
+% env_model = gen_ss_tridiag(env_n, 1, 1);
+% ss_model = gen_ss_Eretro_controller(env_model, c2d(model.sys_local, model.Ts, model.discrete_type));
 
-
-%%
-opt = optimoptions('ga',...
-                    'UseParallel',true,...
-                    'MaxStallGenerations',1e3,...
-                    'Display', 'iter',...
-                    'PopulationSize',100 ...
-                    );
-
+%% pre
 rng default % For reproducibility
 sim_N = 1000;
 mean_N = 100;
@@ -78,20 +70,77 @@ S  = env('y', :).C;
 local = model.sys_local_discrete;
 [Ap,Bp,Cp,~] = ssdata(local);
 
+%% GA
+% opt = optimoptions(...
+%                     'ga',...
+%                     'UseParallel',true,...
+%                     'MaxStallGenerations',1e3,...
+%                     'Display', 'iter',...
+%                     'PopulationSize',100 ...
+%                     );
+% 
+% 
+% [x, fval] = ga(@(theta)eval_func(theta, AE,BE,CE,R,S,data.Ts, ss_model, ddd), ss_model.N, [], [], [], [], [], [], @(theta)stable_con(theta, Ap,Bp,Cp, ss_model), opt)
 
-[x, fval] = ga(@(theta)eval_func(theta, AE,BE,CE,R,S,data.Ts, ss_model, ddd), ss_model.N, [], [], [], [], [], [], @(theta)stable_con(theta, Ap,Bp,Cp, ss_model), opt)
 
+%% PSO
+multi_startpt_number = 1000;
+theta_set = zeros(multi_startpt_number, ss_model.N);
+
+nvar = ss_model.N;
+parfor k = 1 : multi_startpt_number
+    while true
+        theta = randn(1, nvar);
+        if  stable_con(theta, Ap,Bp,Cp, ss_model) < 0
+            break;
+        end
+    end
+    theta_set(k, :) = theta;
+end
+tpoints = CustomStartPointSet(theta_set);
+
+
+problem = createOptimProblem('fmincon',...
+    'objective',@(theta)eval_func(theta, AE,BE,CE,R,S,data.Ts, ss_model, ddd),...
+    'nonlcon',@(theta)stable_con(theta, Ap,Bp,Cp, ss_model),...
+    'x0',theta_set(1, :), ...
+    'options',...
+    optimoptions(...
+                @fmincon,...
+                'Algorithm','interior-point',...
+                'Display','iter'...
+                )...
+    );
+
+fmincon(problem);
+ms = MultiStart('UseParallel',true,'Display','iter');
+[x,fval,eflag,output,manymins] = run(ms, problem, tpoints);
 %% evaluation
-ddd = randn(sim_N, 2);
-yyy_slqr = lsim(sys_all_slqr({'y_node1','u_controlled1'}, {'d_node1'}), ddd, (0:sim_N-1)'*data.Ts, 'zoh');
-f_slqr = norm(yyy_slqr)
-yyy_elqr = lsim(sys_all_elqr({'y_node1','u_controlled1'}, {'d_node1'}), ddd, (0:sim_N-1)'*data.Ts, 'zoh');
-f_elqr = norm(yyy_elqr)
-[f_global, yyy_global] = eval_func(x, AE,BE,CE,R,S,data.Ts, ss_model, ddd)
+rng(6)
+evaluation_N = 100;
+ddd = randn(sim_N, 2, evaluation_N);
+f_slqr_set = zeros(evaluation_N, 1);
+f_elqr_set = zeros(evaluation_N, 1);
+f_global_set = zeros(evaluation_N, 1);
+yyy_slqr_set = zeros(sim_N, 3, evaluation_N);
+yyy_elqr_set = zeros(sim_N, 3, evaluation_N);
+yyy_global_set = zeros(sim_N, 3, evaluation_N);
+
+sim_t = (0:sim_N-1)'*data.Ts;
+Ts = data.Ts;
+sys_slqr = sys_all_slqr({'y_node1','u_controlled1'}, {'d_node1'});
+sys_elqr = sys_all_elqr({'y_node1','u_controlled1'}, {'d_node1'});
+parfor k = 1 : evaluation_N
+    yyy_slqr_set(:,:,k) = lsim(sys_slqr, ddd(:,:,k), sim_t, 'zoh');
+    f_slqr_set(k) = norm(yyy_slqr_set(:,:,k));
+    yyy_elqr_set(:,:,k) = lsim(sys_elqr, ddd(:,:,k), sim_t, 'zoh');
+    f_elqr_set(k) = norm(yyy_elqr_set(:,:,k));
+    [f_global_set(k), ~, yyy_global_set(:,:,k)] = eval_func(x, AE,BE,CE,R,S,Ts, ss_model, ddd(:,:,k));
+end
 %% local
-function [f, y] = eval_func(theta, AE,BE,CE,R,S,Ts, controller, ddd)
+function [f, grad, y] = eval_func(theta, AE,BE,CE,R,S,Ts, controller, ddd)
     controller.set_params(theta);
-    [Ak,Bk,Ck,Dk] = controller.get_ss();
+    [Ak,Bk,Ck,Dk,dAk,dBk,dCk,dDk] = controller.get_ss();
 
     Anew = [AE+BE*Dk*CE, BE*Ck; Bk*CE, Ak];
     Bnew = [R; tools.zeros(Ak, R)];
@@ -99,12 +148,23 @@ function [f, y] = eval_func(theta, AE,BE,CE,R,S,Ts, controller, ddd)
     sys = ss(Anew, Bnew, Cnew, [], Ts);
 
     f = 0;
+    grad = zeros(length(theta), 1);
     if length(ddd) == 3
         ddd = randn(ddd);
     end
-    for k = 1 : size(ddd, 3)
-        y = lsim(sys, ddd(:,:,k), []);
+    for iter1 = 1 : size(ddd, 3)
+        [y,~,x] = lsim(sys, ddd(:,:,iter1), []);
         f = f + norm(y);
+        if nargin == 2 
+            for iter2 = 1 : length(dAk)
+                dAnew = [AE+BE*dDk{iter2}*CE, BE*dCk{iter2}; dBk{iter2}*CE, dAk{iter2}];
+                dBnew = [R; tools.zeros(Ak, R)];
+                dCnew = [S, tools.zeros(S, Ak); dDk{iter2}*CE, dCk{iter2}];
+                dsys = ss(Anew, [dAnew,dBnew], Cnew, [dCnew,tools.zeros(dCnew, dBnew)], Ts);
+                dy = lsim(dsys, [x, ddd(:,:,iter1)], []);
+                grad(iter2) = grad(iter2) + sum(sum(y.*dy));
+            end
+        end
     end
     f = f/size(ddd, 3);
 end
@@ -116,4 +176,12 @@ function [c, ceq] = stable_con(theta, Ap,Bp,Cp, controller)
     pole = eig(A_all);
     c= max(abs(pole))- 1;
     ceq = [];
+end
+
+function out = ReLU(x)
+    if x < 0
+        out = 0;
+    else
+        out = x^2;
+    end
 end
