@@ -10,6 +10,7 @@ classdef AC_episodic < RL_train
         belief_sys
         fixed_apx_function_period
         render_enable
+        value_pretraining_period
     end
     
     methods
@@ -26,6 +27,7 @@ classdef AC_episodic < RL_train
             obj.belief_sys = belief_sys;
             obj.fixed_apx_function_period = 100;
             obj.render_enable = true;
+            obj.value_pretraining_period = 0;
         end
         
         function [x_all, rl_u_all, policy_snapshot, value_snapshot, history] = train(obj, ini_set, Te, seed, varargin)
@@ -83,8 +85,19 @@ classdef AC_episodic < RL_train
                 y_all(:, 1) = obj.model.observe();
                 x_all(:, 1) = obj.model.state;
                 belief_state(:, 1) =  obj.belief_sys.estimate(y_all(:, 1));
+                % 
+                grad = 0;
+                x_ = obj.opt_policy.target.get_params();
+                x_ = x_(1:end-1);
+                input_ = zeros(size(rl_u_all));
+                delta_set = zeros(sim_N,1);
+%                 rng(6)
                 for k = 1 : sim_N-1
+                    actor_belief = zeros(size(belief_state(:, 1)));
+                    actor_belief(1:obj.model.ny) = belief_state(1:obj.model.ny, 1);
                     [rl_u_all(:, k), rl_u_k] = obj.opt_policy.target.predict(belief_state(:, 1), true);
+%                     [rl_u_all(:, k), rl_u_k] = obj.opt_policy.target.predict(actor_belief, true);
+                    input_(:, k) = rl_u_all(:, k) - rl_u_k;
                     % next step
                     [y_all(:, k+1), r] = obj.model.dynamics(rl_u_all(:, k));
                     x_all(:, k+1) = obj.model.state;
@@ -101,19 +114,32 @@ classdef AC_episodic < RL_train
                     % parameter update
                     data.delta = delta;
                     data.state = belief_state(:, 2);
+%                     data.state = actor_belief;
                     data.pre_input = rl_u_all(:, k);
                     data.pre_input_mu = rl_u_k;
-                    if k > obj.belief_sys.accumulate_N
-                    obj.opt_policy.opt(data);
-                    obj.opt_value.opt(data);
+                    if isa(data.delta, 'double')
+                        delta_set(k) = data.delta;
+                    else
+                        delta_set(k) = double(py.numpy.squeeze(data.delta.data).tolist);
                     end
-%                     if abs(x_all(1, k)) > 0.5
-%                         reward = -30;
-%                         break;
-%                     end
+                    if k > obj.belief_sys.accumulate_N
+                        if episode > obj.value_pretraining_period
+                            grad = grad + obj.opt_policy.opt(data);
+                        end
+%                     data.state = belief_state(:, 2);
+%                         if episode < 1
+                            obj.opt_value.opt(data);
+%                         end
+                    end
+                    if abs(x_all(1, k)) > 0.5
+                        reward = -30;
+                        break;
+                    end
                     % save delta
 %                     delta_history{k} = data.delta;
                 end
+                counter_ = obj.opt_policy.counter;
+%                 save(sprintf('test_rl_grad_n%d_belief_%d_epi%d',obj.model.net.N,obj.belief_sys.accumulate_N, episode), 'x_', 'grad' ,'input_', 'counter_');
                 % record history
                 if ~mod(episode, obj.snapshot) 
                     value_snapshot{record_idx}  = obj.opt_value.target.get_params();
@@ -125,7 +151,7 @@ classdef AC_episodic < RL_train
                 history.value_counter(episode) = obj.opt_value.counter;
 %                 history.delta{episode} = delta_history;
                 if obj.render_enable
-                    obj.render(t, x_all, y_all, history.reward, episode);
+                    obj.render(t, x_all, y_all, history.reward, episode, delta_set);
                 end
                 disp(strcat('Episode-',num2str(episode),' : value  constraint update times : ', num2str(obj.opt_value.counter) ,'/',num2str(k)))
                 disp(strcat('Episode-',num2str(episode),' : policy constraint update times : ', num2str(obj.opt_policy.counter) ,'/',num2str(k)))
@@ -179,8 +205,8 @@ classdef AC_episodic < RL_train
             end
         end
         
-        function render(obj, t, x_all, y_all, reward_history, episode, update_chance)
-            subplot(2,2,1)
+        function render(obj, t, x_all, y_all, reward_history, episode, delta)
+            subplot(3,2,1)
             plot(t, y_all)
             title(['\fontsize{16}','Episode-',num2str(episode)])
             ylabel('y')
@@ -190,16 +216,16 @@ classdef AC_episodic < RL_train
                 lim = 1;
             end
             ylim([-lim, lim]);
-            subplot(2,2,3)
+            subplot(3,2,3)
             plot(nonzeros(reward_history),'-b')
             ylabel('Culumative Reward')
+            subplot(3,2,5)
+            plot(episode, norm(delta),'r*')
+            ylabel('TD-error')
+            hold on
             drawnow
-            disp(strcat('Episode-',num2str(episode),' : value  constraint update times : ', num2str(obj.opt_value.counter) ,'/',num2str(update_chance)))
-            disp(strcat('Episode-',num2str(episode),' : policy constraint update times : ', num2str(obj.opt_policy.counter) ,'/',num2str(update_chance)))
-            timer = toc;
-            fprintf('This epoch %f[s], Estimated time to finish:%f [h].\n',timer, timer*(obj.max_episode-episode)/3600)
             % %
-            subplot(2,2,[2,4])
+            subplot(3,2,[2,4,6])
             [X,Y] = meshgrid(-.5:.1:.5, -2:.4:2);
             mesh_size = size(X, 1);
             XY = zeros(2*mesh_size, mesh_size);

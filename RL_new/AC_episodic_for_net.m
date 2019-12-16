@@ -12,21 +12,61 @@ classdef  AC_episodic_for_net < AC_episodic
             obj@AC_episodic(model, opt_policy, opt_value, belief_sys);
         end
         
-        function [x_all, y_all, u_all, t, reward] = sim_lqrcontroller(obj, ini, Te, Q, R)
-            if nargin < 5 || isempty(R)
+        % overrid for noise
+        function [x_all, y_all, rl_u_all, t, reward] = sim(obj, ini, Te, d)
+            sim_N = Te/obj.model.Ts + 1;
+            t = (0:obj.model.Ts:Te)';
+            if nargin < 4 || isempty(d)
+                d = zeros(obj.model.nd, sim_N);
+            else
+                if length(d) == 1
+                    rng(d)
+                    d = randn(obj.model.nd, length(t));
+                end
+            end
+            x_all = nan(obj.model.nx, sim_N);
+            y_all = nan(obj.model.ny, sim_N);
+            rl_u_all = nan(obj.model.nu, sim_N);
+            % set initial
+            obj.model.initialize(ini);
+            y_all(:, 1) = obj.model.observe();
+            x_all(:, 1) = obj.model.state;           
+            reward = 0;
+            obj.opt_policy.initialize(0);
+            obj.belief_sys.initialize();
+            belief_state =  obj.belief_sys.estimate(y_all(:, 1));
+            for k = 1 : sim_N-1
+                rl_u_all(:, k) = obj.opt_policy.target.predict(belief_state, false);
+                [y_all(:, k+1), r] = obj.model.dynamics_prime(rl_u_all(:, k), d(:, k));
+                x_all(:, k+1) = obj.model.state;
+                obj.belief_sys.update_internal_state(y_all(:, k), rl_u_all(:, k));
+                belief_state =  obj.belief_sys.estimate(y_all(:, k+1));
+                reward = reward + obj.gamma^(k-1)*r;
+            end
+        end
+        
+        
+        function [x_all, y_all, u_all, t, reward] = sim_lqrcontroller(obj, ini, Te, d, Q, R)
+            if nargin < 6 || isempty(R)
                 R = eye(obj.model.nu);
             end
-            if nargin < 4 || isempty(Q)
+            if nargin < 5 || isempty(Q)
                 Q = eye(obj.model.local_nx);
             end
             t = (0:obj.model.Ts:Te)';
+            if nargin < 4 || isempty(d)
+                d = zeros(obj.model.nd, length(t));
+            else
+                if length(d) == 1
+                    rng(d)
+                    d = randn(obj.model.nd, length(t));
+                end
+            end
             obj.model.net.add_controller(obj.model.c_n, Q, R);
             sys_all = obj.model.net.get_sys_controlled(obj.model.sys_all);
             sys_all = sys_all([obj.model.port_y,obj.model.port_xhat], obj.model.port_d_L);
-            u_len = size(sys_all.B, 2);
-            ddd = zeros(length(t), u_len);
             sys_all = c2d(sys_all, obj.model.Ts, obj.model.discrete_type);      
-            [xy_all, ~, x_all] = lsim(sys_all, ddd, t, ini);
+            [xy_all, ~, x_all] = lsim(sys_all, d, t, ini);
             idx = 0;
             for port_name = obj.model.port_y
                 idx = idx + length(sys_all.OutputGroup.(port_name{:}));
@@ -63,36 +103,48 @@ classdef  AC_episodic_for_net < AC_episodic
             obj.model.net.controllers = {};
         end
         
-        function [x_all, y_all, t] = sim_original(obj, ini, Te)
+        function [x_all, y_all, t] = sim_original(obj, ini, Te, d)
             % ini : sys_all length cut off
             t = (0:obj.model.Ts:Te)';
+            if nargin < 4 || isempty(d)
+                d = zeros(obj.model.nd, length(t));
+            else
+                if length(d) == 1
+                    rng(d)
+                    d = randn(obj.model.nd, length(t));
+                end
+            end
             sys_all = obj.model.sys_all(obj.model.port_y, obj.model.port_d_L);
             sys_all = c2d(sys_all, obj.model.Ts, obj.model.discrete_type);
-            u_len = size(sys_all.B, 2);
-            ddd = zeros(length(t), u_len);
-            [y_all, ~, x_all] = lsim(sys_all, ddd, t, ini(1:order(sys_all)));
+            [y_all, ~, x_all] = lsim(sys_all, d, t, ini(1:order(sys_all)));
             y_all = y_all';
             x_all = x_all';
         end
         
-        function [x_all, y_all, u_all, t, reward] = sim_extendlqrcontroller(obj, ini, Te, apx_env_dim, Q, R)
-            if nargin < 6 || isempty(R)
+        function [x_all, y_all, u_all, t, reward] = sim_extendlqrcontroller(obj, ini, Te, apx_env_dim, d, Q, R)
+            if nargin < 7 || isempty(R)
                 R = eye(obj.model.nu);
             end
-            if nargin < 5 || isempty(Q)
+            if nargin < 6 || isempty(Q)
                 Q = eye(obj.model.local_nx);
             end
             t = (0:obj.model.Ts:Te)';
+            if nargin < 5 || isempty(d)
+                d = zeros(obj.model.nd, length(t));
+            else
+                if size(d) == 1
+                    rng(d)
+                    d = randn(obj.model.nd, length(t));
+                end
+            end
             obj.model.net.add_controller(obj.model.c_n, balred(obj.model.sys_env,apx_env_dim), Q, R);
             sys_all = obj.model.net.get_sys_controlled(obj.model.sys_all);
             sys_all = sys_all([obj.model.port_y,obj.model.port_xhat,{'controller_x1'}], obj.model.port_d_L);
             sys_all = c2d(sys_all, obj.model.Ts, obj.model.discrete_type);
             
-            u_len = size(sys_all.B, 2);
-            ddd = zeros(length(t), u_len);
             pre_ini = zeros(order(sys_all), 1);
             pre_ini(1:length(ini)) = ini;
-            [xy_all, ~, x_all] = lsim(sys_all, ddd, t, pre_ini);
+            [xy_all, ~, x_all] = lsim(sys_all, d, t, pre_ini);
 %             y_all = y_all';
 %             x_all = x_all';
 %             u_all = [];
@@ -134,8 +186,8 @@ classdef  AC_episodic_for_net < AC_episodic
             obj.model.net.controllers = {};
         end
         
-        function render(obj, t, x_all, y_all, reward_history, episode)
-            subplot(3,1,1)
+        function render(obj, t, x_all, y_all, reward_history, episode, delta)
+            subplot(4,1,1)
             z = obj.model.evaluate(x_all);
             plot(t, z)
             title(['\fontsize{16}','Episode-',num2str(episode)])
@@ -146,16 +198,19 @@ classdef  AC_episodic_for_net < AC_episodic
                 lim = 1;
             end
             ylim([-lim, lim]);
-            subplot(3,1,2)
+            subplot(4,1,2)
             plot(t, y_all(1:obj.model.nz, :));
             ylabel('$\hat{y}$','Interpreter','latex')
             grid on
-            subplot(3,1,3)
+            subplot(4,1,3)
             tmp = nonzeros(reward_history);
             plot(tmp,'-b')
 %             ylim([-1e4, 0])
             ylabel('Culumative Reward')
             grid on
+            subplot(4,1,4)
+            plot(episode, norm(delta),'*')
+            hold on
             drawnow
         end
     end
