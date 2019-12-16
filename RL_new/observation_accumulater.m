@@ -48,10 +48,27 @@ classdef observation_accumulater < State_Estimator
         end
         
         function [AL,BL,CL] = connect(obj, plant)
-            [Ap,Bp,Cp,~]  = ssdata(plant);
-            AL = [Ap, tools.zeros(Ap, obj.A);obj.B*Cp, obj.A];
-            BL = [Bp; tools.zeros(obj.A, Bp)];
-            CL = [obj.D*Cp, obj.C];
+            if isfield(plant.OutputGroup, 'yhat')
+                % connect all rl encironment
+                [Ap,Bp,Cp,~]  = ssdata(plant({'yhat','what'},:));
+                AL = [Ap, tools.zeros(Ap, obj.A);obj.B*Cp, obj.A];
+                BL = [Bp; tools.zeros(obj.A, Bp)];
+                CL = [obj.D*Cp, obj.C];
+                Cy = plant({'y'},:).C;
+                CL = [CL;Cy, tools.zeros(Cy, obj.A)];
+                AL = ss(AL, BL, CL, [],  plant.Ts);
+                AL.InputGroup = plant.InputGroup;
+                AL.OutputGroup.ywhat_set = 1:size(obj.C,1);
+                AL.OutputGroup.y = size(obj.C,1)+ (1:length(plant.OutputGroup.y));
+            else
+                % connect interested system (constraint connect for retro)
+                % OR
+                % general ver 
+                [Ap,Bp,Cp,~]  = ssdata(plant);
+                AL = [Ap, tools.zeros(Ap, obj.A);obj.B*Cp, obj.A];
+                BL = [Bp; tools.zeros(obj.A, Bp)];
+                CL = [obj.D*Cp, obj.C];
+            end
         end
     end
 end
