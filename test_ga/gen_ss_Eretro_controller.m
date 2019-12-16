@@ -10,6 +10,7 @@ classdef gen_ss_Eretro_controller < gen_ss
         params
         K
         N
+        n
     end
     
     methods
@@ -25,13 +26,16 @@ classdef gen_ss_Eretro_controller < gen_ss
             end
             obj.K = K;
             obj.N = obj.gen_ss.N+numel(obj.K);
+            obj.n = obj.gen_ss.n+order(model_local);
         end
         
         function [Anew, Bnew, Cnew, Dnew, dA, dB, dC, dD] = get_ss(obj, theta)
             if nargin < 2
                 theta = obj.get_params();
             end
-            [AE, BE, CE, DE, dAE, dBE, dCE, dDE] = obj.gen_ss.get_ss(theta);
+            ss_theta = theta(1:end-numel(obj.K));
+            K_theta = reshape(theta(end-numel(obj.K)+1:end), size(obj.K,1), []);
+            [AE, BE, CE, DE, dAE, dBE, dCE, dDE] = obj.gen_ss.get_ss(ss_theta);
             AL = obj.model_local.A;
             BL = obj.model_local(:, 'v').B;
             Cy = obj.model_local('y', :).C;
@@ -45,8 +49,8 @@ classdef gen_ss_Eretro_controller < gen_ss
             Bnew = [zeros(nE, ny), BE; zeros(nL, ny), BL*DE];
             Cnew = [zeros(ny, nE), Cy; zeros(nw, nL), Cw];
             Dnew = [eye(ny), zeros(ny, nw); zeros(nw, ny), eye(nw)];
-            Cnew = obj.K*Cnew;
-            Dnew = obj.K*Dnew;
+            Cnew = K_theta*Cnew;
+            Dnew = K_theta*Dnew;
             dA = cell(obj.N, 1);
             dB = cell(obj.N, 1);
             dC = cell(obj.N, 1);
@@ -55,18 +59,18 @@ classdef gen_ss_Eretro_controller < gen_ss
                 for itr = 1 : numel(dAE)
                     dA{itr} = [dAE{itr}, dBE{itr}*Cw; BL*dCE{itr}, AL+BL*dDE{itr}*Cw];
                     dB{itr} = [zeros(nE, ny), dBE{itr}; zeros(nL, ny), BL*dDE{itr}];
-                    dC{itr} = obj.K*[zeros(ny, nE), Cy; zeros(nw, nL), Cw];
-                    dD{itr} = obj.K*[eye(ny), zeros(ny, nw); zeros(nw, ny), eye(nw)];
+                    dC{itr} = K_theta*[zeros(ny, nE), Cy; zeros(nw, nL), Cw];
+                    dD{itr} = K_theta*[eye(ny), zeros(ny, nw); zeros(nw, ny), eye(nw)];
                 end
                 b = itr;
-                AE0 = AE*0;
-                BE0 = BE*0;
-                CE0 = CE*0;
-                DE0 = DE*0;
-                for itr = 1 : numel(obj.N)
-                    dA{b+itr} = [AE0, BE0*Cw; BL*CE0, AL+BL*DE0*Cw];
-                    dB{b+itr} = [zeros(nE, ny), BE0; zeros(nL, ny), BL*DE0];
-                    dK = zeros(1, numel(obj.N));
+                AE_ = AE*0;
+                BE_ = BE*0;
+                CE_ = CE*0;
+                DE_ = DE*0;
+                for itr = 1 : numel(obj.K)
+                    dA{b+itr} = [AE_, BE_*Cw; BL*CE_, AL+BL*DE_*Cw];
+                    dB{b+itr} = [zeros(nE, ny), BE_; zeros(nL, ny), BL*DE_];
+                    dK = zeros(1, numel(obj.K));
                     dK(itr) = 1;
                     dK = reshape(dK, size(obj.N, 1), []);
                     dC{b+itr} = dK*[zeros(ny, nE), Cy; zeros(nw, nL), Cw];
@@ -78,8 +82,7 @@ classdef gen_ss_Eretro_controller < gen_ss
         end
         
         function theta = get_params(obj)
-            theta = [obj.gen_ss.get_params(), reshape(obj.K, 1, [])];
-            
+            theta = [obj.gen_ss.get_params(), reshape(obj.K, 1, [])];            
         end
         
         function set_params(obj, theta)
