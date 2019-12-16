@@ -20,16 +20,16 @@ mu = [kron(m,ones(nnn,1)),repmat(mm,nnn,1)];
 sigma = 0.25*ones(basis_N, 1);
 apx_function1 = Radial_Basis_Function(mu, sigma);
 value  =  Value_base(apx_function1);
-opt_value = TD_lambda(value, 5e-4, 0.99);
+opt_value = TD_lambda(value, 1e-5, 0.99, 1);
 opt_value.constraint_enable = false;
 
 %% set policy
-% apx_function2 = Radial_Basis_Function(mu, sigma);
-apx_function2 = Dynamic_LTI_SS(gen_ss_tridiag(4,2,1));
+apx_function2 = Radial_Basis_Function(mu, sigma);
+% apx_function2 = Dynamic_LTI_SS(gen_ss_tridiag(4,2,1));
 sigma_pi = 0.5;
 policy = Stocastic_Policy(apx_function2, sigma_pi);
-% opt_policy = TD_lambda(policy, 1e-4, 0.99); % When rbf.
-opt_policy = TD_lambda(policy, 1e-9, 0);
+opt_policy = TD_lambda(policy, 1e-6, 0.99, 1); % When rbf.
+% opt_policy = TD_lambda(policy, 1e-9, 0);
 opt_policy.constraint_enable = false;
 opt_policy.target.pi_grad_enable = true;
 %%
@@ -38,6 +38,8 @@ train = AC_episodic(model, opt_policy, opt_value);
 train_seed = 28;
 Te = 2;
 train.max_episode = 3000;
+train.gamma = 0.99;
+% train.value_pretraining_period = 1000;
 initial_set = [rand(1, train.max_episode) - 0.5; zeros(1, train.max_episode)];
 [x_all, rl_u_all, policy_snapshot, value_snapshot, reward_history] = train.train(initial_set, Te, train_seed);
 
