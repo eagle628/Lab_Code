@@ -43,14 +43,21 @@ classdef optimizer < handle
             % pass function
         end
         
-        function opt(obj, data)
+        function grad = opt(obj, data)
             grad = obj.target.grad(data);
             new_params = obj.updator(grad, data);
             if obj.constraint_enable
                 if obj.constraint(new_params, data)
-                   obj.target.set_params(new_params);
-                   obj.counter = obj.counter + 1;
+                    grad = double(py.numpy.squeeze(data.delta.data).tolist)*grad;
+                    obj.target.set_params(new_params);
+                    obj.counter = obj.counter + 1;
+                else
+                    grad = grad*0;
                 end
+            else
+                grad = data.delta*grad;
+                obj.target.set_params(new_params);
+                obj.counter = obj.counter + 1;
             end
         end
         
