@@ -54,10 +54,12 @@ classdef swing_network_model < environment_model
         dynamics_B
         dynamics_C
         evaluate_C
+        dynamics_B_prime
         Q
         R
         discrete_type
         nz
+        nd
     end
 
     methods
@@ -91,28 +93,30 @@ classdef swing_network_model < environment_model
             obj.port_d_L = {strcat('d_node',num2str(c_n))};
             obj.port_control = {strcat('u_node',num2str(c_n))};
             % rect_sys
-            rect_sys = Retrofit.generate_rectifier(obj.sys_local, apx_environment);
+            rect_sys = balreal(Retrofit.generate_rectifier(obj.sys_local, apx_environment));
             % all_sys
-            sys_all = obj.sys_all({obj.port_y,obj.port_w,obj.port_v}, {obj.port_control,obj.port_d_L});
+            sys_all = balreal(obj.sys_all({obj.port_y,obj.port_w,obj.port_v}, {obj.port_control,obj.port_d_L}));
             [A2,B2,C2,D2] = ssdata(rect_sys);
             [A1,B1,C1,D1] = ssdata(sys_all);
             Ak = [A1, tools.zeros(A1, A2); B2*C1, A2];
             Bk = [B1; B2*D1];
             Ck = [D2*C1 C2];
             Dk = D2*D1;
-            RL_env_all = ss(Ak,Bk,Ck,Dk);
+            RL_env_all = balreal(ss(Ak,Bk,Ck,Dk));
             RL_env_all.OutputGroup = rect_sys.OutputGroup;
             RL_env_all.InputGroup = sys_all.InputGroup;
-            RL_env_all = c2d(RL_env_all, Ts, obj.discrete_type);
+            RL_env_all = balreal(c2d(RL_env_all, Ts, obj.discrete_type));
             obj.RL_env_all_prime = RL_env_all;
             obj.RL_env_all = RL_env_all(:, {obj.port_control});
             [obj.dynamics_A,obj.dynamics_B,obj.dynamics_C,~] = ssdata(obj.RL_env_all({'yhat','what'},:));
+            obj.dynamics_B_prime = obj.RL_env_all_prime(:, {obj.port_d_L}).B;
             [~,~,obj.evaluate_C,~] = ssdata(obj.RL_env_all({'y'},:));
             obj.state = zeros(order(obj.RL_env_all), 1);
             obj.nx = order(obj.RL_env_all);
             obj.ny = size(obj.sys_local.OutputGroup.y,2)+size(obj.sys_local.OutputGroup.w, 2);
             obj.nu = size(obj.sys_local.InputGroup.u, 2);
             obj.nz = size(obj.sys_local.OutputGroup.y,2);
+            obj.nd = size(obj.RL_env_all_prime.InputGroup.(obj.port_d_L{:}), 2);
             % weight
             obj.Q = eye(obj.nz);
             obj.R = eye(obj.nu);
@@ -120,6 +124,13 @@ classdef swing_network_model < environment_model
 
         function [ywv, r] = dynamics(obj, u)
             obj.state = obj.dynamics_A*obj.state + obj.dynamics_B*u;
+            ywv = observe(obj);
+            z = evaluate(obj);
+            r = obj.reward(z, u);
+        end
+        
+        function [ywv, r] = dynamics_prime(obj, u, d)
+            obj.state = obj.dynamics_A*obj.state + obj.dynamics_B*u + obj.dynamics_B_prime*d;
             ywv = observe(obj);
             z = evaluate(obj);
             r = obj.reward(z, u);
