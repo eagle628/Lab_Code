@@ -141,11 +141,13 @@ class linear3_net(Base_Net):
             self.l1 = L.Linear(None, n_mid_units)
             self.l2 = L.Linear(n_mid_units, n_mid_units)
             self.l3 = L.Linear(n_mid_units, n_out)
+            self.bn1 = L.BatchNormalization(n_mid_units)
+            self.bn2 = L.BatchNormalization(n_mid_units)
 
     def __call__(self, x):
         """Network foward calculation."""
-        h1 = F.relu(self.l1(x))
-        h2 = F.relu(self.l2(h1))
+        h1 = F.relu(self.bn1(self.l1(x)))
+        h2 = F.relu(self.bn2(self.l2(h1)))
         return self.l3(h2)
 
 
