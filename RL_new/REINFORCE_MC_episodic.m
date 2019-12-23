@@ -86,7 +86,7 @@ classdef REINFORCE_MC_episodic < RL_train
                 % parameter update
                 for itr1 = obj.belief_sys.accumulate_N : sim_N-1
                     delta = 0;
-                    for itr2 = itr1 : sim_N
+                    for itr2 = itr1 : sim_N-1
                         delta = delta + obj.gamma^(itr2-itr1)*reward_all(itr2);
                     end
                     data.delta = delta;
