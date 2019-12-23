@@ -48,7 +48,12 @@ classdef optimizer < handle
             new_params = obj.updator(grad, data);
             if obj.constraint_enable
                 if obj.constraint(new_params, data)
-                    grad = double(py.numpy.squeeze(data.delta.data).tolist)*grad;
+                    if ~isa(data.delta, 'double')
+                        delta = double(py.numpy.squeeze(data.delta.data).tolist);
+                    else
+                        delta = data.delta;
+                    end
+                    grad = delta*grad;
                     obj.target.set_params(new_params);
                     obj.counter = obj.counter + 1;
                 else
