@@ -128,13 +128,14 @@ classdef AC_episodic < RL_train
                         end
 %                     data.state = belief_state(:, 2);
 %                         if episode < 1
-                            obj.opt_value.opt(data);
+%                             obj.opt_value.opt(data);
 %                         end
                     end
-                    if abs(x_all(1, k)) > 0.5
-                        reward = -30;
-                        break;
-                    end
+                    % for pendulum
+%                     if abs(x_all(1, k)) > 0.5
+%                         reward = -30;
+%                         break;
+%                     end
                     % save delta
 %                     delta_history{k} = data.delta;
                 end

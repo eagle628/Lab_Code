@@ -10,7 +10,7 @@ model = pendulum_environment(l, M, g, eta, Ts);
 %% Set value
 basis_N = 11^2;
 nnn = sqrt(basis_N);
-range = [-4,4];
+range = [-2,2];
 width = (range(2)-range(1))/(nnn-1);
 m = (range(1):width:range(2))';
 range = [-2,2];
@@ -29,7 +29,7 @@ apx_function2 = Radial_Basis_Function(mu, sigma);
 sigma_pi = 0.5;
 policy = Stocastic_Policy(apx_function2, sigma_pi);
 opt_policy = TD_lambda(policy, 1e-6, 0.99, 1); % When rbf.
-% opt_policy = TD_lambda(policy, 1e-9, 0);
+% opt_policy = TD_lambda(policy, 1e-9, 0, 1);
 opt_policy.constraint_enable = false;
 opt_policy.target.pi_grad_enable = true;
 %%
@@ -37,9 +37,9 @@ train = AC_episodic(model, opt_policy, opt_value);
 
 train_seed = 28;
 Te = 2;
-train.max_episode = 3000;
+train.max_episode = 2000;
 train.gamma = 0.99;
-% train.value_pretraining_period = 1000;
+train.value_pretraining_period = 1000;
 initial_set = [rand(1, train.max_episode) - 0.5; zeros(1, train.max_episode)];
 [x_all, rl_u_all, policy_snapshot, value_snapshot, reward_history] = train.train(initial_set, Te, train_seed);
 
