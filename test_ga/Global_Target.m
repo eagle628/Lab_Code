@@ -54,26 +54,39 @@ classdef Global_Target
                 [y,~,x] = lsim(sys, ddd(:,:,iter1), []);
                 f = f + norm(y);
                 if nargin == 2 
+                    delta = sqrt(eps)^(1/3);
                     for iter2 = 1 : length(dAk)
-                        dAnew = [obj.AE+obj.BE*dDk{iter2}*obj.CE, obj.BE*dCk{iter2}; dBk{iter2}*obj.CE, dAk{iter2}];
-                        dBnew = [obj.R; tools.zeros(Ak, obj.R)];
-                        dCnew = [obj.S, tools.zeros(obj.S, Ak); dDk{iter2}*obj.CE, dCk{iter2}];
-                        dsys = balrelal(ss(Anew, [dAnew,dBnew], Cnew, [dCnew,tools.zeros(dCnew, dBnew)], obj.Ts));
-                        dy = lsim(dsys, [x, ddd(:,:,iter1)], []);
-                        grad(iter2) = grad(iter2) + sum(sum(y.*dy));
+                        one_hot = zeros(size(theta));
+                        one_hot(itr1) = 1;
+                        grad(iter2) = -(obj.eval_func(theta+delta*one_hot,ddd)-obj.eval_func(theta-delta*one_hot,ddd))/(2*delta);
                     end
                 end
             end
             f = f/size(ddd, 3);
         end
         
-        function [c, ceq] = stable_con(obj, theta)
+        function [c, ceq, Gc, Gceq] = stable_con(obj, theta)
             obj.controller.set_params(theta);
             [Ak,Bk,Ck,Dk] = obj.controller.get_ss();
             A_all = [Ak,Bk*obj.Cp; obj.Bp*Ck, obj.Ap+obj.Bp*Dk*obj.Cp];
-            pole = eig(A_all);
-            c= max(abs(pole))- 1;
+            Flag =  any(any(isnan(A_all))) || any(any(isinf(A_all)));
+            if Flag
+                pole = 100;
+            else
+                pole = eig(A_all);
+            end
+            c = max(abs(pole))- 1;
             ceq = [];
+            if nargout > 3
+                Gc = zeros(size(theta))';
+                delta = sqrt(eps)^(1/3);
+                for itr1 = 1 : length(theta)
+                    one_hot = zeros(size(theta));
+                    one_hot(itr1) = 1;
+                    Gc(itr1) = -(obj.stable_con(theta+delta*one_hot)-obj.stable_con(theta-delta*one_hot))/(2*delta);
+                end
+                Gceq = [];
+            end
         end
         
         function area_gard = finite_drivative(theta)

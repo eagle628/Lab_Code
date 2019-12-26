@@ -18,6 +18,7 @@ data.controller_struct_enable = false;
 data.train_input_form = true;
 % data.controller_gain_enable = true;
 
+%% For test
 % controller_struct_enables = [false, true];
 % train_input_forms = [false, true];
 % train_input_seeds = [1,2,3,4,5];
@@ -47,7 +48,6 @@ data.train_input_form = true;
 %     end
 % end
 
-
 % function test_func(data)
 %% define model
 % % % network version
@@ -58,6 +58,7 @@ net.add_controller(data.net_local, diag([1,1]), 1);
 sys_all_slqr = net.get_sys();
 sys_all_slqr = net.add_io(sys_all_slqr, data.net_local, 'node1');
 sys_all_slqr = net.get_sys_controlled(sys_all_slqr);
+slqr_K = net.controllers{1}.K;
 net.controllers = {};
 % ELQR
 [~, sys_env] = net.get_sys_local(data.net_local);
@@ -67,10 +68,9 @@ sys_all_elqr = net.get_sys();
 sys_all_elqr = net.add_io(sys_all_elqr, data.net_local, 'node1');
 sys_all_elqr = net.get_sys_controlled(sys_all_elqr);
 net.controllers = {};
-
 %% define controller model
 % set belief_N
-belief_N = 6;
+belief_N = 1;
 
 if data.controller_struct_enable
     env_model = gen_ss_tridiag(env_n, 1, 1);
@@ -85,7 +85,6 @@ end
 %% Constructor
 interpreter_model = observation_accumulater(model.ny, belief_N);
 Target = Global_Target(model, ss_model, interpreter_model);
-
 %% pre
 rng(data.train_input_seed)
 sim_N = 1000;
@@ -95,7 +94,6 @@ if data.train_input_form
 else
     ddd = [sim_N, 2, mean_N];
 end
-
 %% GA
 opt = optimoptions(...
                     'ga',...
@@ -113,16 +111,17 @@ theta_set = zeros(multi_startpt_number, ss_model.N);
 
 
 rng(data.pso_seed)
-% nvar = ss_model.N;
-% parfor k = 1 : multi_startpt_number
-%     while true
-%         theta = randn(1, nvar);
-%         if  stable_con(theta, Ap,Bp,Cp, ss_model) < 0
-%             break;
-%         end
-%     end
-%     theta_set(k, :) = theta;
-% end
+nvar = ss_model.N;
+con_func = @(theta)Target.stable_con(theta);
+parfor k = 1 : multi_startpt_number
+    while true
+        theta = randn(1, nvar);
+        if  con_func(theta) < 0
+            break;
+        end
+    end
+    theta_set(k, :) = theta;
+end
 tpoints = CustomStartPointSet(theta_set);
 
 
@@ -138,11 +137,24 @@ problem = createOptimProblem('fmincon',...
                 )...
     );
 
-% fmincon(problem);
+x1 = fmincon(problem);
+
+problem = createOptimProblem('fmincon',...
+    'objective',@(theta)Target.eval_func(theta, ddd),...
+    'nonlcon',@(theta)Target.stable_con(theta),...
+    'x0',theta_set(1, :), ...
+    'options',...
+    optimoptions(...
+                @fmincon,...
+                'Algorithm','interior-point',...
+                'Display','iter', ...
+                'SpecifyObjectiveGradient', true, ...
+                'SpecifyConstraintGradient', true ...
+                )...
+    );
+x2 = fmincon(problem);
 % ms = MultiStart('UseParallel',true,'Display','iter');
 % [x_multi,fval_multi,eflag_multi,output_multi,manymins_multi] = run(ms, problem, tpoints);
-
-
 %% PSO
 % rng(1024)
 % opt = optimoptions(...
@@ -158,8 +170,6 @@ problem = createOptimProblem('fmincon',...
 %                 Target.stable_con(theta) ...
 %                 );
 % [x_pso,fval_pso,exitflag_pso,output_pso] = particleswarm(target, ss_model.N, [], [], opt);
-
-%{
 %% evaluation
 % tmp = canon(balreal(c2d(balred(balreal(sys_env),2),data.Ts,'zoh')),'modal');
 % tmp_theta = diag(tmp.A);
@@ -169,11 +179,13 @@ problem = createOptimProblem('fmincon',...
 % tmp_theta = [tmp_theta;tmp.C'];
 % tmp_theta = [tmp_theta;tmp.D];
 % tmp_theta = tmp_theta';
-% x_multi = tmp_theta;
+% x_multi = tmp_theta; 
 % x_ga = tmp_theta;
-load(sprintf('test_rl_grad_belief_%d_epi1.mat',belief_N))
-x_ga = x_';
-x_multi = x_';
+% load(sprintf('test_rl_grad_belief_%d_epi1.mat',belief_N))
+% x_ga = x_';
+% x_multi = x_';
+% load 2019-12-07=23-07-54 x_ga x_pso
+x_multi = x_pso;
 
 rng(data.eval_seed)
 evaluation_N = 100;
@@ -199,12 +211,25 @@ for k = 1 : evaluation_N
     [f_ga_set(k), ~, yyy_ga_set(:,:,k)] = evaluation_func(x_ga, ddd(:,:,k));
 end
 
+disp('reward')
+mean(f_multi_set)
+mean(f_elqr_set)
+mean(f_slqr_set)
+mean(f_ga_set)
+
+sim_t = (0:sim_N-1)'*Target.Ts;
+figure,
+plot(sim_t, mean(yyy_multi_set(:,2,:),3), 'g');
+hold on
+plot(sim_t, mean(yyy_elqr_set(:,2,:),3), 'r');
+plot(sim_t, mean(yyy_slqr_set(:,2,:),3), 'b');
+plot(sim_t, mean(yyy_ga_set(:,2,:),3), 'k');
+
 % savetime = char(datetime);
 % savetime = strrep(savetime,'/','-');
 % savetime = strrep(savetime,':','-');
 % savetime = strrep(savetime,' ','=');
 % save(savetime)
-%}
 
 % end
 %%
@@ -218,31 +243,31 @@ end
 % 
 
 %%
-episode = 100;
-% load(sprintf('data_rl_n%d_grad_b%d/test_rl_grad_belief_%d_epi%d.mat',model.net.N,belief_N,belief_N, episode))
-% load(sprintf('data_rl_n%d_grad_b%d/test_rl_grad_n%d_belief_%d_epi%d.mat',model.net.N,belief_N,model.net.N,belief_N, episode))
-% load(sprintf('test_rl_grad_belief_%d_epi%d.mat',belief_N, episode))
-load(sprintf('test_rl_grad_n%d_belief_%d_epi%d.mat',model.net.N,belief_N, episode))
-x_test = x_';
-input_ = [input_',zeros(size(input_'))];
-
-step_sizes = [1e-8, -1e-8];
-opt_eval = Target.eval_func(x_test, input_);
-area_grad = zeros(1, ss_model.N, length(step_sizes));
-for ivar = 1 : ss_model.N
-one_hot = zeros(1, ss_model.N);
-one_hot(ivar) = 1;
-    for k = 1 : length(step_sizes)
-        area_grad(1, ivar, k) = Target.eval_func(x_test+one_hot*step_sizes(k), input_)-opt_eval;
-    end
-end
-cent_grad = (area_grad(:,:,1)-area_grad(:,:,2))./2e-8;
-cent_grad = cent_grad./norm(cent_grad)
-
-figure
-plot(grad(1:end-1)./norm(grad(1:end-1)))
-hold on
-plot(-cent_grad)
-legend('RL','FDM')
-title(sprintf('Episode-%d',episode))
+% episode = 100;
+% % load(sprintf('data_rl_n%d_grad_b%d/test_rl_grad_belief_%d_epi%d.mat',model.net.N,belief_N,belief_N, episode))
+% % load(sprintf('data_rl_n%d_grad_b%d/test_rl_grad_n%d_belief_%d_epi%d.mat',model.net.N,belief_N,model.net.N,belief_N, episode))
+% % load(sprintf('test_rl_grad_belief_%d_epi%d.mat',belief_N, episode))
+% load(sprintf('test_rl_grad_n%d_belief_%d_epi%d.mat',model.net.N,belief_N, episode))
+% x_test = x_';
+% input_ = [input_',zeros(size(input_'))];
+% 
+% step_sizes = [1e-8, -1e-8];
+% opt_eval = Target.eval_func(x_test, input_);
+% area_grad = zeros(1, ss_model.N, length(step_sizes));
+% for ivar = 1 : ss_model.N
+% one_hot = zeros(1, ss_model.N);
+% one_hot(ivar) = 1;
+%     for k = 1 : length(step_sizes)
+%         area_grad(1, ivar, k) = Target.eval_func(x_test+one_hot*step_sizes(k), input_)-opt_eval;
+%     end
+% end
+% cent_grad = (area_grad(:,:,1)-area_grad(:,:,2))./2e-8;
+% cent_grad = cent_grad./norm(cent_grad)
+% 
+% figure
+% plot(grad(1:end-1)./norm(grad(1:end-1)))
+% hold on
+% plot(-cent_grad)
+% legend('RL','FDM')
+% title(sprintf('Episode-%d',episode))
 %% local
