@@ -97,9 +97,11 @@ class simple_linear5_net(chainer.Chain):
     def __call__(self, x):
         """Network foward calculation."""
         h1 = F.relu(self.l1(x))
-        h2 = F.dropout(F.relu(self.l2(h1)), ratio=0.25)
+        # h2 = F.dropout(F.relu(self.l2(h1)), ratio=0.25)
+        h2 = F.dropout(F.relu(self.l2(h1)), ratio=0)
         h3 = F.relu(self.l3(h2))
-        h4 = F.dropout(F.relu(self.l4(h3)), ratio=0.25)
+        # h4 = F.dropout(F.relu(self.l4(h3)), ratio=0.25)
+        h4 = F.dropout(F.relu(self.l4(h3)), ratio=0)
         return self.l5(h4)
 
     def predict(self, x, enable_backprop):

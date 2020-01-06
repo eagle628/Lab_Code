@@ -3,15 +3,15 @@ clear
 close all
 
 %%
-data.net_seed = 6;
+data.net_seed = 8;
 data.node_number = 2;
 data.net_local = 1;
 data.Ts = 0.1;
-data.belief_N = 1;
+data.belief_N = 12;
 data.initial_controller_seed = 244;
 data.controller_state_number = 4;
 data.value_deep_net_seed = 10;
-data.value_fixed_apx_funciton_enable = true;
+data.value_fixed_apx_funciton_enable = false;
 data.value_initial_lr = 0.01;
 % data.value_initial_lr = 2e-5;
 data.value_constraint_enable = false;
@@ -19,17 +19,17 @@ data.value_trigger_enable = false;
 data.value_trigger_period = 1;
 data.value_lr_inf_lim = 0.1;
 data.policy_pi_sigma = 1000;
-% data.policy_initial_lr = 1e-5; %% for AC
-data.policy_initial_lr = 1e-14; %% for REINFORCE
+data.policy_initial_lr = 1e-6; %% for AC
+% data.policy_initial_lr = 1e-14; %% for REINFORCE
 data.policy_constraint_enable = true;
-data.policy_pi_grad_enable = true;
-data.policy_trigger_enable = true;
+data.policy_pi_grad_enable = false;
+data.policy_trigger_enable = false;
 data.policy_lr_inf_lim = 1e-2;
 data.policy_trigger_period = 1;
-data.train_seed = 128;
+data.train_seed = 28;
 data.train_initial_seed = 1024;
 data.train_Te = 50;
-data.train_max_episode = 3000;
+data.train_max_episode = 12000;
 data.train_snapshot = 100;
 data.train_fixed_apx_fucntion_period = 1;
 data.train_gamma = 1;
@@ -40,7 +40,7 @@ data.test_Te = 100;
 %% define model
 % % % network version
 net = network_swing_simple(data.node_number, [1,2], [2,12]*1e-3, 1, [0.1,6], 0.8, data.net_seed);
-% net.Adj_ref = net.Adj_ref*0;
+net.Adj_ref = net.Adj_ref*0;
 % set model
 % [~, sys_env] = net.get_sys_local(data.net_local);
 % model = swing_network_model(net, data.net_local, data.Ts, c2d(sys_env,data.Ts));
@@ -165,14 +165,14 @@ policy_lr_inf_lim = data.policy_lr_inf_lim;
 opt_policy.trigger_period = data.policy_trigger_period;
 opt_policy.trigger_form = @(x) decay(x, policy_lr_inf_lim, 1, (policy_initial_lr-policy_lr_inf_lim)/1000);
 %% define train class
-% train = AC_episodic_for_net(model, opt_policy, opt_value, recorder_sys);
-train = REINFORCE_MC_episodic_for_net(model, opt_policy, recorder_sys);
+train = AC_episodic_for_net(model, opt_policy, opt_value, recorder_sys);
+% train = REINFORCE_MC_episodic_for_net(model, opt_policy, recorder_sys);
 %% train contdition
 train.render_enable = data.train_render_enable;
 train.max_episode = data.train_max_episode;
 train.snapshot = data.train_snapshot;
-% train.fixed_apx_function_period = data.train_fixed_apx_fucntion_period; %% For AC
-% train.value_pretraining_period = 1000; % Fir AC
+train.fixed_apx_function_period = data.train_fixed_apx_fucntion_period; %% For AC
+train.value_pretraining_period = 1000; % For AC
 train.gamma = data.train_gamma;
 train_initial_set = zeros(model.nx, train.max_episode);
 rng(data.train_initial_seed)

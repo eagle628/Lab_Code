@@ -54,10 +54,10 @@
 %%
 clear
 
-% store1 = load('tmp1');
-% store2 = load('tmp2');
-store1 = load('tmp3');
-store2 = load('tmp4');
+store1 = load('tmp1');
+store2 = load('tmp2');
+% store1 = load('tmp3');
+% store2 = load('tmp4');
 
 max_length = max([length(store1.dataset_ga),length(store1.dataset_multi),length(store2.dataset_ga),length(store2.dataset_multi)]);
 

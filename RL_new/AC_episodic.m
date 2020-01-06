@@ -123,12 +123,12 @@ classdef AC_episodic < RL_train
                         delta_set(k) = double(py.numpy.squeeze(data.delta.data).tolist);
                     end
                     if k > obj.belief_sys.accumulate_N
-                        if episode > obj.value_pretraining_period
+%                         if episode > obj.value_pretraining_period
                             grad = grad + obj.opt_policy.opt(data);
-                        end
+%                         end
 %                     data.state = belief_state(:, 2);
 %                         if episode < 1
-%                             obj.opt_value.opt(data);
+                            obj.opt_value.opt(data);
 %                         end
                     end
                     % for pendulum

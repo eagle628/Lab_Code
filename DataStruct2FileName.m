@@ -2,7 +2,7 @@ function filename = DataStruct2FileName(data)
     params_labels = fieldnames(data);
     params_values = cell(size(params_labels));
     for k = 1 : length(params_labels)
-        params_values{k} = strcat('+', value2char(params_labels{k}, data.(params_labels{k})), '*');
+        params_values{k} = strcat('+', value2char(params_labels{k}, data.(params_labels{k})), '-');
     end
     params = cell(1, 2*length(params_labels));
     params(1:2:end) = params_labels;
@@ -32,5 +32,5 @@ function chr = value2char(label, value)
     end
     % General numerical value
     chr = sprintf('%0.5e', value);
-    chr = strrep(chr,'.','*');
+    chr = strrep(chr,'.','_');
 end
