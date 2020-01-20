@@ -6,7 +6,7 @@ classdef  REINFORCE_MC_episodic_for_net < REINFORCE_MC_episodic
     
     methods
         function obj = REINFORCE_MC_episodic_for_net(model, opt_policy, belief_sys)
-            if nargin < 4
+            if nargin < 3
                 belief_sys = [];
             end
             obj@REINFORCE_MC_episodic(model, opt_policy, belief_sys);
@@ -21,6 +21,8 @@ classdef  REINFORCE_MC_episodic_for_net < REINFORCE_MC_episodic
             else
                 if length(d) == 1
                     rng(d)
+%                     d = zeros(obj.model.nd, length(t));
+%                     d(2, :) = obj.opt_policy.target.pi_sigma^2*randn(1, length(t));
                     d = randn(obj.model.nd, length(t));
                 end
             end
@@ -59,6 +61,8 @@ classdef  REINFORCE_MC_episodic_for_net < REINFORCE_MC_episodic
             else
                 if length(d) == 1
                     rng(d)
+%                     d = zeros(obj.model.nd, length(t));
+%                     d(2, :) = obj.opt_policy.target.pi_sigma^2*randn(1, length(t));
                     d = randn(obj.model.nd, length(t));
                 end
             end
@@ -111,6 +115,8 @@ classdef  REINFORCE_MC_episodic_for_net < REINFORCE_MC_episodic
             else
                 if length(d) == 1
                     rng(d)
+%                     d = zeros(obj.model.nd, length(t));
+%                     d(2, :) = obj.opt_policy.target.pi_sigma^2*randn(1, length(t));
                     d = randn(obj.model.nd, length(t));
                 end
             end
@@ -134,6 +140,8 @@ classdef  REINFORCE_MC_episodic_for_net < REINFORCE_MC_episodic
             else
                 if size(d) == 1
                     rng(d)
+%                     d = zeros(obj.model.nd, length(t));
+%                     d(2, :) = obj.opt_policy.target.pi_sigma^2*randn(1, length(t));
                     d = randn(obj.model.nd, length(t));
                 end
             end

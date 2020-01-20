@@ -17,11 +17,13 @@ classdef  AC_episodic_for_net < AC_episodic
             sim_N = Te/obj.model.Ts + 1;
             t = (0:obj.model.Ts:Te)';
             if nargin < 4 || isempty(d)
-                d = zeros(obj.model.nd, sim_N);
+                d = zeros(obj.model.nd, length(t));
             else
                 if length(d) == 1
                     rng(d)
-                    d = randn(obj.model.nd, length(t));
+%                     d = zeros(obj.model.nd, length(t));
+%                     d(2, :) = obj.opt_policy.target.pi_sigma^2*randn(1, length(t));
+                    d = obj.opt_policy.target.pi_sigma*randn(obj.model.nd, length(t));
                 end
             end
             x_all = nan(obj.model.nx, sim_N);
@@ -59,7 +61,9 @@ classdef  AC_episodic_for_net < AC_episodic
             else
                 if length(d) == 1
                     rng(d)
-                    d = randn(obj.model.nd, length(t));
+%                     d = zeros(obj.model.nd, length(t));
+%                     d(2, :) = obj.opt_policy.target.pi_sigma^2*randn(1, length(t));
+                    d = obj.opt_policy.target.pi_sigma*randn(obj.model.nd, length(t));
                 end
             end
             obj.model.net.add_controller(obj.model.c_n, Q, R);
@@ -111,7 +115,9 @@ classdef  AC_episodic_for_net < AC_episodic
             else
                 if length(d) == 1
                     rng(d)
-                    d = randn(obj.model.nd, length(t));
+%                     d = zeros(obj.model.nd, length(t));
+%                     d(2, :) = obj.opt_policy.target.pi_sigma^2*randn(1, length(t));
+                    d = obj.opt_policy.target.pi_sigma*randn(obj.model.nd, length(t));
                 end
             end
             sys_all = obj.model.sys_all(obj.model.port_y, obj.model.port_d_L);
@@ -134,7 +140,9 @@ classdef  AC_episodic_for_net < AC_episodic
             else
                 if size(d) == 1
                     rng(d)
-                    d = randn(obj.model.nd, length(t));
+%                     d = zeros(obj.model.nd, length(t));
+%                     d(2, :) = obj.opt_policy.target.pi_sigma^2*randn(1, length(t));
+                    d = obj.opt_policy.target.pi_sigma*randn(obj.model.nd, length(t));
                 end
             end
             obj.model.net.add_controller(obj.model.c_n, balred(obj.model.sys_env,apx_env_dim), Q, R);

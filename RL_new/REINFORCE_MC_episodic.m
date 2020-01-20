@@ -84,12 +84,14 @@ classdef REINFORCE_MC_episodic < RL_train
                     belief_state_all(:, k+1) = obj.belief_sys.estimate(y_all(:, k+1));
                 end
                 % parameter update
+                baseline = mean(reward_all);
                 for itr1 = obj.belief_sys.accumulate_N : sim_N-1
-                    delta = 0;
-                    for itr2 = itr1 : sim_N-1
-                        delta = delta + obj.gamma^(itr2-itr1)*reward_all(itr2);
-                    end
-                    data.delta = delta;
+%                     delta = 0;
+%                     for itr2 = itr1 : sim_N-1
+%                         delta = delta + obj.gamma^(itr2-itr1)*reward_all(itr2);
+%                     end
+%                     data.delta = obj.gamma^(itr1-1)*delta;
+                    data.delta = reward_all(itr1);
                     data.state = belief_state_all(:, itr1);
                     data.pre_input = rl_u_all(:, k);
                     data.pre_input_mu = rl_u_k_all(:, itr1);
